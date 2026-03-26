@@ -1,0 +1,71 @@
+@use '../styles/variables' as *;
+
+.paginationContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    padding: 15px 0;
+    border-top: 1px solid #eee;
+}
+
+.paginationInfo {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.pagination {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.pageBtn {
+    padding: 8px 14px;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #333;
+    transition: all 0.2s;
+
+    &:hover:not(:disabled) {
+        background: #f8f9fa;
+        border-color: $primary-color;
+        color: $primary-color;
+    }
+
+    &.active {
+        background: $primary-color;
+        color: white;
+        border-color: $primary-color;
+        font-weight: bold;
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+.ellipsis {
+    padding: 0 8px;
+    color: #999;
+}
+
+@media (max-width: 768px) {
+    .paginationContainer {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .paginationInfo {
+        font-size: 0.85rem;
+    }
+
+    .pageBtn {
+        padding: 6px 10px;
+        font-size: 0.85rem;
+    }
+}

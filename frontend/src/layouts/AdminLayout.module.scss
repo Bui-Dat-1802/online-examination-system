@@ -1,0 +1,108 @@
+@use '../styles/variables' as *;
+
+.layout {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    background-color: #f5f7fa;
+    font-family: $primary-font;
+    overflow: hidden;
+}
+
+/* Sidebar Admin - Màu tối hơn hoặc khác biệt */
+.sidebar {
+    width: 260px;
+    background-color: #1a202c;
+    /* Màu đen xám */
+    color: white;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    z-index: 10;
+    box-shadow: 4px 0 10px rgba(0, 0, 0, 0.05);
+}
+
+.logo {
+    height: 70px;
+    display: flex;
+    align-items: center;
+    padding: 0 25px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+    span {
+        color: #e74c3c;
+        margin-left: 5px;
+    }
+
+    /* Màu đỏ cho Admin */
+}
+
+.nav {
+    flex: 1;
+    padding: 20px 0;
+    overflow-y: auto;
+
+    a {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 15px 25px;
+        color: #cbd5e0;
+        text-decoration: none;
+        transition: 0.3s;
+        border-left: 4px solid transparent;
+        font-weight: 500;
+
+        &:hover,
+        &.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-left-color: #e74c3c;
+        }
+
+        i {
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+    }
+}
+
+.sidebarFooter {
+    padding: 20px;
+
+    button {
+        width: 100%;
+        padding: 12px;
+        background: #c0392b;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+
+        &:hover {
+            background: #e74c3c;
+        }
+    }
+}
+
+.mainWrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.pageContent {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+    position: relative;
+}

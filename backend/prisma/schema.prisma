@@ -1,0 +1,354 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "windows", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model accommodation {
+  id               String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id          String        @db.Uuid
+  exam_instance_id String        @db.Uuid
+  extra_seconds    Int           @default(0)
+  notes            String?
+  created_at       DateTime      @default(now()) @db.Timestamptz(6)
+  exam_instance    exam_instance @relation(fields: [exam_instance_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user             user          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, exam_instance_id], map: "idx_accom_user_exam")
+}
+
+model answer {
+  id              String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  exam_session_id String           @db.Uuid
+  question_id     String           @db.Uuid
+  choice_id       String?          @db.Uuid
+  selected_choice_ids String[]     @db.Uuid
+  answered_at     DateTime         @default(now()) @db.Timestamptz(6)
+  question_choice question_choice? @relation(fields: [choice_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exam_session    exam_session     @relation(fields: [exam_session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  question        question         @relation(fields: [question_id], references: [id], onUpdate: NoAction)
+
+  @@unique([exam_session_id, question_id])
+  @@index([exam_session_id], map: "idx_answer_session")
+}
+
+model audit_log {
+  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  event_type      String
+  exam_session_id String?       @db.Uuid
+  user_id         String?       @db.Uuid
+  payload         Json?
+  source_ip       String?       @db.Inet
+  user_agent      String?
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  exam_session    exam_session? @relation(fields: [exam_session_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user            user?         @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([event_type], map: "idx_audit_event")
+  @@index([exam_session_id], map: "idx_audit_session")
+  @@index([user_id], map: "idx_audit_user")
+}
+
+model auth_role {
+  id   String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name String @unique
+  user user[]
+}
+
+/// This model has been renamed to 'Renamedclass' during introspection, because the original name 'class' is reserved.
+model Renamedclass {
+  id                 String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  teacher_id         String               @db.Uuid
+  name               String
+  code               String               
+  description        String?
+  is_deleted         Boolean              @default(false)
+  deleted_at         DateTime?            @db.Timestamptz(6)
+  deleted_by         String?              @db.Uuid
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime             @default(now()) @db.Timestamptz(6)
+  user               user                 @relation(fields: [teacher_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  enrollment_request enrollment_request[]
+  exam_template      exam_template[]
+
+  @@unique([teacher_id, code])
+  @@index([teacher_id], map: "idx_class_teacher")
+  @@index([is_deleted], map: "idx_class_deleted")
+  @@map("class")
+}
+
+model enrollment_request {
+  id                                        String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  class_id                                  String            @db.Uuid
+  student_id                                String            @db.Uuid
+  status                                    enrollment_status @default(pending)
+  note                                      String?
+  requested_at                              DateTime          @default(now()) @db.Timestamptz(6)
+  reviewed_at                               DateTime?         @db.Timestamptz(6)
+  reviewed_by                               String?           @db.Uuid
+  Renamedclass                              Renamedclass      @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user_enrollment_request_reviewed_byTouser user?             @relation("enrollment_request_reviewed_byTouser", fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user_enrollment_request_student_idTouser  user              @relation("enrollment_request_student_idTouser", fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([class_id, student_id])
+  @@index([class_id], map: "idx_enrollment_class")
+  @@index([student_id], map: "idx_enrollment_student")
+}
+
+model exam_instance {
+  id            String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  template_id   String          @db.Uuid
+  starts_at     DateTime        @db.Timestamptz(6)
+  ends_at       DateTime        @db.Timestamptz(6)
+  published     Boolean         @default(false)
+  created_by    String?         @db.Uuid
+  show_answers  Boolean         @default(false)
+  is_deleted    Boolean         @default(false)
+  deleted_at    DateTime?       @db.Timestamptz(6)
+  deleted_by    String?         @db.Uuid
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  accommodation accommodation[]
+  user          user?           @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exam_template exam_template   @relation(fields: [template_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  exam_question exam_question[]
+  exam_session  exam_session[]
+
+  @@index([starts_at], map: "idx_exam_instance_starts")
+  @@index([template_id], map: "idx_exam_instance_template")
+  @@index([is_deleted], map: "idx_exam_instance_deleted")
+}
+
+model exam_question {
+  id               String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  exam_instance_id String        @db.Uuid
+  question_id      String        @db.Uuid
+  ordinal          Int           @default(0)
+  points           Decimal       @default(1.00) @db.Decimal(6, 2)
+  exam_instance    exam_instance @relation(fields: [exam_instance_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  question         question      @relation(fields: [question_id], references: [id], onUpdate: NoAction)
+
+  @@unique([exam_instance_id, question_id])
+  @@index([exam_instance_id], map: "idx_exam_question_exam")
+}
+
+model exam_session {
+  id                String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  exam_instance_id  String         @db.Uuid
+  user_id           String         @db.Uuid
+  token             String         @unique
+  started_at        DateTime?      @db.Timestamptz(6)
+  ends_at           DateTime?      @db.Timestamptz(6)
+  state             session_state  @default(pending)
+  ip_binding        String?        @db.Inet
+  ua_hash           String?
+  allowed_tab_id    String?        @db.Uuid
+  focus_lost_count  Int            @default(0)
+  last_heartbeat_at DateTime?      @db.Timestamptz(6)
+  created_at        DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime       @default(now()) @db.Timestamptz(6)
+  answer            answer[]
+  audit_log         audit_log[]
+  exam_instance     exam_instance  @relation(fields: [exam_instance_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user              user           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  session_flag      session_flag[]
+  submission        submission[]
+
+  @@unique([exam_instance_id, user_id])
+  @@index([exam_instance_id], map: "idx_exam_session_exam")
+  @@index([token], map: "idx_exam_session_token")
+  @@index([user_id], map: "idx_exam_session_user")
+}
+
+model exam_template {
+  id                        String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  class_id                  String          @db.Uuid
+  title                     String
+  description               String?
+  duration_seconds          Int
+  shuffle_questions         Boolean         @default(false)
+  passing_score             Decimal?        @db.Decimal(5, 2)
+  created_by                String?         @db.Uuid
+  is_deleted                Boolean         @default(false)
+  deleted_at                DateTime?       @db.Timestamptz(6)
+  deleted_by                String?         @db.Uuid
+  created_at                DateTime        @default(now()) @db.Timestamptz(6)
+  exam_instance             exam_instance[]
+  Renamedclass              Renamedclass    @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user                      user?           @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([class_id], map: "idx_exam_template_class")
+  @@index([is_deleted], map: "idx_exam_template_deleted")
+}
+
+
+
+
+
+model question {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  owner_id        String            @db.Uuid
+  text            String
+  explanation     String?
+  tags            String[]          @default([])
+  difficulty      difficulty_level? @default(medium)
+  is_deleted      Boolean           @default(false)
+  deleted_at      DateTime?         @db.Timestamptz(6)
+  deleted_by      String?           @db.Uuid
+  created_at      DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime          @default(now()) @db.Timestamptz(6)
+  answer          answer[]
+  exam_question   exam_question[]
+  user            user              @relation(fields: [owner_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  question_choice question_choice[]
+
+  @@index([owner_id], map: "idx_question_owner")
+  @@index([tags], map: "idx_question_tags", type: Gin)
+  @@index([is_deleted], map: "idx_question_deleted")
+}
+
+model question_choice {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  question_id String   @db.Uuid
+  label       String?
+  order       Int      @default(0)
+  text        String
+  is_correct  Boolean  @default(false)
+  answer      answer[]
+  question    question @relation(fields: [question_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([question_id], map: "idx_choice_question")
+}
+
+
+
+
+model session_flag {
+  id              String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  exam_session_id String       @db.Uuid
+  flag_type       String
+  details         Json?
+  flagged_by      String?      @db.Uuid
+  created_at      DateTime     @default(now()) @db.Timestamptz(6)
+  exam_session    exam_session @relation(fields: [exam_session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user            user?        @relation(fields: [flagged_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([exam_session_id], map: "idx_session_flag_session")
+}
+
+model submission {
+  id              String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  exam_session_id String           @db.Uuid
+  score           Decimal          @default(0) @db.Decimal(8, 2)
+  max_score       Decimal          @default(0) @db.Decimal(8, 2)
+  graded_at       DateTime?        @db.Timestamptz(6)
+  graded_by       String?          @db.Uuid
+  details         Json?
+  created_at      DateTime         @default(now()) @db.Timestamptz(6)
+  exam_session    exam_session     @relation(fields: [exam_session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user            user?            @relation(fields: [graded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([exam_session_id], map: "idx_submission_session")
+}
+
+model user {
+  id                                                      String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email                                                   String               @unique
+  name                                                    String
+  password_hash                                           String
+  role_id                                                 String               @db.Uuid
+  is_active                                               Boolean              @default(true)
+  created_at                                              DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at                                              DateTime             @default(now()) @db.Timestamptz(6)
+  last_login_at                                           DateTime?            @db.Timestamptz(6)
+  bio                                                     String?
+  accommodation                                           accommodation[]
+  admin_action                                            admin_action[]
+  audit_log                                               audit_log[]
+  Renamedclass                                            Renamedclass[]
+  enrollment_request_enrollment_request_reviewed_byTouser enrollment_request[] @relation("enrollment_request_reviewed_byTouser")
+  enrollment_request_enrollment_request_student_idTouser  enrollment_request[] @relation("enrollment_request_student_idTouser")
+  exam_instance                                           exam_instance[]
+  exam_session                                            exam_session[]
+  exam_template                                           exam_template[]
+  question                                                question[]
+  refresh_token                                           refresh_token[]
+  session_flag                                            session_flag[]
+  submission                                              submission[]
+  auth_role                                               auth_role            @relation(fields: [role_id], references: [id], onUpdate: NoAction)
+
+  reset_otp_hash                                          String?
+  reset_otp_expires                                       DateTime?            @db.Timestamptz(6)
+  @@index([role_id], map: "idx_user_role")
+}
+
+model refresh_token {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id    String   @db.Uuid
+  token_hash String   @unique
+  ip         String?  @db.Inet
+  revoked    Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  expires_at DateTime @db.Timestamptz(6)
+  user       user     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([expires_at], map: "idx_refresh_token_expires")
+  @@index([user_id], map: "idx_refresh_token_user")
+}
+
+enum difficulty_level {
+  easy
+  medium
+  hard
+}
+
+enum enrollment_status {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+enum session_state {
+  pending
+  started
+  submitted
+  expired
+  locked
+}
+
+model pending_user {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email         String   @unique
+  name          String
+  password_hash String
+  role_id       String
+
+  otp_hash      String
+  otp_expires_at DateTime
+  otp_used      Boolean  @default(false)
+  otp_attempts  Int      @default(0)
+
+  created_at    DateTime @default(now())
+}
+
+model admin_action {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  admin_id    String    @db.Uuid
+  action_type String
+  target_type String?
+  target_id   String?   @db.Uuid
+  description String?
+  metadata    Json?
+  ip_address  String?   @db.Inet
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  user        user      @relation(fields: [admin_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([admin_id], map: "idx_admin_action_admin")
+  @@index([action_type], map: "idx_admin_action_type")
+  @@index([created_at], map: "idx_admin_action_created")
+}
+

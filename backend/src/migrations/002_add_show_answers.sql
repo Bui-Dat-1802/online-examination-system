@@ -1,0 +1,5 @@
+ALTER TABLE exam_instance
+ADD COLUMN IF NOT EXISTS show_answers BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE answer
+  ALTER COLUMN choice_id DROP NOT NULL,
+  ADD COLUMN IF NOT EXISTS selected_choice_ids UUID[] NOT NULL DEFAULT '{}'::uuid[];

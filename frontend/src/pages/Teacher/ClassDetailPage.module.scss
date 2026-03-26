@@ -1,0 +1,533 @@
+@use '../../styles/variables' as *;
+
+// --- CSS RIÊNG CHO TRANG CHI TIẾT ---
+
+.contentBody {
+    padding: 30px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.backLink {
+    margin-bottom: 20px;
+
+    a {
+        text-decoration: none;
+        color: $secondary-text-color;
+        font-weight: 600;
+
+        &:hover {
+            color: $primary-color;
+        }
+    }
+}
+
+.infoCard {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    margin-bottom: 30px;
+}
+
+.infoHeader {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 10px;
+
+    h2 {
+        margin: 0;
+        color: $text-color;
+    }
+}
+
+.codeTag {
+    background-color: #e3f2fd;
+    color: #1565c0;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-family: monospace;
+    font-weight: bold;
+    font-size: 1.1rem;
+    border: 1px dashed #1565c0;
+}
+
+.description {
+    color: $secondary-text-color;
+    margin-bottom: 20px;
+    font-size: 1rem;
+}
+
+.metaInfo {
+    display: flex;
+    gap: 30px;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.studentSection {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+
+    h3 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 15px;
+    }
+}
+
+.studentTable {
+    width: 100%;
+    border-collapse: collapse;
+
+    th {
+        text-align: left;
+        padding: 12px;
+        background-color: #f8f9fa;
+        color: #666;
+        font-weight: 600;
+    }
+
+    td {
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+    }
+}
+
+.statusBadge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+
+    &.approved {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+    }
+
+    &.pending {
+        background-color: #fff3e0;
+        color: #ef6c00;
+    }
+}
+
+.removeBtn {
+    background: none;
+    border: 1px solid #ffcdd2;
+    color: #c62828;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+
+    &:hover {
+        background-color: #ffebee;
+    }
+}
+
+.emptyText {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+}
+
+.loading,
+.error {
+    padding: 50px;
+    text-align: center;
+    font-size: 1.2rem;
+}
+
+/* --- CSS CHO CHUÔNG THÔNG BÁO --- */
+.notificationWrapper {
+    position: relative; // Để dropdown căn theo cái chuông
+    margin-left: auto; // Đẩy chuông sang phải cùng của header
+}
+
+.bellIcon {
+    font-size: 1.5rem;
+    color: #555;
+    cursor: pointer;
+    position: relative;
+    padding: 5px;
+    transition: 0.3s;
+
+    &:hover {
+        color: $primary-color;
+    }
+}
+
+.badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: #dc3545; // Màu đỏ
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    height: 18px;
+    width: 18px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 2px solid white;
+}
+
+/* --- DROPDOWN --- */
+.dropdown {
+    position: absolute;
+    top: 40px;
+    right: 0;
+    width: 350px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    border: 1px solid #eee;
+    z-index: 100;
+    animation: fadeIn 0.2s;
+
+    &::before {
+        // Mũi tên nhọn chỉ lên
+        content: '';
+        position: absolute;
+        top: -6px;
+        right: 10px;
+        width: 12px;
+        height: 12px;
+        background: white;
+        transform: rotate(45deg);
+        border-top: 1px solid #eee;
+        border-left: 1px solid #eee;
+    }
+}
+
+.dropdownHeader {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+
+    h4 {
+        margin: 0;
+        font-size: 1rem;
+        color: $text-color;
+    }
+}
+
+.dropdownBody {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.emptyNoti {
+    padding: 20px;
+    text-align: center;
+    color: #999;
+    font-size: 0.9rem;
+}
+
+.requestItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 12px 15px;
+    border-bottom: 1px solid #f5f5f5;
+    transition: background 0.2s;
+
+    &:hover {
+        background-color: #f9f9f9;
+    }
+
+    &:last-child {
+        border-bottom: none;
+    }
+}
+
+.reqInfo {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.9rem;
+
+    strong {
+        color: $text-color;
+    }
+}
+
+.reqEmail {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.reqNote {
+    margin: 4px 0;
+    font-style: italic;
+    color: #555;
+    background: #fff3cd;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    display: inline-block;
+}
+
+.reqTime {
+    font-size: 0.75rem;
+    color: #999;
+    margin-top: 2px;
+}
+
+.reqActions {
+    display: flex;
+    gap: 5px;
+
+    button {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        transition: 0.2s;
+
+        &.btnApprove {
+            background-color: #e9f9ee;
+            color: #28a745;
+
+            &:hover {
+                background-color: #28a745;
+                color: white;
+            }
+        }
+
+        &.btnReject {
+            background-color: #ffebee;
+            color: #dc3545;
+
+            &:hover {
+                background-color: #dc3545;
+                color: white;
+            }
+        }
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.btnPrimary {
+  background: #0d6efd;
+  border: 1px solid #0d6efd;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+
+  &:hover {
+    background: #0b5ed7;
+  }
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.actionBtn {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+  }
+}
+
+/* Modal (create template) */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 200;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  width: 520px;
+  max-width: calc(100% - 40px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+/* Template item inside modal */
+.templateItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.templateInfo {
+  max-width: calc(100% - 140px);
+}
+
+.templateTitle {
+  font-weight: 700;
+}
+
+.templateDesc {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.templateMeta {
+  font-size: 0.8rem;
+  color: #999;
+  margin-top: 6px;
+}
+
+.templateActions {
+  display: flex;
+  align-items: center;
+}
+
+/* Slightly wider modal when needed */
+.modalContent.wide {
+  width: 800px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .contentBody {
+    padding: 16px;
+  }
+
+  .infoCard {
+    padding: 16px;
+  }
+
+  .infoHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .infoHeader h2 {
+    font-size: 1.2rem;
+  }
+
+  .codeTag {
+    font-size: 0.95rem;
+    padding: 4px 8px;
+  }
+
+  .headerActions {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .actionBtn {
+    flex: 1 1 auto;
+    width: auto;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+  }
+
+  .notificationWrapper {
+    margin-left: 0;
+    margin-top: 6px;
+    align-self: flex-end;
+  }
+
+  .modalContent {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 0;
+    padding: 12px;
+    box-shadow: none;
+    overflow: auto;
+  }
+
+  .studentSection {
+    padding: 16px;
+  }
+
+  .metaInfo {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .studentTable {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .studentTable th,
+  .studentTable td {
+    white-space: nowrap;
+    min-width: 120px;
+  }
+
+  /* Template item becomes stacked on small screens */
+  .templateItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .templateActions {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 420px) {
+  .actionBtn {
+    font-size: 0.85rem;
+    padding: 8px 10px;
+  }
+
+  .codeTag {
+    font-size: 0.85rem;
+  }
+
+  .modalContent {
+    padding: 10px;
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "it4409-2025.1",
+  "version": "1.0.0",
+  "description": "* Nhóm 4 người : Ngô Đức Đại - 20225272 Bùi Xuân Đạt - 20225274 Vũ Việt Cường - 20225270 Hoàng Hải Đăng - 20225174",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cuongvu513/IT4409-2025.1.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cuongvu513/IT4409-2025.1/issues"
+  },
+  "homepage": "https://github.com/cuongvu513/IT4409-2025.1#readme",
+  "dependencies": {
+    "@prisma/client": "^6.19.0",
+    "@xmldom/xmldom": "^0.8.11",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "jszip": "^3.10.1",
+    "mammoth": "^1.12.0",
+    "morgan": "^1.10.1",
+    "nodemailer": "^7.0.11",
+    "pdf-parse": "^2.4.5",
+    "pg": "^8.16.3",
+    "socket.io": "^4.8.1",
+    "uuid": "^13.0.0",
+    "xpath": "^0.0.34"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10",
+    "prisma": "^6.19.0"
+  }
+}

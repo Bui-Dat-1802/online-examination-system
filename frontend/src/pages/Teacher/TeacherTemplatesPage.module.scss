@@ -1,0 +1,280 @@
+/* src/pages/Teacher/TeacherTemplatesPage.module.scss */
+@use '../../styles/variables' as *;
+
+/* CSS Riêng */
+.contentBody {
+    padding: 30px;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.pageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+
+    h2 {
+        margin: 0;
+        color: $text-color;
+    }
+}
+
+.createBtn {
+    background-color: $primary-color;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+
+    &:hover {
+        background-color: $primary-color-dark;
+    }
+}
+
+.tableContainer {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    overflow: hidden;
+}
+
+.dataTable {
+    width: 100%;
+    border-collapse: collapse;
+
+    th {
+        text-align: left;
+        padding: 15px;
+        background: #f8f9fa;
+        color: #666;
+        font-weight: 600;
+    }
+
+    td {
+        padding: 15px;
+        border-bottom: 1px solid #eee;
+    }
+}
+
+.tagYes {
+    background: #e9f9ee;
+    color: #28a745;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.tagNo {
+    background: #f1f3f5;
+    color: #666;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+/* Modal */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modalContent {
+    background: white;
+    width: 90%;
+    max-width: 600px;
+    border-radius: 8px;
+    padding: 25px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+
+    button {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+}
+
+.formGroup {
+    margin-bottom: 15px;
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    input,
+    textarea,
+    select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        box-sizing: border-box;
+    }
+}
+
+.row {
+    display: flex;
+    gap: 15px;
+
+    >div {
+        flex: 1;
+    }
+}
+
+.checkboxLabel {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+
+    input {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+
+    button {
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: none;
+        font-weight: bold;
+    }
+
+    .btnCancel {
+        background: #eee;
+    }
+
+    .btnSubmit {
+        background: $primary-color;
+        color: white;
+    }
+}
+
+.actionButtons {
+    display: flex;
+    gap: 8px;
+}
+
+.btnIcon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: 0.2s;
+    background-color: white;
+    border: 1px solid #ddd;
+
+    i {
+        font-size: 0.9rem;
+    }
+}
+
+.btnEdit {
+    &:hover {
+        background-color: #fff3cd;
+        border-color: #ffeeba;
+
+        i {
+            color: #856404 !important;
+        }
+
+        // Ép màu vàng đậm khi hover
+    }
+}
+
+.btnDelete {
+    &:hover {
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+
+        i {
+            color: #721c24 !important;
+        }
+
+        // Ép màu đỏ đậm khi hover
+    }
+}
+
+pageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+/* Style cho thanh tìm kiếm */
+.searchBox {
+    display: flex;
+    align-items: center;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    /* Bo tròn đẹp hơn */
+    padding: 5px 15px;
+    width: 350px;
+    /* Độ rộng vừa phải */
+    transition: box-shadow 0.3s;
+
+    &:focus-within {
+        border-color: $primary-color;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    }
+
+    input {
+        border: none;
+        outline: none;
+        flex: 1;
+        padding: 8px 0;
+        font-size: 0.95rem;
+        color: $text-color;
+    }
+
+    button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: $secondary-text-color;
+        font-size: 1rem;
+        padding: 5px;
+        transition: color 0.2s;
+
+        &:hover {
+            color: $primary-color;
+        }
+    }
+}

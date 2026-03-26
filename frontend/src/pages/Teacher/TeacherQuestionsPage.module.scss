@@ -1,0 +1,438 @@
+@use '../../styles/variables' as *;
+
+/* --- CSS RIÊNG --- */
+.contentBody {
+    padding: 30px;
+    max-width: 1000px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.pageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+
+    h2 {
+        margin: 0;
+        color: $text-color;
+    }
+}
+
+.createBtn {
+    background-color: $primary-color;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+
+    &:hover {
+        background-color: $primary-color-dark;
+    }
+}
+
+/* Question List */
+.questionList {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.questionCard {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+    border: 1px solid #eee;
+
+    &:hover {
+        border-color: $primary-color;
+    }
+}
+
+.qHeader {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.qIndex {
+    font-weight: bold;
+    color: $secondary-text-color;
+    font-size: 0.9rem;
+}
+
+.badge {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: bold;
+
+    &.easy {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+
+    &.medium {
+        background: #fff3e0;
+        color: #ef6c00;
+    }
+
+    &.hard {
+        background: #ffebee;
+        color: #c62828;
+    }
+}
+
+.qText {
+    font-size: 1.1rem;
+    color: $text-color;
+    margin: 0 0 10px 0;
+    font-weight: 500;
+}
+
+.qTags {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 10px;
+
+    span {
+        font-size: 0.8rem;
+        background: #f1f1f1;
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: #666;
+    }
+}
+
+.qFooter {
+    font-size: 0.9rem;
+    color: #444;
+    border-top: 1px solid #f5f5f5;
+    padding-top: 10px;
+}
+
+/* Modal & Form */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modalContent {
+    background: white;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    border-radius: 8px;
+    padding: 25px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+
+    button {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+}
+
+.formScroll {
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.formGroup {
+    margin-bottom: 15px;
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    input,
+    textarea,
+    select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        box-sizing: border-box;
+    }
+}
+
+.row {
+    display: flex;
+    gap: 15px;
+
+    >div {
+        flex: 1;
+    }
+}
+
+.choiceRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 10px;
+
+    input[type="radio"],
+    input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+
+    input[type="text"] {
+        flex: 1;
+    }
+}
+
+.correctInput {
+    border-color: $success-color !important;
+    background-color: #f0fff4;
+    font-weight: 500;
+}
+
+// Preview boxes for LaTeX
+.previewBox {
+    margin-top: 10px;
+    padding: 12px;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 0.95rem;
+
+    strong {
+        display: block;
+        margin-bottom: 8px;
+        color: #495057;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+}
+
+.choicePreview {
+    margin-top: 6px;
+    padding: 8px;
+    background-color: #f8f9fa;
+    border-left: 3px solid #dee2e6;
+    font-size: 0.9rem;
+}
+
+.removeChoiceBtn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+
+    &:hover {
+        background-color: #c82333;
+        transform: scale(1.1);
+    }
+}
+
+.addChoiceBtn {
+    margin-top: 10px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    &:hover {
+        background-color: #218838;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+    }
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+
+    button {
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: none;
+        font-weight: bold;
+    }
+
+    .btnCancel {
+        background: #eee;
+    }
+
+    .btnSubmit {
+        background: $primary-color;
+        color: white;
+    }
+}
+
+/* --- THÊM MỚI: NÚT SỬA XÓA --- */
+.actionButtons {
+    display: flex;
+    gap: 8px;
+}
+
+.btnEdit,
+.btnDelete {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: 0.2s;
+    font-size: 0.9rem;
+}
+
+.btnEdit {
+    background-color: #fff3cd;
+    color: #856404;
+
+    &:hover {
+        background-color: #ffeeba;
+    }
+}
+
+.btnDelete {
+    background-color: #f8d7da;
+    color: #721c24;
+
+    &:hover {
+        background-color: #f5c6cb;
+    }
+}
+
+/* Các phần khác giữ nguyên */
+.correctInput {
+    border-color: $success-color !important;
+    background-color: #f0fff4;
+    font-weight: 500;
+}
+
+/* --- STYLE CHO NÚT CHI TIẾT --- */
+.btnView {
+    background-color: #e3f2fd;
+    color: #0d47a1;
+    border: 1px solid #bbdefb;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+
+    &:hover {
+        background-color: #bbdefb;
+        color: #002171;
+    }
+}
+
+/* --- STYLE CHO MODAL CHI TIẾT --- */
+.detailBody {
+    padding: 10px 0;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.detailRow {
+    margin-bottom: 20px;
+}
+
+.label {
+    display: block;
+    font-weight: bold;
+    color: $secondary-text-color;
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.content {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: $text-color;
+    margin: 0;
+}
+
+.explanation {
+    background-color: #fff3cd;
+    padding: 10px;
+    border-radius: 6px;
+    color: #856404;
+    font-style: italic;
+    border: 1px solid #ffeeba;
+    margin: 0;
+}
+
+.choiceList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    li {
+        padding: 10px;
+        border: 1px solid #eee;
+        margin-bottom: 5px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+
+        &.correct {
+            background-color: #e8f5e9;
+            border-color: #c8e6c9;
+            color: #2e7d32;
+            font-weight: bold;
+        }
+
+        strong {
+            margin-right: 10px;
+            color: #555;
+        }
+    }
+}

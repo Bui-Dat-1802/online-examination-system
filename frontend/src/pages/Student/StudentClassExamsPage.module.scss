@@ -1,0 +1,122 @@
+@use '../../styles/variables' as *;
+
+.contentBody {
+    padding: 30px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.backLink {
+    margin-bottom: 20px;
+
+    a {
+        text-decoration: none;
+        color: #666;
+        font-weight: 600;
+
+        &:hover {
+            color: $primary-color;
+        }
+    }
+}
+
+.pageHeader {
+    margin-bottom: 25px;
+
+    h2 {
+        color: $text-color;
+    }
+}
+
+.examList {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.examCard {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+}
+
+.title {
+    margin: 0 0 10px;
+    color: $text-color;
+}
+
+.meta {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+    color: #666;
+    font-size: 0.9rem;
+
+    i {
+        color: $primary-color;
+    }
+}
+
+.time {
+    font-size: 0.85rem;
+    color: #888;
+}
+
+.cardRight {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.statusBadge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+
+    &.ongoing {
+        background: #e9f9ee;
+        color: #28a745;
+    }
+
+    &.upcoming {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    &.ended {
+        background: #f8f9fa;
+        color: #6c757d;
+    }
+}
+
+.startBtn {
+    padding: 8px 15px;
+    background: $primary-color;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+
+    &:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    &:hover:not(:disabled) {
+        background: $primary-color-dark;
+    }
+}
+
+.emptyState {
+    text-align: center;
+    color: #999;
+    padding: 30px;
+}

@@ -1,0 +1,130 @@
+@use '../../styles/variables' as *;
+
+.loginContainer {
+    // 1. Cấu hình ảnh nền
+    background: linear-gradient(180deg, #E3F2FD, #90CAF9);
+    background-size: cover; // Ảnh phủ kín khung
+    background-position: center; // Căn giữa ảnh
+    background-repeat: no-repeat; // Không lặp lại ảnh
+
+    // 2. KHẮC PHỤC VỊ TRÍ (QUAN TRỌNG)
+    position: fixed; // Cố định vị trí so với cửa sổ trình duyệt
+    top: 0;
+    left: 0;
+    width: 100vw; // Chiều rộng = 100% viewport width
+    height: 100vh; // Chiều cao = 100% viewport height
+    margin: 0;
+    padding: 0;
+    z-index: 999; // Đảm bảo nổi lên trên cùng
+
+    // 3. Căn giữa Form đăng nhập (Flexbox)
+    display: flex;
+    justify-content: center; // Căn giữa ngang
+    align-items: center; // Căn giữa dọc
+}
+
+.loginForm {
+    background-color: rgba($form-background-color, 0.95);
+    padding: 40px;
+    border-radius: $card-border-radius;
+    box-shadow: $box-shadow;
+
+    // Đảm bảo form có kích thước hợp lý trên màn hình nhỏ
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+}
+
+// ... Giữ nguyên các phần khác (formHeader, formGroup, loginButton, formFooter, errorMessage)
+.formHeader {
+    margin-bottom: 25px;
+
+    i {
+        font-size: 50px;
+        color: $text-color;
+        margin-bottom: 10px;
+        display: block;
+    }
+
+    h2 {
+        margin: 0;
+        font-size: 24px;
+        color: $text-color;
+    }
+}
+
+.formGroup {
+    margin-bottom: 20px;
+    text-align: left;
+
+    label {
+        display: block;
+        margin-bottom: 8px;
+        color: $secondary-text-color;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: $border-radius;
+        font-size: 14px;
+        box-sizing: border-box;
+
+        &:focus {
+            outline: none;
+            border-color: $primary-color;
+        }
+    }
+}
+
+.loginButton {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: $border-radius;
+    background-color: $primary-color;
+    color: $white-color;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+
+    &:hover {
+        background-color: $primary-color-dark;
+    }
+
+    &:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+}
+
+.formFooter {
+    margin-top: 25px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+
+    a {
+        color: $primary-color;
+        text-decoration: none;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+}
+
+.errorMessage {
+    color: #d32f2f;
+    background-color: #ffebee;
+    border: 1px solid #ffcdd2;
+    padding: 10px;
+    border-radius: $border-radius;
+    margin-bottom: 20px;
+    font-size: 14px;
+    text-align: center;
+}

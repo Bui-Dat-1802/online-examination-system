@@ -1,0 +1,512 @@
+@use '../styles/variables' as *;
+
+.topHeader {
+    background: $white-color;
+    height: 70px;
+    padding: 0 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+
+    h3 {
+        margin: 0;
+        color: $text-color;
+        font-size: 1.25rem;
+    }
+}
+
+/* Mobile menu button (hamburger) */
+.menuButton {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    margin-right: 10px;
+    cursor: pointer;
+    color: $text-color;
+}
+
+@media (max-width: 900px) {
+    .menuButton { display: block; }
+    .topHeader h3 { font-size: 1rem; }
+}
+
+.profileWrapper {
+    position: relative;
+}
+
+.profile {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+
+    &:hover {
+        opacity: 0.8;
+    }
+}
+
+.textInfo {
+    text-align: right;
+    line-height: 1.4;
+}
+
+.name {
+    display: block;
+    color: $text-color;
+}
+
+.email {
+    font-size: 0.8rem;
+    color: $secondary-text-color;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, $primary-color, $primary-color-dark);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Dropdown CSS */
+.dropdown {
+    position: absolute;
+    top: 55px;
+    right: 0;
+    width: 280px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+    border: 1px solid #eee;
+    overflow: hidden;
+    animation: fadeIn 0.2s;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: -6px;
+        right: 15px;
+        width: 12px;
+        height: 12px;
+        background: white;
+        transform: rotate(45deg);
+        border-top: 1px solid #eee;
+        border-left: 1px solid #eee;
+    }
+}
+
+.ddHeader {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    font-weight: bold;
+    border-bottom: 1px solid #eee;
+    font-size: 0.95rem;
+}
+
+.ddBody {
+    padding: 15px;
+}
+
+.row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    color: #555;
+}
+
+.ddFooter {
+    padding: 10px 15px;
+    border-top: 1px solid #eee;
+}
+
+.logoutBtn {
+    width: 100%;
+    padding: 8px;
+    background: #ffebee;
+    color: #d32f2f;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+
+    &:hover {
+        background: #ffcdd2;
+    }
+
+    i {
+        margin-right: 5px;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+dropdown {
+    position: absolute;
+    top: 60px;
+    right: 0;
+    width: 300px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+    border: 1px solid #eee;
+    overflow: hidden;
+    animation: fadeIn 0.2s;
+    z-index: 200;
+}
+
+.ddHeader {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    font-weight: bold;
+    border-bottom: 1px solid #eee;
+    font-size: 0.95rem;
+}
+
+.ddBody {
+    padding: 15px;
+}
+
+.row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    color: #555;
+}
+
+/* Nút Cập nhật trong Dropdown */
+.ddAction {
+    padding: 0 15px 10px 15px;
+}
+
+.updateBtn {
+    width: 100%;
+    padding: 8px;
+    background-color: $primary-color;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.2s;
+
+    &:hover {
+        background-color: $primary-color-dark;
+    }
+
+    i {
+        margin-right: 5px;
+    }
+}
+
+.ddFooter {
+    padding: 10px 15px;
+    border-top: 1px solid #eee;
+    background: #fff;
+}
+
+.logoutBtn {
+    width: 100%;
+    padding: 8px;
+    background: #ffebee;
+    color: #d32f2f;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+
+    &:hover {
+        background: #ffcdd2;
+    }
+
+    i {
+        margin-right: 5px;
+    }
+}
+
+/* --- MODAL STYLES (Copy dùng chung) --- */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s;
+}
+
+.modalContent {
+    background: white;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 10px;
+    padding: 25px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+
+    h3 {
+        margin: 0;
+        color: $text-color;
+    }
+
+    .closeBtn {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+}
+
+.formGroup {
+    margin-bottom: 15px;
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    input,
+    textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        box-sizing: border-box;
+    }
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+
+    button {
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        border: none;
+    }
+
+    .btnCancel {
+        background: #eee;
+    }
+
+    .btnSubmit {
+        background: $primary-color;
+        color: white;
+
+        &:hover {
+            background: $primary-color-dark;
+        }
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Update Button trong Dropdown */
+.updateBtn {
+    width: 100%;
+    padding: 8px;
+    background-color: $info-color;
+    /* Hoặc màu xanh dương */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.2s;
+
+    &:hover {
+        filter: brightness(0.9);
+    }
+
+    i {
+        margin-right: 5px;
+    }
+}
+
+/* --- MODAL STYLES --- */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 0.2s;
+}
+
+.modalContent {
+    background: white;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 10px;
+    padding: 25px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+
+    h3 {
+        margin: 0;
+        color: $text-color;
+        font-size: 1.2rem;
+    }
+
+    .closeBtn {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #999;
+
+        &:hover {
+            color: #333
+        }
+    }
+}
+
+/* --- TABS --- */
+.tabs {
+    display: flex;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 20px;
+
+    button {
+        flex: 1;
+        padding: 10px;
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        font-weight: 600;
+        color: $secondary-text-color;
+        transition: 0.3s;
+
+        &:hover {
+            color: $primary-color;
+        }
+
+        &.activeTab {
+            color: $primary-color;
+            border-bottom-color: $primary-color;
+        }
+    }
+}
+
+/* Form */
+.formBody {
+    animation: fadeIn 0.3s;
+}
+
+.formGroup {
+    margin-bottom: 15px;
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    input,
+    textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        box-sizing: border-box;
+    }
+}
+
+.modalActions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+
+    .btnSubmit {
+        padding: 10px 20px;
+        background: $primary-color;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+
+        &:disabled {
+            background: #ccc;
+        }
+
+        &:hover:not(:disabled) {
+            background: $primary-color-dark;
+        }
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}

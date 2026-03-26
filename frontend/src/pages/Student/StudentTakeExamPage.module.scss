@@ -1,0 +1,405 @@
+@use '../../styles/variables' as *;
+
+.examContainer {
+    display: flex;
+    height: 100vh;
+    background-color: #f0f2f5;
+    font-family: $primary-font;
+    overflow: hidden;
+}
+
+/* --- PANEL TRÁI (NAV) --- */
+.leftPanel {
+    width: 280px;
+    background: white;
+    border-right: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    z-index: 10;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+}
+
+.timerCard {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+
+    h3 {
+        margin: 0 0 10px;
+        font-size: 1rem;
+        color: #666;
+    }
+
+    .timer {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: $primary-color;
+        font-family: monospace;
+
+        &.danger {
+            color: #dc3545;
+            animation: blink 1s infinite;
+        }
+    }
+
+    .socketStatus {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        margin-top: 10px;
+        font-size: 0.85rem;
+        color: #666;
+
+        .socketIndicator {
+            font-size: 0.6rem;
+            animation: pulse 2s infinite;
+        }
+
+        .socketText {
+            font-weight: 500;
+        }
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
+    }
+}
+
+.questionPalette {
+    flex: 1;
+    overflow-y: auto;
+
+    p {
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+    }
+
+    .qBadge {
+        width: 35px;
+        height: 35px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #333;
+        font-size: 0.9rem;
+
+        &:hover {
+            background: #f0f0f0;
+        }
+
+        &.answered {
+            background-color: $success-color;
+            color: white;
+            border-color: $success-color;
+        }
+    }
+}
+
+.submitBtn {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: $primary-color;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+
+    &:hover {
+        background-color: $primary-color-dark;
+    }
+
+    &:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+}
+
+/* --- PANEL PHẢI (NỘI DUNG) --- */
+.rightPanel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 30px;
+    scroll-behavior: smooth;
+}
+
+.paper {
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.questionBlock {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+
+    &:last-child {
+        border-bottom: none;
+    }
+}
+
+.qTitle {
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: 15px;
+    line-height: 1.5;
+
+    .qIndex {
+        font-weight: bold;
+        margin-right: 5px;
+    }
+
+    .points {
+        font-size: 0.85rem;
+        color: #666;
+        margin-left: 10px;
+        font-weight: normal;
+    }
+}
+
+.choices {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.choiceItem {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.2s;
+
+    &:hover {
+        background-color: #f9f9f9;
+    }
+
+    &.selected {
+        border-color: $primary-color;
+        background-color: #e7f5ff;
+        font-weight: 500;
+
+        .choiceRadio {
+            border-color: $primary-color;
+        }
+    }
+}
+
+.choiceRadio {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ccc;
+    border-radius: 50%;
+    margin-right: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    .innerDot {
+        width: 10px;
+        height: 10px;
+        background: $primary-color;
+        border-radius: 50%;
+    }
+}
+
+.choiceLabel {
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.loadingScreen {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5rem;
+    color: #666;
+}
+
+/* --- STYLE CHO KẾT QUẢ (REVIEW MODE) --- */
+.resultCard {
+    border-bottom: 2px solid $primary-color;
+    background-color: #f8f9fa;
+}
+
+.score {
+    font-size: 3rem;
+    font-weight: 800;
+    color: $primary-color;
+    line-height: 1;
+    margin-top: 10px;
+}
+
+.maxScore {
+    font-size: 1.2rem;
+    color: #666;
+    font-weight: normal;
+}
+
+.hiddenNotice {
+    margin-top: 10px;
+    font-size: 0.8rem;
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 5px;
+    border-radius: 4px;
+    border: 1px solid #ffeeba;
+}
+
+/* Badge câu hỏi ở Sidebar */
+.correctBadge {
+    background-color: #28a745 !important;
+    color: white !important;
+    border-color: #28a745 !important;
+}
+
+.wrongBadge {
+    background-color: #dc3545 !important;
+    color: white !important;
+    border-color: #dc3545 !important;
+}
+
+/* Text Đúng/Sai ở câu hỏi */
+.resultLabel {
+    margin-left: 15px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    padding: 3px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.textSuccess {
+    background: #d4edda;
+    color: #155724;
+}
+
+.textDanger {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Màu đáp án khi xem lại */
+.correctChoice {
+    background-color: #d4edda !important;
+    border-color: #c3e6cb !important;
+    color: #155724;
+}
+
+.wrongChoice {
+    background-color: #f8d7da !important;
+    border-color: #f5c6cb !important;
+    color: #721c24;
+}
+
+/* Nút thoát */
+.exitBtn {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+
+    &:hover {
+        background-color: #5a6268;
+    }
+
+    i {
+        margin-right: 8px;
+    }
+}
+
+/* ... Code cũ giữ nguyên ... */
+
+.qType {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: #666;
+    margin-left: 8px;
+    background: #f1f1f1;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* --- ICON CHECKBOX / RADIO CUSTOM --- */
+.iconCheck {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ccc;
+    margin-right: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: white;
+    flex-shrink: 0;
+
+    /* Hình tròn (Radio) */
+    &.circle {
+        border-radius: 50%;
+
+        .innerDot {
+            width: 10px;
+            height: 10px;
+            background: $primary-color;
+            border-radius: 50%;
+        }
+    }
+
+    /* Hình vuông (Checkbox) */
+    &.square {
+        border-radius: 4px;
+
+        .innerDot {
+            width: 12px;
+            height: 12px;
+            background: $primary-color;
+            border-radius: 2px;
+        }
+    }
+}
+
+/* Đổi màu viền khi chọn */
+.choiceItem.selected .iconCheck {
+    border-color: $primary-color;
+}
+
+/* Ẩn radio cũ nếu còn */
+.choiceRadio {
+    display: none;
+}

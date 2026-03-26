@@ -1,0 +1,23 @@
+/* src/styles/variables.scss */
+
+// Font chữ
+$primary-font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+// Màu sắc
+$primary-color: #4CAF50;
+$primary-color-dark: #388E3C;
+$text-color: #333;
+$secondary-text-color: #666;
+$white-color: #ffffff;
+$form-background-color: #ffffff; // <-- Đây là biến bị thiếu gây ra lỗi
+
+// --- MÀU TRẠNG THÁI (Thêm mới các biến này để sửa lỗi) ---
+$success-color: #28a745; // Màu xanh lá (Dùng cho đúng/thành công)
+$error-color: #dc3545; // Màu đỏ (Dùng cho sai/lỗi/xóa)
+$warning-color: #ffc107; // Màu vàng (Cảnh báo)
+$info-color: #17a2b8; // Màu xanh lơ
+
+// Giao diện
+$card-border-radius: 12px;
+$border-radius: 6px; // Dùng cho nút bấm, input
+$box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);

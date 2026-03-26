@@ -1,0 +1,365 @@
+@use '../../styles/variables' as *;
+
+.contentBody {
+    padding: 30px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.pageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+
+    h2 {
+        margin: 0;
+        color: $text-color;
+    }
+}
+
+.createBtn {
+    background-color: $primary-color;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+
+    &:hover {
+        background-color: $primary-color-dark;
+    }
+}
+
+// --- TABLE STYLES ---
+.tableContainer {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    overflow: auto; // allow scrolling on small screens
+}
+
+.classTable {
+    width: 100%;
+    border-collapse: collapse;
+
+    thead {
+        background-color: #f8f9fa;
+
+        tr {
+            th {
+                padding: 15px 20px;
+                text-align: left;
+                font-weight: 600;
+                color: $secondary-text-color;
+                border-bottom: 1px solid #eee;
+            }
+        }
+    }
+
+    tbody {
+        tr {
+            border-bottom: 1px solid #f1f1f1;
+            transition: background 0.2s;
+
+            &:hover {
+                background-color: #fcfcfc;
+            }
+
+            &:last-child {
+                border-bottom: none;
+            }
+
+            td {
+                padding: 15px 20px;
+                color: $text-color;
+            }
+        }
+    }
+}
+
+.className {
+    font-weight: 600;
+    color: $primary-color;
+}
+
+.codeTag {
+    background-color: #e3f2fd;
+    color: #1976d2;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+// nút
+.actionButtons {
+    display: flex;
+    gap: 8px;
+    /* Khoảng cách giữa các nút */
+    align-items: center;
+}
+
+/* Style chung cho nút */
+.btnView,
+.btnDelete {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    display: inline-block;
+    text-align: center;
+}
+
+/* Nút Chi tiết (Xanh dương nhạt) */
+.btnView {
+    background-color: #e3f2fd;
+    /* Nền xanh rất nhạt */
+    color: #1565c0;
+    /* Chữ xanh đậm */
+    border: 1px solid transparent;
+
+    &:hover {
+        background-color: #bbdefb;
+        color: #0d47a1;
+        transform: translateY(-1px);
+    }
+}
+
+/* Nút Xóa (Đỏ nhạt) */
+.btnDelete {
+    background-color: #ffebee;
+    /* Nền đỏ rất nhạt */
+    color: #c62828;
+    /* Chữ đỏ đậm */
+    border: 1px solid transparent;
+
+    &:hover {
+        background-color: #ffcdd2;
+        color: #b71c1c;
+        transform: translateY(-1px);
+    }
+}
+
+.emptyState {
+    text-align: center;
+    padding: 50px;
+    background: white;
+    border-radius: 10px;
+    color: $secondary-text-color;
+}
+
+/* --- CSS CHO MODAL (Thêm mới) --- */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5); // Mờ nền
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.modalContent {
+    background: white;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    animation: slideUp 0.3s ease-out;
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+
+    h3 {
+        margin: 0;
+        color: $text-color;
+    }
+
+    .closeBtn {
+        background: none;
+        border: none;
+        font-size: 2rem;
+        cursor: pointer;
+        color: #999;
+        line-height: 1;
+
+        &:hover {
+            color: #333;
+        }
+    }
+}
+
+.formGroup {
+    margin-bottom: 20px;
+
+    label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: $text-color;
+        font-size: 0.9rem;
+    }
+
+    input,
+    textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 1rem;
+        font-family: inherit;
+
+        &:focus {
+            outline: none;
+            border-color: $primary-color;
+            box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
+        }
+    }
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 30px;
+
+    button {
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+        border: none;
+        font-size: 0.95rem;
+    }
+
+    .btnCancel {
+        background-color: #f1f3f5;
+        color: #495057;
+
+        &:hover {
+            background-color: #e9ecef;
+        }
+    }
+
+    .btnSubmit {
+        background-color: $primary-color;
+        color: white;
+
+        &:hover {
+            background-color: $primary-color-dark;
+        }
+
+        &:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    }
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Responsive tweaks */
+@media (max-width: 800px) {
+  .pageHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .createBtn {
+    width: 100%;
+    max-width: 260px;
+  }
+
+  .classTable thead {
+    display: none;
+  }
+
+  .classTable, .classTable tbody, .classTable tr, .classTable td {
+    display: block;
+    width: 100%;
+  }
+
+  .classTable tr {
+    margin-bottom: 12px;
+    border: none;
+    background: white;
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  .classTable td {
+    padding: 8px 12px;
+    border: none;
+  }
+
+  .classTable td:before {
+    content: attr(data-label);
+    display: block;
+    font-weight: 600;
+    color: #666;
+    margin-bottom: 6px;
+  }
+
+  .actionButtons {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .modalContent {
+    width: 95%;
+    max-width: 720px;
+    padding: 20px;
+  }
+
+  .modalActions {
+    flex-direction: column-reverse;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .modalActions button {
+    width: 100%;
+  }
+}

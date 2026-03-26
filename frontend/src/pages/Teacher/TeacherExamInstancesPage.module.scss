@@ -1,0 +1,479 @@
+@use '../../styles/variables' as *;
+
+/* CSS Riêng */
+.contentBody {
+    padding: 30px;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.pageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+
+    h2 {
+        margin: 0;
+        color: $text-color;
+    }
+}
+
+.createBtn {
+    background-color: $primary-color;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+
+    &:hover {
+        background-color: $primary-color-dark;
+    }
+}
+
+.tableContainer {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    overflow: auto;
+}
+
+.dataTable {
+    width: 100%;
+    border-collapse: collapse;
+
+    th {
+        text-align: left;
+        padding: 15px;
+        background: #f8f9fa;
+        color: #666;
+        font-weight: 600;
+    }
+
+    td {
+        padding: 15px;
+        border-bottom: 1px solid #eee;
+    }
+}
+
+.badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+
+    &.pub {
+        background: #e9f9ee;
+        color: #28a745;
+    }
+
+    &.draft {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    &.gray {
+        background: #eee;
+        color: #555;
+        margin-right: 8px;
+    }
+}
+
+/* Modal */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modalContent {
+    background: white;
+    width: 90%;
+    max-width: 700px;
+    max-height: 90vh;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding: 20px 25px 10px 25px;
+    flex-shrink: 0;
+
+    button {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+}
+
+.formScroll {
+    overflow-y: auto;
+    padding: 0 25px;
+    flex: 1;
+}
+
+.formGroup {
+    margin-bottom: 15px;
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        box-sizing: border-box;
+    }
+}
+
+.row {
+    display: flex;
+    gap: 15px;
+
+    >div {
+        flex: 1;
+    }
+}
+
+.checkboxRow {
+    display: flex;
+    gap: 30px;
+    margin: 15px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.checkboxLabel {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 0.95rem;
+
+    input {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+    
+    span {
+        user-select: none;
+    }
+}
+
+.questionSection {
+    margin-top: 20px;
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    
+    h4 {
+        margin-bottom: 12px;
+    }
+}
+
+.filterRow {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    
+    .searchInput {
+        flex: 1;
+        padding: 10px 14px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        
+        &:focus {
+            outline: none;
+            border-color: $primary-color;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+    }
+    
+    .difficultyFilter {
+        min-width: 180px;
+        padding: 10px 14px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        
+        &:focus {
+            outline: none;
+            border-color: $primary-color;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+    }
+}
+
+.questionList {
+    margin-top: 10px;
+    max-height: 250px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.qItem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: white;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+
+    input {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+    label {
+        cursor: pointer;
+        font-size: 0.95rem;
+        width: 100%;
+    }
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px 25px;
+    border-top: 1px solid #eee;
+    background: white;
+    flex-shrink: 0;
+
+    button {
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: none;
+        font-weight: bold;
+    }
+
+    .btnCancel {
+        background: #eee;
+    }
+
+    .btnSubmit {
+        background: $primary-color;
+        color: white;
+    }
+}
+
+/* Thêm style cho nút Sửa/Xóa */
+.actionButtons {
+    display: flex;
+    gap: 8px;
+}
+
+.btnIcon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: 0.2s;
+    background-color: white;
+    border: 1px solid #ddd;
+
+    i {
+        font-size: 0.9rem;
+    }
+}
+
+.btnEdit {
+    &:hover {
+        background-color: #fff3cd;
+        border-color: #ffeeba;
+
+        i {
+            color: #856404 !important;
+        }
+    }
+}
+
+.btnDelete {
+    &:hover {
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+
+        i {
+            color: #721c24 !important;
+        }
+    }
+}
+
+.btnView {
+    &:hover {
+        background-color: #e3f2fd;
+        border-color: #bbdefb;
+
+        i {
+            color: #0d47a1 !important;
+        }
+    }
+}
+
+/* Style cho phần chi tiết */
+.infoGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.infoItem {
+    display: flex;
+    flex-direction: column;
+
+    label {
+        font-size: 0.85rem;
+        color: $secondary-text-color;
+        font-weight: 600;
+    }
+
+    span {
+        font-size: 1rem;
+        color: $text-color;
+    }
+}
+
+.questionListPreview {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    background: white;
+}
+
+.btnManage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  text-decoration: none;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+  }
+
+  i {
+    font-size: 14px;
+  }
+}
+
+/* Responsive tweaks */
+@media (max-width: 800px) {
+  .pageHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .createBtn {
+    width: 100%;
+    max-width: 240px;
+  }
+
+  .dataTable thead {
+    display: none;
+  }
+
+  .dataTable, .dataTable tbody, .dataTable tr, .dataTable td {
+    display: block;
+    width: 100%;
+  }
+
+  .dataTable tr {
+    margin-bottom: 12px;
+    border: none;
+    background: white;
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  .dataTable td {
+    padding: 8px 12px;
+    border: none;
+  }
+
+  .dataTable td:before {
+    content: attr(data-label);
+    display: block;
+    font-weight: 600;
+    color: #666;
+    margin-bottom: 6px;
+  }
+
+  .actionButtons {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .modalContent {
+    width: 95%;
+    max-width: 720px;
+  }
+
+  .row {
+    flex-direction: column;
+  }
+
+  .filterRow {
+    flex-direction: column;
+  }
+
+  .checkboxRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .infoGrid {
+    grid-template-columns: 1fr;
+  }
+}

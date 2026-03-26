@@ -1,0 +1,365 @@
+@use '../../styles/variables' as *;
+@use 'sass:color';
+
+.mainContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background-color: #f5f7fa;
+}
+
+.contentBody {
+    padding: 30px;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* --- TABS & BUTTONS --- */
+.pageControl {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
+}
+
+.tabs {
+    display: flex;
+    gap: 20px;
+
+    button {
+        background: none;
+        border: none;
+        font-size: 1rem;
+        font-weight: 600;
+        color: $secondary-text-color;
+        padding-bottom: 10px;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+        transition: 0.3s;
+
+        &:hover {
+            color: $primary-color;
+        }
+
+        &.activeTab {
+            color: $primary-color;
+            border-bottom-color: $primary-color;
+        }
+    }
+}
+
+.createBtn {
+    background-color: $success-color;
+    /* Màu xanh lá cho nổi bật */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+
+    &:hover {
+        background-color: color.adjust($success-color, $lightness: -10%);
+    }
+}
+
+/* --- GRID LỚP HỌC --- */
+.gridContainer {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.classCard {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    border: 1px solid #eee;
+    transition: transform 0.2s;
+    display: flex;
+    flex-direction: column;
+
+    &:hover {
+        transform: translateY(-5px);
+        border-color: $primary-color;
+    }
+}
+
+.cardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+
+    h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: $text-color;
+    }
+
+    .codeTag {
+        background: #e3f2fd;
+        color: #0d47a1;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: bold;
+        font-family: monospace;
+    }
+}
+
+.desc {
+    color: $secondary-text-color;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    flex: 1;
+    /* Đẩy footer xuống đáy */
+}
+
+.cardFooter {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #999;
+    margin-bottom: 15px;
+    border-top: 1px solid #f5f5f5;
+    padding-top: 10px;
+}
+
+.enterBtn {
+    width: 100%;
+    padding: 10px;
+    background-color: $primary-color;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+
+    &:hover {
+        background-color: $primary-color-dark;
+    }
+}
+
+.pendingBtn {
+    width: 100%;
+    padding: 10px;
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    border-radius: 6px;
+    cursor: not-allowed;
+    font-weight: bold;
+}
+
+.emptyState {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 50px;
+    color: $secondary-text-color;
+}
+
+.loadingText {
+    text-align: center;
+    margin-top: 50px;
+}
+
+/* --- MODAL (Copy dùng chung) --- */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modalContent {
+    background: white;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 10px;
+    padding: 25px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+
+    button {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+}
+
+.formGroup {
+    margin-bottom: 15px;
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    input,
+    textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        box-sizing: border-box;
+    }
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+
+    button {
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: none;
+        font-weight: bold;
+    }
+
+    .btnCancel {
+        background: #eee;
+    }
+
+    .btnSubmit {
+        background: $primary-color;
+        color: white;
+    }
+}
+
+.buttonGroup {
+    display: flex;
+    gap: 10px;
+    margin-top: auto;
+    /* Đẩy xuống đáy card */
+}
+
+/* Nút Vào lớp */
+.enterBtn {
+    flex: 1;
+    /* Chiếm phần lớn */
+    padding: 10px;
+    background-color: $primary-color;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+
+    &:hover {
+        background-color: $primary-color-dark;
+    }
+}
+
+/* Nút Rời lớp / Hủy */
+.leaveBtn,
+.cancelBtn {
+    padding: 10px 15px;
+    background-color: white;
+    border: 1px solid #ffcdd2;
+    color: #d32f2f;
+    /* Màu đỏ */
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.2s;
+
+    &:hover {
+        background-color: #ffebee;
+        border-color: #e57373;
+    }
+}
+
+/* Nút chờ duyệt (Disabled) */
+.pendingBtn {
+    flex: 1;
+    padding: 10px;
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    border-radius: 6px;
+    cursor: not-allowed;
+    font-weight: bold;
+}
+
+.buttonGroup {
+    display: flex;
+    gap: 10px;
+    margin-top: auto;
+}
+
+/* Nút Xem đề thi */
+.examBtn {
+    flex: 1;
+    /* Chiếm phần lớn chiều rộng */
+    padding: 10px;
+    background-color: #007bff;
+    /* Màu xanh dương */
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: 0.2s;
+
+    &:hover {
+        background-color: #0056b3;
+    }
+}
+
+/* Nút Rời lớp */
+.leaveBtn {
+    padding: 10px 15px;
+    background-color: white;
+    border: 1px solid #dc3545;
+    color: #dc3545;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.2s;
+
+    &:hover {
+        background-color: #fff5f5;
+    }
+}
+
+/* Nút chờ duyệt */
+.pendingBtn {
+    flex: 1;
+    padding: 10px;
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    border-radius: 6px;
+    cursor: not-allowed;
+    font-weight: bold;
+}

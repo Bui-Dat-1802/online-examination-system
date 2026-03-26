@@ -1,0 +1,167 @@
+@use '../../styles/variables' as *;
+
+.container {
+    padding: 30px;
+    width: 100%;
+}
+
+.header {
+    margin-bottom: 20px;
+}
+
+.backBtn {
+    text-decoration: none;
+    color: $secondary-text-color;
+    font-weight: 600;
+
+    &:hover {
+        color: $primary-color;
+    }
+
+    i {
+        margin-right: 5px;
+    }
+}
+
+.loading,
+.error {
+    text-align: center;
+    margin-top: 50px;
+    font-size: 1.1rem;
+}
+
+.error {
+    color: #dc3545;
+
+    a {
+        margin-left: 10px;
+        color: #007bff;
+    }
+}
+
+/* INFO SECTION */
+.infoSection {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    margin-bottom: 30px;
+    border-left: 5px solid $primary-color;
+}
+
+.titleRow {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+
+    h2 {
+        margin: 0;
+        color: $text-color;
+    }
+}
+
+.codeBadge {
+    background: #e3f2fd;
+    color: #0d47a1;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-family: monospace;
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+.desc {
+    color: #666;
+    font-size: 1rem;
+    margin-bottom: 20px;
+}
+
+.metaGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    border-top: 1px solid #eee;
+    padding-top: 20px;
+}
+
+.metaItem {
+    display: flex;
+    flex-direction: column;
+
+    label {
+        font-size: 0.85rem;
+        color: #888;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+
+    span {
+        font-size: 1rem;
+        color: #333;
+        font-weight: 500;
+    }
+}
+
+/* TABS SECTION */
+.tabsSection {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.tabsHeader {
+    display: flex;
+    border-bottom: 1px solid #eee;
+
+    button {
+        padding: 15px 25px;
+        border: none;
+        background: none;
+        font-size: 1rem;
+        cursor: pointer;
+        color: #666;
+        font-weight: 600;
+        border-bottom: 3px solid transparent;
+
+        &:hover {
+            background: #f9f9f9;
+        }
+
+        &.active {
+            color: $primary-color;
+            border-bottom-color: $primary-color;
+            background: #fff;
+        }
+    }
+}
+
+.tabContent {
+    padding: 0;
+}
+
+.dataTable {
+    width: 100%;
+    border-collapse: collapse;
+
+    th {
+        text-align: left;
+        padding: 15px 20px;
+        background: #f8f9fa;
+        color: #666;
+        font-size: 0.9rem;
+        border-bottom: 1px solid #eee;
+    }
+
+    td {
+        padding: 15px 20px;
+        border-bottom: 1px solid #eee;
+        color: #333;
+        font-size: 0.95rem;
+    }
+
+    tr:last-child td {
+        border-bottom: none;
+    }
+}

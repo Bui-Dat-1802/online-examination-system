@@ -28,7 +28,7 @@ const TeacherExamInstancesPage = () => {
 
     // Search state2
     const [searchTerm, setSearchTerm] = useState('');
-    const [difficultyFilter, setDifficultyFilter] = useState('all');
+//    const [difficultyFilter, setDifficultyFilter] = useState('all');
 
     // Pagination state
     const [currentExamPage, setCurrentExamPage] = useState(1);
@@ -113,18 +113,50 @@ const TeacherExamInstancesPage = () => {
             (q.tags && q.tags.some(tag => tag.toLowerCase().includes(keyword)))
             );
 
-        const matchesDifficulty =
-            difficultyFilter === 'all' || q.difficulty === difficultyFilter;
+        // bỏ lọc độ khó vì độ khó cũng là một dạng tag rồi, tìm theo tag sẽ tiện hơn và linh hoạt hơn, chứ lọc cứng theo 3 mức độ thì hơi gò bó
+        // const matchesDifficulty =
+        //     difficultyFilter === 'all' || q.difficulty === difficultyFilter;
 
-        return matchesSearch && matchesDifficulty;
+        // return matchesSearch && matchesDifficulty;
+
+        return matchesSearch;
     });
 
+    // Kiểm tra nếu tất cả câu hỏi đã lọc đều nằm trong danh sách đã chọn thì checkbox "Chọn tất cả" sẽ được đánh dấu
+    const filteredIds = filteredQuestions.map(q => q.id);
+    const allFilteredSelected =
+        filteredIds.length > 0 &&
+        filteredIds.every(id => formData.selectedQuestionIds.includes(id));
+
+    // Hàm xử lý khi click vào checkbox "Chọn tất cả"
+    const handleSelectAllFiltered = () => {
+        setFormData(prev => {
+            if (allFilteredSelected) {
+                // ❌ bỏ chọn
+                return {
+                    ...prev,
+                    selectedQuestionIds: prev.selectedQuestionIds.filter(
+                        id => !filteredIds.includes(id)
+                    )
+                };
+            } else {
+                // ✅ chọn thêm
+                return {
+                    ...prev,
+                    selectedQuestionIds: [
+                        ...new Set([...prev.selectedQuestionIds, ...filteredIds])
+                    ]
+                };
+            }
+        });
+    };
+    
     // --- CÁC HÀM XỬ LÝ ---
     const openCreateModal = () => {
         setEditingExam(null);
         setFormData(initialForm);
         setSearchTerm('');
-        setDifficultyFilter('all');
+        // setDifficultyFilter('all');
         setShowModal(true);
     };
 
@@ -156,7 +188,7 @@ const TeacherExamInstancesPage = () => {
 
             // Reset bộ lọc tìm kiếm trong modal
             setSearchTerm('');
-            setDifficultyFilter('all');
+            // setDifficultyFilter('all');
 
             // 4. Mở Modal
             setShowModal(true);
@@ -374,7 +406,13 @@ const TeacherExamInstancesPage = () => {
                                 </div>
 
                                 <div className={styles.questionSection}>
-                                    <h4>Chọn câu hỏi ({formData.selectedQuestionIds.length})</h4>
+                                    {/* <h4>Chọn câu hỏi ({formData.selectedQuestionIds.length})</h4> */}
+                                    <h4>
+                                        Chọn câu hỏi ({formData.selectedQuestionIds.length})
+                                        <span style={{ marginLeft: 8, color: '#888', fontSize: '0.9rem' }}>
+                                            ({filteredQuestions.length} đang hiển thị)
+                                        </span>
+                                    </h4>
 
                                     <div className={styles.filterRow}>
                                         <input
@@ -384,17 +422,28 @@ const TeacherExamInstancesPage = () => {
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                             className={styles.searchInput}
                                         />
-                                        <select
-                                            value={difficultyFilter}
-                                            onChange={(e) => setDifficultyFilter(e.target.value)}
-                                            className={styles.difficultyFilter}
+
+                                        <button
+                                            type="button"
+                                            onClick={handleSelectAllFiltered}
+                                            className={`${styles.btnSelectAll} ${
+                                                allFilteredSelected ? styles.danger : styles.success
+                                            }`}
                                         >
-                                            <option value="all">Tất cả độ khó</option>
-                                            <option value="easy">Dễ</option>
-                                            <option value="medium">Trung bình</option>
-                                            <option value="hard">Khó</option>
-                                        </select>
+                                            {allFilteredSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                                        </button>
                                     </div>
+                                    
+
+                                    {/* <div style={{ marginBottom: '10px' }}>
+                                        <button
+                                            type="button"
+                                            onClick={handleSelectAllFiltered}
+                                            className={styles.btnSelectAll}
+                                        >
+                                            {allFilteredSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                                        </button>
+                                    </div> */}
 
                                     <div className={styles.questionList}>
                                         {questions.length === 0 ? <p>Ngân hàng câu hỏi trống.</p> :
@@ -408,7 +457,7 @@ const TeacherExamInstancesPage = () => {
                                                             onChange={() => handleQuestionToggle(q.id)}
                                                         />
                                                         <label htmlFor={`q-${q.id}`}>
-                                                            <span className={`${styles.badge} ${styles.gray}`}>{q.difficulty}</span>
+                                                            {/* <span className={`${styles.badge} ${styles.gray}`}>{q.difficulty}</span> */}
                                                             <MathRenderer text={q.text} />
                                                         </label>
                                                     </div>

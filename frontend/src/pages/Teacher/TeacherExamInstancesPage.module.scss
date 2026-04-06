@@ -477,3 +477,46 @@
     grid-template-columns: 1fr;
   }
 }
+
+.filterRow {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.searchInput {
+    flex: 1; // input chiếm full, button nằm bên phải
+}
+
+/* BUTTON CHUNG */
+.btnSelectAll {
+    min-width: 150px; // 🔥 FIX NHẢY SIZE
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 6px;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap; // 🔥 không xuống dòng
+}
+
+/* CHỌN TẤT CẢ */
+.success {
+    background-color: #28a745;
+    color: white;
+}
+
+.success:hover {
+    background-color: #218838;
+}
+
+/* BỎ CHỌN */
+.danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.danger:hover {
+    background-color: #c82333;
+}

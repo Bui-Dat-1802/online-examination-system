@@ -294,14 +294,14 @@ const TeacherQuestionsPage = () => {
                             </div>
 
                             <div className={styles.row}>
-                                <div className={styles.formGroup}>
+                                {/* <div className={styles.formGroup}>
                                     <label>Độ khó</label>
                                     <select name="difficulty" value={formData.difficulty} onChange={handleInputChange}>
                                         <option value="easy">Dễ (Easy)</option>
                                         <option value="medium">Trung bình (Medium)</option>
                                         <option value="hard">Khó (Hard)</option>
                                     </select>
-                                </div>
+                                </div> */}
                                 <div className={styles.formGroup}>
                                     <label>Tags (cách nhau bởi dấu phẩy)</label>
                                     <input type="text" name="tags" value={formData.tags} onChange={handleInputChange} placeholder="VD: math, dai-so" />

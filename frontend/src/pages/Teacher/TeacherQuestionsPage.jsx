@@ -196,6 +196,11 @@ const TeacherQuestionsPage = () => {
         } catch (error) { showAlert("Lỗi tải chi tiết."); }
     };
 
+    // check nếu có công thức LaTeX nào trong text để hiển thị preview
+    const hasLatex = (text) => {
+        return /\$.*?\$/.test(text) || /\$\$.*?\$\$/.test(text);
+    };
+
     return (
         <div className={styles.contentBody}>
             <div className={styles.pageHeader}>
@@ -280,7 +285,7 @@ const TeacherQuestionsPage = () => {
                                 <label>Nội dung câu hỏi *</label>
                                 <textarea name="text" value={formData.text} onChange={handleInputChange} required rows="2" />
                                 {/* Preview LaTeX */}
-                                {formData.text && (
+                                {formData.text && hasLatex(formData.text) && (
                                     <div className={styles.previewBox}>
                                         <strong>Preview:</strong>
                                         <MathRenderer text={formData.text} />
@@ -323,7 +328,7 @@ const TeacherQuestionsPage = () => {
                                                 className={choice.is_correct ? styles.correctInput : ''}
                                             />
                                             {/* Preview LaTeX cho từng đáp án */}
-                                            {choice.text && (
+                                            {choice.text && hasLatex(choice.text) && (
                                                 <div className={styles.choicePreview}>
                                                     <MathRenderer text={choice.text} />
                                                 </div>
@@ -356,7 +361,7 @@ const TeacherQuestionsPage = () => {
                                 <label>Giải thích (Optional)</label>
                                 <textarea name="explanation" value={formData.explanation} onChange={handleInputChange} rows="2" />
                                 {/* Preview LaTeX cho giải thích */}
-                                {formData.explanation && (
+                                {formData.explanation && hasLatex(formData.explanation) && (
                                     <div className={styles.previewBox}>
                                         <strong>Preview:</strong>
                                         <MathRenderer text={formData.explanation} />

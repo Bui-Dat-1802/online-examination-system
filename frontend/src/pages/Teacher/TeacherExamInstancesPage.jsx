@@ -99,12 +99,22 @@ const TeacherExamInstancesPage = () => {
     };
 
     // Filter questions based on search and difficulty
-    const filteredQuestions = questions.filter(q => {
-        const matchesSearch = searchTerm === '' ||
-            q.text.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (q.tags && q.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())));
+    const keywords = searchTerm
+        .toLowerCase()
+        .split(/[,\s]+/)
+        .map(k => k.trim())
+        .filter(Boolean);
 
-        const matchesDifficulty = difficultyFilter === 'all' || q.difficulty === difficultyFilter;
+    const filteredQuestions = questions.filter(q => {
+        const matchesSearch =
+            keywords.length === 0 ||
+            keywords.every(keyword =>
+            q.text.toLowerCase().includes(keyword) ||
+            (q.tags && q.tags.some(tag => tag.toLowerCase().includes(keyword)))
+            );
+
+        const matchesDifficulty =
+            difficultyFilter === 'all' || q.difficulty === difficultyFilter;
 
         return matchesSearch && matchesDifficulty;
     });

@@ -340,6 +340,7 @@ Tài liệu này mô tả các endpoint cơ bản để **đăng ký (register)*
     "tags": ["math"],
     "difficulty": "easy",
     "explanation": "Cộng 2 và 2",
+    "type": "SINGLE_CHOICE"
     "choices": [
         { "order": 1,  "text": "3", "is_correct": false },
         { "order": 2,  "text": "4", "is_correct": true }

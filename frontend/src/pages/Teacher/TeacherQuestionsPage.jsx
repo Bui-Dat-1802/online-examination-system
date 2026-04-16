@@ -24,12 +24,17 @@ const TeacherQuestionsPage = () => {
     const [viewQuestion, setViewQuestion] = useState(null);
 
     const initialFormState = {
-        text: '', difficulty: 'easy', tags: '', explanation: '',
+        text: '',
+        difficulty: 'easy',
+        tags: '',
+        explanation: '',
+        // thêm
+        type: 'SINGLE_CHOICE',
+        correct_text_answer: '',
+
         choices: [
             { order: 1, text: '', is_correct: false },
-            { order: 2, text: '', is_correct: false },
-            { order: 3, text: '', is_correct: false },
-            { order: 4, text: '', is_correct: false }
+            { order: 2, text: '', is_correct: false }
         ]
     };
     const [formData, setFormData] = useState(initialFormState);
@@ -44,6 +49,24 @@ const TeacherQuestionsPage = () => {
             finally { setLoading(false); }
         };
         fetchQuestions();
+        
+        if (formData.type === "FILL_IN_THE_BLANK") {
+            setFormData(prev => ({
+                ...prev,
+                choices: [], // ❗ clear choices
+            }));
+        } else {
+            // nếu chuyển lại trắc nghiệm mà chưa có choices thì tạo lại
+            if (formData.choices.length === 0) {
+                setFormData(prev => ({
+                    ...prev,
+                    choices: [
+                        { order: 1, text: '', is_correct: false },
+                        { order: 2, text: '', is_correct: false }
+                    ]
+                }));
+            }
+        }
     }, []);
 
     // Helper Reset Form
@@ -67,7 +90,15 @@ const TeacherQuestionsPage = () => {
     // SỬA: Cho phép chọn nhiều đáp án đúng (Toggle true/false)
     const handleCorrectSelect = (index) => {
         const newChoices = [...formData.choices];
-        newChoices[index].is_correct = !newChoices[index].is_correct;
+
+        if (formData.type === "SINGLE_CHOICE") {
+            newChoices.forEach((c, i) => {
+                c.is_correct = i === index;
+            });
+        } else {
+            newChoices[index].is_correct = !newChoices[index].is_correct;
+        }
+
         setFormData({ ...formData, choices: newChoices });
     };
 
@@ -109,6 +140,8 @@ const TeacherQuestionsPage = () => {
             difficulty: question.difficulty,
             explanation: question.explanation || '',
             tags: question.tags.join(', '),
+            type: question.type,
+            correct_text_answer: question.correct_text_answer || '',
             choices: question.question_choice.map(c => ({
                 order: c.order, text: c.text, is_correct: c.is_correct
             }))
@@ -151,13 +184,36 @@ const TeacherQuestionsPage = () => {
 
         const payload = {
             ...formData,
-            tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
-            choices: formData.choices.filter(c => c.text.trim() !== '')
+            tags: formData.tags.split(',').map(t => t.trim()).filter(t => t)
         };
 
-        if (payload.choices.length < 2) { showAlert("Cần ít nhất 2 đáp án!"); setIsSubmitting(false); return; }
-        // Kiểm tra ít nhất 1 đáp án đúng
-        if (!payload.choices.some(c => c.is_correct)) { showAlert("Cần chọn ít nhất 1 đáp án đúng!"); setIsSubmitting(false); return; }
+        if (formData.type === "FILL_IN_THE_BLANK") {
+
+            if (!formData.correct_text_answer.trim()) {
+                showAlert("Cần nhập đáp án đúng!");
+                setIsSubmitting(false);
+                return;
+            }
+
+            payload.correct_text_answer = formData.correct_text_answer;
+            payload.choices = [];
+
+        } else {
+
+            payload.choices = formData.choices.filter(c => c.text.trim() !== '');
+
+            if (payload.choices.length < 2) {
+                showAlert("Cần ít nhất 2 đáp án!");
+                setIsSubmitting(false);
+                return;
+            }
+
+            if (!payload.choices.some(c => c.is_correct)) {
+                showAlert("Cần chọn ít nhất 1 đáp án đúng!");
+                setIsSubmitting(false);
+                return;
+            }
+        }
 
         try {
             if (editingQuestion) {
@@ -249,12 +305,22 @@ const TeacherQuestionsPage = () => {
                                     <div className={styles.qFooter}>
                                         <span>Đáp án đúng: </span>
                                         <strong>
-                                            {q.question_choice?.filter(c => c.is_correct).map(c => (
-                                                <span key={c.id}>
-                                                    <MathRenderer text={c.text} />
-                                                    {q.question_choice?.filter(c => c.is_correct).indexOf(c) < q.question_choice?.filter(c => c.is_correct).length - 1 ? ', ' : ''}
-                                                </span>
-                                            )) || "Chưa có"}
+                                            {q.type === "FILL_IN_THE_BLANK" ? (
+                                                q.correct_text_answer || "Chưa có"
+                                            ) : (
+                                                (() => {
+                                                    const correctChoices = q.question_choice?.filter(c => c.is_correct) || [];
+
+                                                    if (correctChoices.length === 0) return "Chưa có";
+
+                                                    return correctChoices.map((c, idx) => (
+                                                        <span key={c.id}>
+                                                            <MathRenderer text={c.text} />
+                                                            {idx < correctChoices.length - 1 ? ', ' : ''}
+                                                        </span>
+                                                    ));
+                                                })()
+                                            )}
                                         </strong>
                                     </div>
                                 </div>
@@ -306,56 +372,84 @@ const TeacherQuestionsPage = () => {
                                     <label>Tags (cách nhau bởi dấu phẩy)</label>
                                     <input type="text" name="tags" value={formData.tags} onChange={handleInputChange} placeholder="VD: math, dai-so" />
                                 </div>
+                                <div className={styles.formGroup}>
+                                    <label>Loại câu hỏi</label>
+                                    <select name="type" value={formData.type} onChange={handleInputChange}>
+                                        <option value="SINGLE_CHOICE">1 đáp án đúng</option>
+                                        <option value="MULTIPLE_CHOICE">Nhiều đáp án đúng</option>
+                                        <option value="FILL_IN_THE_BLANK">Điền đáp án</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <div className={styles.formGroup}>
-                                <label>Các lựa chọn (Tích chọn CÁC đáp án đúng)</label>
-                                {formData.choices.map((choice, index) => (
-                                    <div key={index} className={styles.choiceRow}>
-                                        {/* CHECKBOX CHO PHÉP CHỌN NHIỀU */}
-                                        <input
-                                            type="checkbox"
-                                            checked={choice.is_correct}
-                                            onChange={() => handleCorrectSelect(index)}
-                                            style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-                                        />
-                                        <div style={{ flex: 1 }}>
+                            {formData.type === "FILL_IN_THE_BLANK" ? (
+                                <div className={styles.formGroup}>
+                                    <label>Đáp án đúng *</label>
+                                    <input
+                                        type="text"
+                                        name="correct_text_answer"
+                                        value={formData.correct_text_answer}
+                                        onChange={handleInputChange}
+                                        placeholder="Nhập đáp án đúng"
+                                    />
+
+                                    {formData.correct_text_answer && hasLatex(formData.correct_text_answer) && (
+                                        <div className={styles.previewBox}>
+                                            <MathRenderer text={formData.correct_text_answer} />
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className={styles.formGroup}>
+                                    <label>
+                                        Các lựa chọn {formData.type === "MULTIPLE_CHOICE"
+                                            ? "(Chọn NHIỀU đáp án đúng)"
+                                            : "(Chọn 1 đáp án đúng)"}
+                                    </label>
+
+                                    {formData.choices.map((choice, index) => (
+                                        <div key={index} className={styles.choiceRow}>
                                             <input
-                                                type="text"
-                                                placeholder={`Đáp án ${index + 1}`}
-                                                value={choice.text}
-                                                onChange={(e) => handleChoiceChange(index, e.target.value)}
-                                                className={choice.is_correct ? styles.correctInput : ''}
+                                                type={formData.type === "SINGLE_CHOICE" ? "radio" : "checkbox"}
+                                                checked={choice.is_correct}
+                                                onChange={() => handleCorrectSelect(index)}
                                             />
-                                            {/* Preview LaTeX cho từng đáp án */}
-                                            {choice.text && hasLatex(choice.text) && (
-                                                <div className={styles.choicePreview}>
-                                                    <MathRenderer text={choice.text} />
-                                                </div>
+
+                                            <div style={{ flex: 1 }}>
+                                                <input
+                                                    type="text"
+                                                    value={choice.text}
+                                                    onChange={(e) => handleChoiceChange(index, e.target.value)}
+                                                />
+
+                                                {choice.text && hasLatex(choice.text) && (
+                                                    <div className={styles.choicePreview}>
+                                                        <MathRenderer text={choice.text} />
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {formData.choices.length > 2 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveChoice(index)}
+                                                    className={styles.removeChoiceBtn}
+                                                >
+                                                    X
+                                                </button>
                                             )}
                                         </div>
-                                        {/* Nút xóa đáp án */}
-                                        {formData.choices.length > 2 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => handleRemoveChoice(index)}
-                                                className={styles.removeChoiceBtn}
-                                                title="Xóa đáp án"
-                                            >
-                                                X
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
-                                {/* Nút thêm đáp án */}
-                                <button
-                                    type="button"
-                                    onClick={handleAddChoice}
-                                    className={styles.addChoiceBtn}
-                                >
-                                    Thêm đáp án
-                                </button>
-                            </div>
+                                    ))}
+
+                                    <button
+                                        type="button"
+                                        onClick={handleAddChoice}
+                                        className={styles.addChoiceBtn}
+                                    >
+                                        Thêm đáp án
+                                    </button>
+                                </div>
+                            )}
 
                             <div className={styles.formGroup}>
                                 <label>Giải thích (Optional)</label>
@@ -395,12 +489,12 @@ const TeacherQuestionsPage = () => {
                                     <MathRenderer text={viewQuestion.text} />
                                 </p>
                             </div>
-                            <div className={styles.detailRow}>
+                            {/* <div className={styles.detailRow}>
                                 <span className={styles.label}>Độ khó:</span>
                                 <span className={`${styles.badge} ${styles[viewQuestion.difficulty]}`}>
                                     {viewQuestion.difficulty}
                                 </span>
-                            </div>
+                            </div> */}
                             <div className={styles.detailRow}>
                                 <span className={styles.label}>Tags:</span>
                                 <div className={styles.qTags}>
@@ -408,15 +502,33 @@ const TeacherQuestionsPage = () => {
                                 </div>
                             </div>
                             <div className={styles.detailRow}>
-                                <span className={styles.label}>Các lựa chọn:</span>
-                                <ul className={styles.choiceList}>
-                                    {viewQuestion.question_choice?.map((c) => (
-                                        <li key={c.id || Math.random()} className={c.is_correct ? styles.correct : ''}>
-                                            <strong>{c.label || '•'}</strong> <MathRenderer text={c.text} />
-                                            {c.is_correct && <i className="fa-solid fa-check-circle" style={{ marginLeft: '10px' }}></i>}
-                                        </li>
-                                    ))}
-                                </ul>
+                                <span className={styles.label}>
+                                    {viewQuestion.type === "FILL_IN_THE_BLANK" ? "Đáp án đúng:" : "Các lựa chọn:"}
+                                </span>
+
+                                {viewQuestion.type === "FILL_IN_THE_BLANK" ? (
+                                    <p className={styles.content}>
+                                        <MathRenderer text={viewQuestion.correct_text_answer || "Chưa có"} />
+                                    </p>
+                                ) : (
+                                    <ul className={styles.choiceList}>
+                                        {viewQuestion.question_choice?.map((c) => (
+                                            <li
+                                                key={c.id}
+                                                className={c.is_correct ? styles.correct : ''}
+                                            >
+                                                <strong>{c.label || '•'}</strong>{" "}
+                                                <MathRenderer text={c.text} />
+                                                {c.is_correct && (
+                                                    <i
+                                                        className="fa-solid fa-check-circle"
+                                                        style={{ marginLeft: '10px' }}
+                                                    ></i>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
                             </div>
                             <div className={styles.detailRow}>
                                 <span className={styles.label}>Giải thích:</span>

@@ -242,7 +242,7 @@ module.exports = {
     // Tạo thêm câu hỏi
     async addQuestion( questionData, actorId) {
 
-        const { choices = [], ...questionFields } = questionData;
+        const { choices = [], type, correct_text_answer, ...questionFields } = questionData;
 
         return await prisma.$transaction(async (tx) => {
             // Kiểm tra lớp học tồn tại và quyền của giáo viên
@@ -255,6 +255,8 @@ module.exports = {
                 explanation: questionFields.explanation ?? null,
                 tags: Array.isArray(questionFields.tags) ? questionFields.tags : [],
                 difficulty: questionFields.difficulty ?? "medium",
+                type,
+                correct_text_answer: type === "FILL_IN_THE_BLANK" ? correct_text_answer?.trim() : null,
                 user: { connect: { id: actorId } }
             };
 
@@ -262,8 +264,12 @@ module.exports = {
                 data: createData,
             });
 
-            // 2. Tạo danh sách đáp án (chuẩn hoá input)
-            if (Array.isArray(choices) && choices.length > 0) {
+            // 2. Tạo danh sách đáp án nếu loại câu hỏi không phải là "FILL_IN_THE_BLANK" (chuẩn hoá input)
+            if (
+                type !== "FILL_IN_THE_BLANK" &&
+                Array.isArray(choices) &&
+                choices.length > 0
+            ) {
                 const mapped = choices.map((c, i) => ({
                     question_id: newQuestion.id,
                     label: c.label ?? null,
@@ -319,10 +325,10 @@ module.exports = {
     },
     // Cập nhật câu hỏi
     async updateQuestion(questionId, updateData) {
-        const { choices = [], ...questionFields } = updateData;
+        const { choices = [], type, correct_text_answer, ...questionFields } = updateData;
 
         return await prisma.$transaction(async (tx) => {
-            // Lấy question hiện tại kèm choices
+            // 1. Lấy question hiện tại
             const existing = await tx.question.findFirst({
                 where: { id: questionId },
                 include: { question_choice: true }
@@ -334,20 +340,78 @@ module.exports = {
                 throw err;
             }
 
-            // Chuẩn bị dữ liệu cập nhật cho question
+            const newType = type ?? existing.type;
+
+            // 2. Chuẩn bị update question
             const qUpdate = { updated_at: new Date() };
-            if (questionFields.text !== undefined) qUpdate.text = questionFields.text?.trim();
-            if (Object.prototype.hasOwnProperty.call(questionFields, "explanation")) qUpdate.explanation = questionFields.explanation ?? null;
-            if (Object.prototype.hasOwnProperty.call(questionFields, "tags")) qUpdate.tags = Array.isArray(questionFields.tags) ? questionFields.tags : [];
-            if (Object.prototype.hasOwnProperty.call(questionFields, "difficulty")) qUpdate.difficulty = questionFields.difficulty ?? "medium";
+
+            if (questionFields.text !== undefined)
+                qUpdate.text = questionFields.text?.trim();
+
+            if (Object.prototype.hasOwnProperty.call(questionFields, "explanation"))
+                qUpdate.explanation = questionFields.explanation ?? null;
+
+            if (Object.prototype.hasOwnProperty.call(questionFields, "tags"))
+                qUpdate.tags = Array.isArray(questionFields.tags) ? questionFields.tags : [];
+
+            if (Object.prototype.hasOwnProperty.call(questionFields, "difficulty"))
+                qUpdate.difficulty = questionFields.difficulty ?? "medium";
+
+            //  update type
+            if (type !== undefined) {
+                qUpdate.type = type;
+            }
+
+            //  update correct_text_answer
+            if (newType === "FILL_IN_THE_BLANK") {
+                if (!correct_text_answer) {
+                    const err = new Error("Fill question must have correct_text_answer");
+                    err.status = 400;
+                    throw err;
+                }
+                qUpdate.correct_text_answer = correct_text_answer.trim();
+            } else {
+                // nếu chuyển từ fill -> trắc nghiệm thì xoá text answer
+                qUpdate.correct_text_answer = null;
+            }
 
             await tx.question.update({
                 where: { id: questionId },
                 data: qUpdate,
             });
 
-            // Xử lý choices: update existing, create new, delete đã bị remove
             const existingChoices = existing.question_choice || [];
+
+            // CASE 1: FILL_IN_THE_BLANK
+            if (newType === "FILL_IN_THE_BLANK") {
+
+                const existingChoiceIds = existingChoices.map(c => c.id);
+
+                if (existingChoiceIds.length > 0) {
+                    // xoá answer liên quan
+                    await tx.answer.deleteMany({
+                        where: {
+                            choice_id: { in: existingChoiceIds }
+                        }
+                    });
+
+                    // xoá choices
+                    await tx.question_choice.deleteMany({
+                        where: {
+                            id: { in: existingChoiceIds }
+                        }
+                    });
+                }
+
+                return await tx.question.findUnique({
+                    where: { id: questionId },
+                    include: {
+                        question_choice: true
+                    }
+                });
+            }
+
+            // CASE 2: TRẮC NGHIỆM
             const existingById = new Map(existingChoices.map(c => [c.id, c]));
             const providedIds = new Set();
 
@@ -356,13 +420,14 @@ module.exports = {
                 const order = c.order ?? i;
 
                 if (c.id) {
-                    // Nếu id được cung cấp phải thuộc question này
                     if (!existingById.has(c.id)) {
                         const err = new Error(`Invalid choice id: ${c.id}`);
                         err.status = 400;
                         throw err;
                     }
+
                     providedIds.add(c.id);
+
                     await tx.question_choice.update({
                         where: { id: c.id },
                         data: {
@@ -372,8 +437,8 @@ module.exports = {
                             is_correct: !!c.is_correct,
                         }
                     });
+
                 } else {
-                    // Tạo mới choice
                     await tx.question_choice.create({
                         data: {
                             question_id: questionId,
@@ -386,26 +451,24 @@ module.exports = {
                 }
             }
 
-            // Xóa các choice không còn trong payload
+            // xoá choice không còn
             const idsToDelete = existingChoices
                 .map(c => c.id)
                 .filter(id => !providedIds.has(id));
 
             if (idsToDelete.length > 0) {
-                // Trước khi xóa choices, phải xóa các answer tham chiếu đến chúng
                 await tx.answer.deleteMany({
-                    where: { 
+                    where: {
                         choice_id: { in: idsToDelete }
                     }
                 });
-                
-                // Sau đó mới xóa choices
+
                 await tx.question_choice.deleteMany({
                     where: { id: { in: idsToDelete } }
                 });
             }
 
-            // Trả về question kèm choices đã sắp xếp
+            // return result
             const result = await tx.question.findUnique({
                 where: { id: questionId },
                 include: {

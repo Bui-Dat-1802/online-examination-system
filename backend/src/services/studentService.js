@@ -181,10 +181,16 @@ module.exports = {
                         explanation: null,
                         ordinal: eq.ordinal,
                         points: eq.points,
+                        type: eq.question.type, // ✅ THÊM DÒNG NÀY
                         multichoice: correctCount > 1,
                         choices: eq.question.question_choice
                             .sort((a, b) => a.order - b.order)
-                            .map((c) => ({ id: c.id, label: c.label, order: c.order, text: c.text })),
+                            .map((c) => ({
+                                id: c.id,
+                                label: c.label,
+                                order: c.order,
+                                text: c.text
+                            })),
                         selected_choice_ids: [],
                     };
                 });
@@ -324,25 +330,46 @@ module.exports = {
         // Lấy đáp án đã chọn để render lại khi resume
         const answers = await prisma.answer.findMany({
             where: { exam_session_id: sessionId },
-            select: { question_id: true, choice_id: true, selected_choice_ids: true },
+            select: { 
+                question_id: true, 
+                choice_id: true, 
+                selected_choice_ids: true,
+                text_answer: true // ✅ THÊM
+            },
         });
         const answerMap = new Map(
-            answers.map((a) => [a.question_id, (a.selected_choice_ids && a.selected_choice_ids.length > 0) ? a.selected_choice_ids : (a.choice_id ? [a.choice_id] : [])])
+            answers.map((a) => [
+                a.question_id,
+                {
+                    choice_ids: (a.selected_choice_ids && a.selected_choice_ids.length > 0)
+                        ? a.selected_choice_ids
+                        : (a.choice_id ? [a.choice_id] : []),
+                    text_answer: a.text_answer || ""
+                }
+            ])
         );
 
         const questions = session.exam_instance.exam_question.map((eq) => {
             const correctCount = eq.question.question_choice.filter((c) => c.is_correct).length;
+            const answerData = answerMap.get(eq.question.id);
             return {
                 id: eq.question.id,
                 text: eq.question.text,
                 explanation: null,
                 ordinal: eq.ordinal,
                 points: eq.points,
+                type: eq.question.type, 
+                text_answer: answerData?.text_answer || "",
                 multichoice: correctCount > 1,
                 choices: eq.question.question_choice
                     .sort((a, b) => a.order - b.order)
-                    .map((c) => ({ id: c.id, label: c.label, order: c.order, text: c.text })),
-                selected_choice_ids: answerMap.get(eq.question.id) || [],
+                    .map((c) => ({
+                        id: c.id,
+                        label: c.label,
+                        order: c.order,
+                        text: c.text
+                    })),
+                selected_choice_ids: answerData?.choice_ids || [],
             };
         });
         return questions;
@@ -358,17 +385,18 @@ module.exports = {
             throw err;
         }
 
-
         if (session.user_id !== studentId) {
             const err = new Error("Bạn không có quyền truy cập phiên này");
             err.status = 403;
             throw err;
         }
+
         if (session.state !== "started") {
             const err = new Error("Phiên làm bài không ở trạng thái đang diễn ra");
             err.status = 400;
             throw err;
         }
+
         const now = new Date();
         if (session.ends_at && now > session.ends_at) {
             await prisma.exam_session.update({ where: { id: sessionId }, data: { state: "expired" } });
@@ -380,25 +408,82 @@ module.exports = {
         // Validate question belongs to this exam_instance
         const examQuestion = await prisma.exam_question.findFirst({
             where: { exam_instance_id: session.exam_instance_id, question_id: questionId },
+            include: {
+                question: true // 👈 thêm để lấy type
+            }
         });
+
         if (!examQuestion) {
             const err = new Error("Câu hỏi không thuộc đề thi này");
             err.status = 400;
             throw err;
         }
 
+        // CASE: FILL_IN_THE_BLANK
+        if (examQuestion.question.type === "FILL_IN_THE_BLANK") {
+            const text = Array.isArray(choiceIds) ? choiceIds[0] : choiceIds;
+
+            if (!text || !text.toString().trim()) {
+                const err = new Error("Đáp án không hợp lệ");
+                err.status = 400;
+                throw err;
+            }
+
+            const answered = await prisma.answer.upsert({
+                where: {
+                    exam_session_id_question_id: {
+                        exam_session_id: sessionId,
+                        question_id: questionId,
+                    },
+                },
+                update: {
+                    text_answer: text.toString(),
+                    selected_choice_ids: [],
+                    choice_id: null,
+                    answered_at: now
+                },
+                create: {
+                    exam_session_id: sessionId,
+                    question_id: questionId,
+                    text_answer: text.toString(),
+                    selected_choice_ids: [],
+                    choice_id: null,
+                    answered_at: now
+                },
+            });
+
+            await prisma.audit_log.create({
+                data: {
+                    event_type: "ANSWER_SUBMIT",
+                    exam_session_id: sessionId,
+                    user_id: studentId,
+                    payload: `Học sinh trả lời câu hỏi ${questionId} với đáp án "${text}"`,
+                    source_ip: null,
+                    user_agent: null,
+                },
+            });
+
+            return {
+                question_id: answered.question_id,
+                text_answer: answered.text_answer
+            };
+        }
+
         // Normalize và validate danh sách lựa chọn
         const ids = Array.isArray(choiceIds) ? choiceIds.filter(Boolean) : (choiceIds ? [choiceIds] : []);
         const uniqueIds = [...new Set(ids)];
+
         if (uniqueIds.length === 0) {
             const err = new Error("Thiếu danh sách lựa chọn (choice_ids)");
             err.status = 400;
             throw err;
         }
+
         const validChoices = await prisma.question_choice.findMany({
             where: { id: { in: uniqueIds }, question_id: questionId },
             select: { id: true },
         });
+
         if (validChoices.length !== uniqueIds.length) {
             const err = new Error("Có lựa chọn không thuộc câu hỏi này");
             err.status = 400;
@@ -412,15 +497,22 @@ module.exports = {
                     question_id: questionId,
                 },
             },
-            update: { choice_id: uniqueIds[0] || null, selected_choice_ids: uniqueIds, answered_at: now },
+            update: {
+                choice_id: uniqueIds[0] || null,
+                selected_choice_ids: uniqueIds,
+                text_answer: null, // 👈 thêm để clear text nếu đổi loại
+                answered_at: now
+            },
             create: {
                 exam_session_id: sessionId,
                 question_id: questionId,
                 choice_id: uniqueIds[0] || null,
                 selected_choice_ids: uniqueIds,
+                text_answer: null,
                 answered_at: now,
             },
         });
+
         await prisma.audit_log.create({
             data: {
                 event_type: "ANSWER_SUBMIT",
@@ -432,7 +524,10 @@ module.exports = {
             },
         });
 
-        return { question_id: answered.question_id, choice_ids: answered.selected_choice_ids };
+        return {
+            question_id: answered.question_id,
+            choice_ids: answered.selected_choice_ids
+        };
     },
 
     // Heartbeat theo session: cập nhật trạng thái, đếm mất focus, lock nếu vượt ngưỡng
@@ -536,15 +631,23 @@ module.exports = {
         // Lấy tất cả đáp án đã chọn
         const answers = await prisma.answer.findMany({
             where: { exam_session_id: sessionId },
-            select: { question_id: true, choice_id: true, selected_choice_ids: true },
+            select: { 
+                question_id: true, 
+                choice_id: true, 
+                selected_choice_ids: true,
+                text_answer: true 
+            },
         });
 
         const answerMap = new Map(
             answers.map((a) => [
                 a.question_id,
-                (a.selected_choice_ids && a.selected_choice_ids.length > 0)
-                    ? a.selected_choice_ids
-                    : (a.choice_id ? [a.choice_id] : []),
+                {
+                    choice_ids: (a.selected_choice_ids && a.selected_choice_ids.length > 0)
+                        ? a.selected_choice_ids
+                        : (a.choice_id ? [a.choice_id] : []),
+                    text_answer: a.text_answer || ""
+                }
             ])
         );
 
@@ -557,16 +660,39 @@ module.exports = {
             const points = Number(eq.points);
             maxScore += points;
 
-            const chosenChoiceIds = answerMap.get(eq.question_id) || [];
+            const answerData = answerMap.get(eq.question_id) || { choice_ids: [], text_answer: "" };
+            const chosenChoiceIds = answerData.choice_ids;
+            const textAnswer = answerData.text_answer;
             let correct = false;
-            const correctChoices = eq.question.question_choice.filter((c) => c.is_correct).map((c) => c.id);
-            if (chosenChoiceIds.length === correctChoices.length && chosenChoiceIds.length > 0) {
-                const chosenSet = new Set(chosenChoiceIds);
-                const correctSet = new Set(correctChoices);
-                const allMatch = correctChoices.every((id) => chosenSet.has(id)) && chosenChoiceIds.every((id) => correctSet.has(id));
-                if (allMatch) {
+            // ===== CASE 1: FILL_IN_THE_BLANK =====
+            if (eq.question.type === "FILL_IN_THE_BLANK") {
+                const correctAnswer = (eq.question.correct_text_answer || "").trim().toLowerCase();
+                const studentAnswer = (textAnswer || "").trim().toLowerCase();
+
+                if (correctAnswer && studentAnswer && correctAnswer === studentAnswer) {
                     correct = true;
                     totalScore += points;
+                }
+            }
+
+            // ===== CASE 2: CHOICE =====
+            else {
+                const correctChoices = eq.question.question_choice
+                    .filter((c) => c.is_correct)
+                    .map((c) => c.id);
+
+                if (chosenChoiceIds.length === correctChoices.length && chosenChoiceIds.length > 0) {
+                    const chosenSet = new Set(chosenChoiceIds);
+                    const correctSet = new Set(correctChoices);
+
+                    const allMatch =
+                        correctChoices.every((id) => chosenSet.has(id)) &&
+                        chosenChoiceIds.every((id) => correctSet.has(id));
+
+                    if (allMatch) {
+                        correct = true;
+                        totalScore += points;
+                    }
                 }
             }
 

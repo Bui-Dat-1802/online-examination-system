@@ -32,7 +32,7 @@ const StudentClassExamsPage = () => {
         };
         setLoading(true);
         fetchExams();
-        const intervalId = setInterval(fetchExams, 5000);
+        const intervalId = setInterval(fetchExams, 15000);
         return () => clearInterval(intervalId);
     }, [classId]);
 

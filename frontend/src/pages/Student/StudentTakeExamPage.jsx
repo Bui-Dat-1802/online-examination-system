@@ -37,6 +37,12 @@ const StudentTakeExamPage = () => {
     const isInitRef = useRef(false);
     const socketInitRef = useRef(false);
 
+    // ĐÁP ÁN KIỂU FILL_IN_THE_BLANK
+    const [textAnswers, setTextAnswers] = useState({});
+    const [submittedAnswers, setSubmittedAnswers] = useState({});
+    
+    const [savingAnswers, setSavingAnswers] = useState({});
+
     // --- 1. KHỞI TẠO BÀI THI ---
     useEffect(() => {
         if (isInitRef.current) return;
@@ -75,14 +81,34 @@ const StudentTakeExamPage = () => {
                 const listQuestions = questionsRes.data || [];
                 setQuestions(listQuestions);
 
-                // Khôi phục đáp án đã chọn
+                // Khôi phục đáp án trắc nghiệm
                 const savedAnswers = {};
+                const submittedMap = {};
+
                 listQuestions.forEach(q => {
+                    // MULTIPLE CHOICE
                     if (q.selected_choice_ids?.length > 0) {
                         savedAnswers[q.id] = q.selected_choice_ids;
+                        submittedMap[q.id] = true; // ✅ đánh dấu đã làm
+                    }
+
+                    // FILL IN THE BLANK
+                    if (q.text_answer && q.text_answer.trim() !== "") {
+                        submittedMap[q.id] = true;
                     }
                 });
+
                 setUserAnswers(savedAnswers);
+                setSubmittedAnswers(submittedMap); // 🔥 thêm dòng này
+
+                // Khôi phục đáp án điền
+                const savedTextAnswers = {};
+                listQuestions.forEach(q => {
+                    if (q.text_answer) {
+                        savedTextAnswers[q.id] = q.text_answer;
+                    }
+                });
+                setTextAnswers(savedTextAnswers);
 
                 // D. KẾT NỐI SOCKET với examId từ URL params và JWT token từ localStorage
                 // examId là UUID string, KHÔNG parse thành number
@@ -243,36 +269,82 @@ const StudentTakeExamPage = () => {
 
 
     // --- 4. CHỌN ĐÁP ÁN (HỖ TRỢ MULTICHOICE) ---
-    const handleSelectAnswer = async (questionId, choiceId, isMultiple) => {
+    const handleSelectAnswer = (questionId, choiceId, isMultiple) => {
         if (reviewMode) return;
 
         let newChoices = [];
         const currentChoices = userAnswers[questionId] || [];
 
         if (isMultiple) {
-            // Logic Checkbox: Toggle
             if (currentChoices.includes(choiceId)) {
                 newChoices = currentChoices.filter(id => id !== choiceId);
             } else {
                 newChoices = [...currentChoices, choiceId];
             }
         } else {
-            // Logic Radio: Chọn 1
             newChoices = [choiceId];
         }
 
-        // Update UI
         setUserAnswers(prev => ({ ...prev, [questionId]: newChoices }));
+    };
 
-        // Gọi API lưu
+    // XỬ LÝ ĐÁP ÁN KIỂU FILL_IN_THE_BLANK
+    const handleTextAnswerChange = (questionId, value) => {
+        setTextAnswers(prev => ({
+            ...prev,
+            [questionId]: value
+        }));
+    };
+
+    // Gửi đáp án lên backend ngay khi chọn (đối với trắc nghiệm) hoặc khi nhập xong (đối với điền từ)
+    const handleSubmitAnswer = async (question) => {
         try {
+            let payload = [];
+
+            if (question.type === "FILL_IN_THE_BLANK") {
+                const answer = textAnswers[question.id];
+                if (!answer || !answer.trim()) {
+                    showAlert("Vui lòng nhập đáp án!");
+                    return;
+                }
+                payload = [answer];
+            } else {
+                const selected = userAnswers[question.id] || [];
+                if (selected.length === 0) {
+                    showAlert("Vui lòng chọn đáp án!");
+                    return;
+                }
+                payload = selected;
+            }
+
+            // 🔥 trạng thái loading
+            setSavingAnswers(prev => ({
+                ...prev,
+                [question.id]: true
+            }));
+
             await studentService.submitAnswer(
                 sessionData.session_id,
                 sessionData.token,
-                questionId,
-                newChoices
+                question.id,
+                payload
             );
-        } catch (error) { console.error("Lỗi lưu đáp án"); }
+
+            // ✅ đánh dấu đã làm (quan trọng)
+            setSubmittedAnswers(prev => ({
+                ...prev,
+                [question.id]: true
+            }));
+
+        } catch (error) {
+            showAlert("Gửi đáp án thất bại!");
+        } finally {
+            // 🔥 reset loading
+            setSavingAnswers(prev => ({
+                ...prev,
+                [question.id]: false
+            }));
+        }
     };
 
     // --- 5. NỘP BÀI ---
@@ -338,6 +410,14 @@ const StudentTakeExamPage = () => {
         return {};
     };
 
+    // Helper để xác định nếu là câu điền từ, dùng để hiển thị input thay vì lựa chọn
+    const isFillQuestion = (q) => {
+        return q.type === "FILL_IN_THE_BLANK" 
+            || q.type === "fill_in_the_blank"
+            || q.type === "TEXT"
+            || q.type === 3; // nếu backend dùng số
+    };
+
     if (loading) return <div className={styles.loadingScreen}>Đang tải đề thi...</div>;
 
     return (
@@ -369,7 +449,7 @@ const StudentTakeExamPage = () => {
                     <p>Câu hỏi ({questions?.length || 0})</p>
                     <div className={styles.grid}>
                         {questions?.map((q, index) => {
-                            const isAnswered = userAnswers[q.id] && userAnswers[q.id].length > 0;
+                            const isAnswered = submittedAnswers[q.id];
                             let badgeClass = '';
                             if (reviewMode && examResult?.details) {
                                 const isCorrect = getQuestionStatus(q.id);
@@ -420,39 +500,71 @@ const StudentTakeExamPage = () => {
                                     <span className={styles.qIndex}>Câu {index + 1}:</span>
                                     <MathRenderer text={q.text} />
                                     {/* Hiển thị loại câu hỏi */}
-                                    <span className={styles.qType}>{q.multichoice ? "(Nhiều đáp án)" : "(Một đáp án)"}</span>
+                                    <span className={styles.qType}>
+                                        {isFillQuestion(q)
+                                            ? "(Điền đáp án)"
+                                            : q.multichoice
+                                                ? "(Nhiều đáp án)"
+                                                : "(Một đáp án)"
+                                        }
+                                    </span>
                                     <span className={styles.points}>({q.points} điểm)</span>
                                     {statusText && <span className={`${styles.resultLabel} ${statusClass}`}>{statusText}</span>}
                                 </div>
 
-                                <div className={styles.choices}>
-                                    {q.choices?.map((choice) => {
-                                        const isSelected = userAnswers[q.id]?.includes(choice.id);
-                                        const reviewClass = getChoiceStyle(q.id, choice.id);
+                                {/* Nếu là câu điền từ, hiển thị input; nếu là trắc nghiệm, hiển thị lựa chọn */}
+                                {(q.type === "FILL_IN_THE_BLANK" || q.type === "fill_in_the_blank" || q.type === "TEXT") ? (
+                                    <div className={styles.fillAnswerBox}>
+                                        <input
+                                            type="text"
+                                            placeholder="Nhập đáp án..."
+                                            value={textAnswers[q.id] || ''}
+                                            onChange={(e) => handleTextAnswerChange(q.id, e.target.value)}
+                                            disabled={reviewMode}
+                                            className={styles.fillInput}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className={styles.choices}>
+                                        {q.choices?.map((choice) => {
+                                            const isSelected = userAnswers[q.id]?.includes(choice.id);
+                                            const reviewClass = getChoiceStyle(q.id, choice.id);
 
-                                        return (
-                                            <div
-                                                key={choice.id}
-                                                className={`
-                                                    ${styles.choiceItem} 
-                                                    ${isSelected ? styles.selected : ''} 
-                                                    ${reviewClass}
-                                                `}
-                                                // --- XỬ LÝ CLICK DỰA VÀO LOẠI CÂU HỎI ---
-                                                onClick={() => handleSelectAnswer(q.id, choice.id, q.multichoice)}
-                                                style={{ pointerEvents: reviewMode ? 'none' : 'auto' }}
-                                            >
-                                                {/* --- HIỂN THỊ ICON VUÔNG / TRÒN --- */}
-                                                <div className={`${styles.iconCheck} ${q.multichoice ? styles.square : styles.circle}`}>
-                                                    {isSelected && <div className={styles.innerDot}></div>}
+                                            return (
+                                                <div
+                                                    key={choice.id}
+                                                    className={`
+                                                        ${styles.choiceItem} 
+                                                        ${isSelected ? styles.selected : ''} 
+                                                        ${reviewClass}
+                                                    `}
+                                                    onClick={() => handleSelectAnswer(q.id, choice.id, q.multichoice)}
+                                                    style={{ pointerEvents: reviewMode ? 'none' : 'auto' }}
+                                                >
+                                                    <div className={`${styles.iconCheck} ${q.multichoice ? styles.square : styles.circle}`}>
+                                                        {isSelected && <div className={styles.innerDot}></div>}
+                                                    </div>
+
+                                                    <span className={styles.choiceLabel}>{choice.label}</span>
+                                                    <MathRenderer text={choice.text} />
                                                 </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
 
-                                                <span className={styles.choiceLabel}>{choice.label}</span>
-                                                <MathRenderer text={choice.text} />
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                {/* Nút gửi đáp án chỉ hiển thị khi không ở chế độ review và chưa gửi đáp án cho câu hỏi đó */}
+                                {!reviewMode && (
+                                    <div style={{ marginTop: '10px' }}>
+                                        <button
+                                            onClick={() => handleSubmitAnswer(q)}
+                                            className={styles.submitAnswerBtn}
+                                            disabled={savingAnswers[q.id]} // chỉ disable khi đang gửi
+                                        >
+                                            {savingAnswers[q.id] ? "Đang gửi..." : "Gửi"}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         );
                     })}

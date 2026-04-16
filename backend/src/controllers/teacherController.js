@@ -141,27 +141,69 @@ module.exports = {
     async addQuestion(req, res, next) {
         try {
             const teacherId = req.user.id;
-
             const questionData = req.body || {};
-            const questionFields = { ...questionData };
-            if (!questionFields.text || typeof questionFields.text !== "string" || questionFields.text.trim().length === 0) {
-                const err = new Error("Nội dung câu hỏi là bắt buộc");
-                err.status = 400;
-                throw err;
+
+            const { text, choices, type, correct_text_answer } = questionData;
+
+            // 1. Validate text
+            if (!text || typeof text !== "string" || text.trim().length === 0) {
+                return res.status(400).json({
+                    error: "Nội dung câu hỏi là bắt buộc"
+                });
             }
-            const { text, choices } = questionData;
-            if (!text || typeof text !== "string" || !Array.isArray(choices) || choices.length < 2) {
-                return res.status(400).json({ error: "Câu hỏi phải có nội dung và ít nhất 2 lựa chọn là bắt buộc" });
+
+            // 2. Validate type
+            if (!type) {
+                return res.status(400).json({
+                    error: "Loại câu hỏi (type) là bắt buộc"
+                });
             }
-            if (!choices.some(c => !!c.is_correct)) {
-                return res.status(400).json({ error: "Ít nhất một lựa chọn phải có is_correct=true" });
+
+            //  VALIDATE THEO TYPE
+            if (type === "FILL_IN_THE_BLANK") {
+                if (!correct_text_answer || typeof correct_text_answer !== "string") {
+                    return res.status(400).json({
+                        error: "Câu điền đáp án phải có correct_text_answer"
+                    });
+                }
+
+            } else if (type === "SINGLE_CHOICE" || type === "MULTIPLE_CHOICE") {
+                if (!Array.isArray(choices) || choices.length < 2) {
+                    return res.status(400).json({
+                        error: "Câu hỏi trắc nghiệm phải có ít nhất 2 lựa chọn"
+                    });
+                }
+
+                // phải có ít nhất 1 đáp án đúng
+                if (!choices.some(c => !!c.is_correct)) {
+                    return res.status(400).json({
+                        error: "Ít nhất một lựa chọn phải có is_correct=true"
+                    });
+                }
+
+                // optional: enforce SINGLE chỉ có 1 đáp án đúng
+                if (type === "SINGLE_CHOICE") {
+                    const correctCount = choices.filter(c => !!c.is_correct).length;
+                    if (correctCount !== 1) {
+                        return res.status(400).json({
+                            error: "Câu SINGLE_CHOICE chỉ được có đúng 1 đáp án đúng"
+                        });
+                    }
+                }
+
+            } else {
+                return res.status(400).json({
+                    error: "Loại câu hỏi không hợp lệ"
+                });
             }
-            // console.log("Adding question to classId:", classId);
-            // console.log("Question data:", questionData);
-            // console.log("User:", req.user);
-            // res.status(501).json({ message: "Chức năng thêm câu hỏi chưa được triển khai" });
+
             const newQuestion = await teacherService.addQuestion(questionData, teacherId);
-            res.status(201).json({ newQuestion, message: "Câu hỏi đã được thêm thành công" });
+
+            res.status(201).json({
+                newQuestion,
+                message: "Câu hỏi đã được thêm thành công"
+            });
+
         } catch (error) {
             next(Object.assign(new Error("Thêm câu hỏi thất bại"), { status: 400, cause: error }));
         }
@@ -178,35 +220,100 @@ module.exports = {
             next(err);
         }
     },
-    // Chỉnh sửa câu hỏi - chưa xong
+
+    // Chỉnh sửa câu hỏi
     async updateQuestion(req, res, next) {
         try {
             const questionId = req.params.id;
             const updateData = req.body || {};
-            const questionFields = { ...updateData };
-            if (!questionFields.text || typeof questionFields.text !== "string" || questionFields.text.trim().length === 0) {
-                const err = new Error("Nội dung câu hỏi là bắt buộc");
-                err.status = 400;
-                throw err;
-            }
-            const { text, choices } = updateData;
-            if (!text || typeof text !== "string" || !Array.isArray(choices) || choices.length < 2) {
-                return res.status(400).json({ error: "Câu hỏi phải có nội dung và ít nhất 2 lựa chọn là bắt buộc" });
-            }
-            if (!choices.some(c => !!c.is_correct)) {
-                return res.status(400).json({ error: "Ít nhất một lựa chọn phải có is_correct=true" });
-            }
-            console.log("Updating questionId:", questionId);
-            console.log("Update data:", updateData);
-            console.log("User:", req.user);
-            const updatedQuestion = await teacherService.updateQuestion(questionId, updateData);
-            res.json({ /*updatedQuestion,*/ message: "Cập nhật câu hỏi thành công" });
-        } catch (error) {
-            const err = new Error('Cập nhật câu hỏi thất bại');
-            err.status = 400;
-            next(err);
-        }
 
+            const { text, choices, type, correct_text_answer } = updateData;
+
+            // 1. Validate text (cho phép update từng phần → chỉ check nếu có gửi)
+            if (text !== undefined) {
+                if (typeof text !== "string" || text.trim().length === 0) {
+                    return res.status(400).json({
+                        error: "Nội dung câu hỏi không hợp lệ"
+                    });
+                }
+            }
+
+            // 2. Validate type nếu có truyền
+            if (type !== undefined) {
+
+                if (type === "FILL_IN_THE_BLANK") {
+
+                    // không cần choices
+                    // cần correct_text_answer
+                    if (!correct_text_answer || typeof correct_text_answer !== "string") {
+                        return res.status(400).json({
+                            error: "Câu điền đáp án phải có correct_text_answer"
+                        });
+                    }
+
+                } else if (type === "SINGLE_CHOICE" || type === "MULTIPLE_CHOICE") {
+
+                    // nếu có update choices thì validate
+                    if (choices !== undefined) {
+                        if (!Array.isArray(choices) || choices.length < 2) {
+                            return res.status(400).json({
+                                error: "Câu hỏi trắc nghiệm phải có ít nhất 2 lựa chọn"
+                            });
+                        }
+
+                        if (!choices.some(c => !!c.is_correct)) {
+                            return res.status(400).json({
+                                error: "Ít nhất một lựa chọn phải có is_correct=true"
+                            });
+                        }
+
+                        // enforce SINGLE chỉ có 1 đáp án đúng
+                        if (type === "SINGLE_CHOICE") {
+                            const correctCount = choices.filter(c => !!c.is_correct).length;
+                            if (correctCount !== 1) {
+                                return res.status(400).json({
+                                    error: "Câu SINGLE_CHOICE chỉ được có đúng 1 đáp án đúng"
+                                });
+                            }
+                        }
+                    }
+
+                } else {
+                    return res.status(400).json({
+                        error: "Loại câu hỏi không hợp lệ"
+                    });
+                }
+            }
+
+            // 3. Nếu KHÔNG có type nhưng có choices → assume vẫn là trắc nghiệm
+            if (type === undefined && choices !== undefined) {
+                if (!Array.isArray(choices) || choices.length < 2) {
+                    return res.status(400).json({
+                        error: "Câu hỏi phải có ít nhất 2 lựa chọn"
+                    });
+                }
+
+                if (!choices.some(c => !!c.is_correct)) {
+                    return res.status(400).json({
+                        error: "Ít nhất một lựa chọn phải có is_correct=true"
+                    });
+                }
+            }
+
+            // CALL SERVICE
+            const updatedQuestion = await teacherService.updateQuestion(questionId, updateData);
+
+            res.json({
+                updatedQuestion,
+                message: "Cập nhật câu hỏi thành công"
+            });
+
+        } catch (error) {
+            next(Object.assign(new Error("Cập nhật câu hỏi thất bại"), {
+                status: 400,
+                cause: error
+            }));
+        }
     },
 
     // Xóa câu hỏi - Dat

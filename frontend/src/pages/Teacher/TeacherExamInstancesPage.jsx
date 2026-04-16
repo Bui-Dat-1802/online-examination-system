@@ -39,6 +39,7 @@ const TeacherExamInstancesPage = () => {
         ends_at: '',
         published: false,
         show_answers: false,
+        scoring_mode: 'ALL_OR_NOTHING',
         selectedQuestionIds: []
     };
     const [formData, setFormData] = useState(initialForm);
@@ -183,6 +184,7 @@ const TeacherExamInstancesPage = () => {
                 ends_at: toInputDateTime(fullExamData.ends_at),
                 published: fullExamData.published,
                 show_answers: fullExamData.show_answers || false,
+                scoring_mode: fullExamData.scoring_mode || 'ALL_OR_NOTHING',
                 selectedQuestionIds: currentQuestionIds //  Gán vào đây thì checkbox mới hiện
             });
 
@@ -240,6 +242,7 @@ const TeacherExamInstancesPage = () => {
             ends_at: formatWithTimezone(endsAtLocal),
             published: formData.published,
             show_answers: formData.show_answers,
+            scoring_mode: formData.scoring_mode,
             questions: formData.selectedQuestionIds.map(id => ({ question_id: id }))
         };
 
@@ -403,6 +406,38 @@ const TeacherExamInstancesPage = () => {
                                         />
                                         <span>Hiển thị đáp án sau khi thi</span>
                                     </label>
+                                </div>
+
+                                <div className={styles.scoringSection}>
+                                    <label className={styles.sectionLabel}>
+                                        Chấm điểm câu nhiều đáp án đúng
+                                    </label>
+
+                                    <label className={styles.radioOption}>
+                                        <input
+                                            type="radio"
+                                            name="scoring_mode"
+                                            value="ALL_OR_NOTHING"
+                                            checked={formData.scoring_mode === 'ALL_OR_NOTHING'}
+                                            onChange={handleInputChange}
+                                        />
+                                        <span>Đúng toàn bộ mới có điểm</span>
+                                    </label>
+
+                                    <label className={styles.radioOption}>
+                                        <input
+                                            type="radio"
+                                            name="scoring_mode"
+                                            value="PARTIAL_WITH_PENALTY"
+                                            checked={formData.scoring_mode === 'PARTIAL_WITH_PENALTY'}
+                                            onChange={handleInputChange}
+                                        />
+                                        <span>Chấm từng phần, chọn sai bị trừ</span>
+                                    </label>
+
+                                    <small className={styles.helpText}>
+                                        Áp dụng cho các câu hỏi có nhiều đáp án đúng trong đề thi.
+                                    </small>
                                 </div>
 
                                 <div className={styles.questionSection}>

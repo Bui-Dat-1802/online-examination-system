@@ -655,6 +655,7 @@ module.exports = {
         let totalScore = 0;
         let maxScore = 0;
         const details = [];
+        const scoringMode = session.exam_instance.scoring_mode || "ALL_OR_NOTHING";
 
         for (const eq of session.exam_instance.exam_question) {
             const points = Number(eq.points);
@@ -681,19 +682,56 @@ module.exports = {
                     .filter((c) => c.is_correct)
                     .map((c) => c.id);
 
-                if (chosenChoiceIds.length === correctChoices.length && chosenChoiceIds.length > 0) {
-                    const chosenSet = new Set(chosenChoiceIds);
-                    const correctSet = new Set(correctChoices);
+                const chosenSet = new Set(chosenChoiceIds);
+                const correctSet = new Set(correctChoices);
 
-                    const allMatch =
-                        correctChoices.every((id) => chosenSet.has(id)) &&
-                        chosenChoiceIds.every((id) => correctSet.has(id));
+                let earnedPoints = 0;
 
-                    if (allMatch) {
+                // ===== ALL_OR_NOTHING =====
+                if (scoringMode === "ALL_OR_NOTHING") {
+                    if (
+                        chosenChoiceIds.length === correctChoices.length &&
+                        correctChoices.every(id => chosenSet.has(id)) &&
+                        chosenChoiceIds.every(id => correctSet.has(id))
+                    ) {
                         correct = true;
-                        totalScore += points;
+                        earnedPoints = points;
                     }
                 }
+
+                // ===== PARTIAL_WITH_PENALTY =====
+                else if (scoringMode === "PARTIAL_WITH_PENALTY") {
+                    let correctSelected = 0;
+                    let wrongSelected = 0;
+
+                    for (const id of chosenChoiceIds) {
+                        if (correctSet.has(id)) {
+                            correctSelected++;
+                        } else {
+                            wrongSelected++;
+                        }
+                    }
+
+                    const rawScore = correctSelected - wrongSelected;
+                    const normalized = Math.max(0, rawScore) / correctChoices.length;
+
+                    earnedPoints = Number((normalized * points).toFixed(2));
+
+                    if (earnedPoints > 0) {
+                        correct = normalized === 1;
+                    }
+                }
+
+                totalScore += earnedPoints;
+
+                details.push({
+                    question_id: eq.question_id,
+                    correct,
+                    points_earned: earnedPoints,
+                    points_possible: points,
+                });
+
+                continue;
             }
 
             details.push({
@@ -737,8 +775,8 @@ module.exports = {
 
         const result = {
             submission_id: submission.id,
-            score: submission.score,
-            max_score: submission.max_score,
+            score: Number(submission.score).toFixed(2),
+            max_score: Number(submission.max_score).toFixed(2),
             graded_at: submission.graded_at,
         };
 

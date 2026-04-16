@@ -122,22 +122,8 @@ module.exports = {
             next(err);
         }
     },
-    // Tạo câu hỏi
 
-    /*
-        Lưu ý: body có dạng 
-        {
-            text: "2 + 2 = ?",
-            tags: ["math"],
-            difficulty: "easy",
-            explanation: "Cộng 2 và 2",
-            choices: [
-                { order: 1, text: "3", is_correct: false },
-                { order: 2, text: "4", is_correct: true }
-            ]
-        }
-
-    */
+   // tạo câu hỏi
     async addQuestion(req, res, next) {
         try {
             const teacherId = req.user.id;
@@ -534,7 +520,7 @@ module.exports = {
     async createExamInstance(req, res, next) { {
         try {
             const teacherId = req.user.id;
-            let { templateId, starts_at, ends_at, published, show_answers } = req.body || {};
+            let { templateId, starts_at, ends_at, published, show_answers, scoring_mode } = req.body || {};
 
             // Convert kiểu dữ liệu
             if (typeof published === 'string') {
@@ -566,6 +552,16 @@ module.exports = {
             }
             if (typeof show_answers === 'string') {
                 show_answers = show_answers.toLowerCase() === 'true';
+            }
+
+            const allowedModes = ["ALL_OR_NOTHING", "PARTIAL_WITH_PENALTY"];
+            if (
+                scoring_mode &&
+                !allowedModes.includes(scoring_mode)
+            ) {
+                const err = new Error("Kiểu chấm điểm không hợp lệ");
+                err.status = 400;
+                throw err;
             }
             const instanceData = req.body || {};
             const newInstance = await teacherService.addExam_instance(instanceData, teacherId);

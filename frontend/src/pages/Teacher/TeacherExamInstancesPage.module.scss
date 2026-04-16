@@ -520,3 +520,40 @@
 .danger:hover {
     background-color: #c82333;
 }
+
+.scoringSection {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: #fafafa;
+    border-radius: 10px;
+    border: 1px solid #eee;
+}
+
+.sectionLabel {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.radioOption {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+
+    input[type='radio'] {
+        transform: scale(1.1);
+    }
+
+    span {
+        font-size: 15px;
+    }
+}
+
+.helpText {
+    display: block;
+    margin-top: 6px;
+    color: #777;
+    font-size: 13px;
+}

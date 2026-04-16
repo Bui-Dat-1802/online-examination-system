@@ -788,6 +788,14 @@ module.exports = {
     async addExam_instance(instanceData, teacher_id) {
         const { questions = [], ... instanceFields} = instanceData;
 
+        const allowedModes = ["ALL_OR_NOTHING", "PARTIAL_WITH_PENALTY"];
+        if (
+            instanceFields.scoring_mode &&
+            !allowedModes.includes(instanceFields.scoring_mode)
+        ) {
+            throw new Error("Kiểu chấm điểm không hợp lệ");
+        }
+
         return await prisma.$transaction(async (tx) => {
             const createData = {
                 starts_at: new Date(instanceFields.starts_at),
@@ -796,6 +804,7 @@ module.exports = {
                 // exam_template: {connect: { id: instanceFields.templateId } },
                 show_answers: instanceFields.show_answers ?? false,
                 published: instanceFields.published ?? false,
+                scoring_mode: instanceFields.scoring_mode ?? "ALL_OR_NOTHING",
                 created_by: teacher_id,
                 created_at: new Date()
             }
@@ -902,6 +911,16 @@ module.exports = {
 
     // chinh sua instance de thi
     async updateExamInstance(instanceId, teacher_id, updateData) {
+
+        if (
+            updateData.scoring_mode &&
+            !["ALL_OR_NOTHING", "PARTIAL_WITH_PENALTY"].includes(updateData.scoring_mode)
+        ) {
+            const err = new Error("Kiểu chấm điểm không hợp lệ");
+            err.status = 400;
+            throw err;
+        }
+        
         return await prisma.$transaction(async (tx) => {
             // Lấy instance hiện tại và kiểm tra quyền
             const instance = await tx.exam_instance.findFirst({
@@ -952,6 +971,8 @@ module.exports = {
             if (updateData.starts_at !== undefined) iUpdate.starts_at = new Date(updateData.starts_at);
             if (updateData.ends_at !== undefined) iUpdate.ends_at = new Date(updateData.ends_at);
             if (updateData.published !== undefined) iUpdate.published = updateData.published;
+            if (updateData.show_answers !== undefined) iUpdate.show_answers = updateData.show_answers;
+            if (updateData.scoring_mode !== undefined) iUpdate.scoring_mode = updateData.scoring_mode;
             // Cập nhật instance
             const updatedInstance = await tx.exam_instance.update({
                 where: { id: instanceId },

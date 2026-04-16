@@ -2,7 +2,7 @@
 
 .examContainer {
     display: flex;
-    height: 100vh;
+    height: calc(100vh - 70px);;
     background-color: #f0f2f5;
     font-family: $primary-font;
     overflow: hidden;

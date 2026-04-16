@@ -28,18 +28,35 @@ async function autoSubmitExamOnTimeout(sessionId, studentId) {
     throw new Error("Phiên làm bài không hợp lệ");
   }
 
+  if (session.state === "submitted") {
+    const existing = await prisma.submission.findFirst({
+      where: { exam_session_id: sessionId }
+    });
+
+    return existing;
+  }
+
   // Lấy tất cả đáp án đã chọn
   const answers = await prisma.answer.findMany({
     where: { exam_session_id: sessionId },
-    select: { question_id: true, choice_id: true, selected_choice_ids: true },
+    select: {
+      question_id: true,
+      choice_id: true,
+      selected_choice_ids: true,
+      text_answer: true
+    },
   });
 
   const answerMap = new Map(
     answers.map((a) => [
       a.question_id,
-      (a.selected_choice_ids && a.selected_choice_ids.length > 0)
-        ? a.selected_choice_ids
-        : (a.choice_id ? [a.choice_id] : []),
+      {
+        choice_ids:
+          (a.selected_choice_ids && a.selected_choice_ids.length > 0)
+            ? a.selected_choice_ids
+            : (a.choice_id ? [a.choice_id] : []),
+        text_answer: a.text_answer || ""
+      }
     ])
   );
 
@@ -52,26 +69,101 @@ async function autoSubmitExamOnTimeout(sessionId, studentId) {
     const points = Number(eq.points);
     maxScore += points;
 
-    const chosenChoiceIds = answerMap.get(eq.question_id) || [];
+    const answerData = answerMap.get(eq.question_id) || {
+      choice_ids: [],
+      text_answer: ""
+    };
+
+    const chosenChoiceIds = answerData.choice_ids;
+    const textAnswer = answerData.text_answer;
+
     let correct = false;
-    const correctChoices = eq.question.question_choice.filter((c) => c.is_correct).map((c) => c.id);
-    
-    if (chosenChoiceIds.length === correctChoices.length && chosenChoiceIds.length > 0) {
-      const chosenSet = new Set(chosenChoiceIds);
-      const correctSet = new Set(correctChoices);
-      const allMatch = correctChoices.every((id) => chosenSet.has(id)) && 
-                       chosenChoiceIds.every((id) => correctSet.has(id));
-      if (allMatch) {
+    let earnedPoints = 0;
+
+    // =========================
+    // CÂU ĐIỀN
+    // =========================
+    if (eq.question.type === "FILL_IN_THE_BLANK") {
+      const correctText = (eq.question.correct_text_answer || "").trim().toLowerCase();
+      const studentText = (textAnswer || "").trim().toLowerCase();
+
+      if (correctText && studentText && correctText === studentText) {
         correct = true;
-        totalScore += points;
+        earnedPoints = points;
       }
     }
+
+    // =========================
+    // CÂU TRẮC NGHIỆM
+    // =========================
+    else {
+      const correctChoices = eq.question.question_choice
+        .filter(c => c.is_correct)
+        .map(c => c.id);
+
+      const scoringMode = session.exam_instance.scoring_mode || "ALL_OR_NOTHING";
+
+      if (scoringMode === "ALL_OR_NOTHING") {
+        if (
+          chosenChoiceIds.length === correctChoices.length &&
+          chosenChoiceIds.length > 0
+        ) {
+          const chosenSet = new Set(chosenChoiceIds);
+          const allMatch = correctChoices.every(id => chosenSet.has(id));
+
+          if (allMatch) {
+            correct = true;
+            earnedPoints = points;
+          }
+        }
+      }
+
+      if (scoringMode === "PARTIAL_WITH_PENALTY") {
+        const correctSet = new Set(correctChoices);
+        const totalCorrect = correctChoices.length;
+
+        let numCorrectChosen = 0;
+        let numWrongChosen = 0;
+
+        for (const id of chosenChoiceIds) {
+          if (correctSet.has(id)) numCorrectChosen++;
+          else numWrongChosen++;
+        }
+
+        if (totalCorrect > 0) {
+          earnedPoints =
+            ((numCorrectChosen - numWrongChosen) / totalCorrect) * points;
+
+          if (earnedPoints < 0) earnedPoints = 0;
+          if (earnedPoints > points) earnedPoints = points;
+        }
+
+        correct = earnedPoints === points;
+      }
+    }
+
+    totalScore += earnedPoints;
 
     details.push({
       question_id: eq.question_id,
       correct,
-      points_earned: correct ? points : 0,
-      points_possible: points,
+      points_earned: Number(earnedPoints.toFixed(2)),
+      points_possible: Number(points.toFixed(2)),
+      selected_choice_ids: chosenChoiceIds,
+      correct_choice_ids:
+        eq.question.type === "FILL_IN_THE_BLANK"
+          ? []
+          : eq.question.question_choice
+              .filter(c => c.is_correct)
+              .map(c => c.id),
+      correct_text_answer:
+        eq.question.type === "FILL_IN_THE_BLANK"
+          ? (eq.question.correct_text_answer || "")
+          : null,
+      student_text_answer:
+        eq.question.type === "FILL_IN_THE_BLANK"
+          ? textAnswer
+          : null
     });
   }
 
@@ -85,8 +177,8 @@ async function autoSubmitExamOnTimeout(sessionId, studentId) {
   const submission = await prisma.submission.create({
     data: {
       exam_session_id: sessionId,
-      score: totalScore,
-      max_score: maxScore,
+      score: Number(totalScore.toFixed(2)),
+      max_score: Number(maxScore.toFixed(2)),
       graded_at: new Date(),
       graded_by: null, // auto-graded
       details: details,

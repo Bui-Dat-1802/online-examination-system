@@ -187,10 +187,16 @@ const StudentTakeExamPage = () => {
                     // Hiển thị kết quả
                     setExamResult(data.submission);
                     setReviewMode(true);
-                    alert(`Hết thời gian làm bài! Bài thi đã được tự động nộp.\nĐiểm số: ${data.submission.score}/${data.submission.max_score}`);
+                    showAlert(
+                        "Hoàn thành",
+                        `Hết thời gian làm bài!\nBài thi đã được tự động nộp.\nĐiểm số: ${data.submission.score}/${data.submission.max_score}`
+                    );
                 } else {
                     // Fallback: gọi submit thủ công nếu backend không trả về submission
-                    alert('Hết thời gian làm bài! Bài thi sẽ được nộp tự động.');
+                    showAlert(
+                        "Thông báo",
+                        "Hết thời gian làm bài! Hệ thống đang tự động nộp bài..."
+                    );
                     handleSubmitExam();
                 }
 

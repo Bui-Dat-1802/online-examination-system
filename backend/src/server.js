@@ -8,6 +8,8 @@ const { Server } = require("socket.io");
 const apiRoutes = require("./routes");
 const { initExamTimerSocket } = require("./sockets/examTimer");
 
+// const examImportRoutes = require('./routes/examImportRoutes');
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -24,8 +26,14 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
 
+
+// console.log(typeof examImportRoutes);
+// console.log(examImportRoutes);
 // API entry
 app.use("/api", apiRoutes);
+// app.use("/api/exam-import", examImportRoutes);
+
+
 
 // 404 handler
 app.use((req, res) => {

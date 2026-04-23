@@ -248,10 +248,10 @@ function inferAnswerFromMarkedOptions(options) {
 }
 
 function detectType(options, answer) {
-  if (!options.length) return 'fill_blank';
-  if (Array.isArray(answer)) return 'multiple_correct';
-  if (typeof answer === 'string' && /^[A-Z]$/.test(answer)) return 'single_correct';
-  return 'choice';
+  if (!options.length) return 'FILL_IN_THE_BLANK';
+  if (Array.isArray(answer)) return 'MULTIPLE_CHOICE';
+  if (typeof answer === 'string' && /^[A-Z]$/.test(answer)) return 'SINGLE_CHOICE';
+  return 'SINGLE_CHOICE';
 }
 
 function sanitizeOptions(options) {

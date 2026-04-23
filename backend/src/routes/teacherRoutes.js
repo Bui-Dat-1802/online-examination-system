@@ -1,4 +1,11 @@
 const teacherController = require("../controllers/teacherController");
+const {
+  previewExamImport,
+  confirmExamImport,
+} = require("../controllers/examImportController");
+
+const uploadExamFile = require("../middleware/uploadExamFile");
+
 const express = require("express");
 const router = express.Router();
 
@@ -59,5 +66,16 @@ router.get("/export/logs/:examId", teacherController.exportLogs); // Xuất nh�
 router.get("/classes/:classId/exam-instances/:examInstanceId/scores", teacherController.getStudentScoresInClass);   // giáo viên lấy danh sách điểm của sinh viên trong lớp ở một kỳ thi
 router.get("/classes/:classId/exam-templates", teacherController.getExamTemplatesByClass); // lấy danh sách template đề thi theo lớp học
 
+// ==================== NHẬP ĐỀ THI ====================
+router.post(
+  "/questions/import/preview",
+  uploadExamFile.single("file"),
+  previewExamImport
+);
+
+router.post(
+  "/questions/import/confirm",
+  confirmExamImport
+);
 
 module.exports = router;

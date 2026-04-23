@@ -80,6 +80,26 @@ const teacherService = {
 
     },
 
+    // --- IMPORT CÂU HỎI TỪ FILE ---
+    previewImportQuestions(formData) {
+        return axiosClient.post(
+            "/api/teacher/questions/import/preview",
+            formData,
+            {
+                headers: {
+                    "Content-Type": "multipart/form-data"
+                }
+            }
+        );
+    },
+
+    confirmImportQuestions(questions) {
+        return axiosClient.post(
+            "/api/teacher/questions/import/confirm",
+            questions
+        );
+    },
+
     // Xóa lớp theo id(Endpiont 11)
     deleteClass(id) {
         // --- KHI CÓ BACKEND: Bỏ comment dòng này ---

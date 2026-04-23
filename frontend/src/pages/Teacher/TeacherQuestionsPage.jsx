@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import teacherService from '../../services/teacherService';
 import MathRenderer from '../../components/MathRenderer';
 import Pagination from '../../components/Pagination';
@@ -6,6 +7,8 @@ import styles from './TeacherQuestionsPage.module.scss';
 import { useModal } from '../../context/ModalContext';
 
 const TeacherQuestionsPage = () => {
+
+    const navigate = useNavigate();
 
     const { showConfirm, showAlert } = useModal();
     // State data
@@ -263,6 +266,9 @@ const TeacherQuestionsPage = () => {
                 <h2>Danh sách câu hỏi ({questions.length})</h2>
                 <button className={styles.createBtn} onClick={handleOpenCreate}>
                     + Tạo câu hỏi
+                </button>
+                <button className={styles.createBtn} onClick={() => navigate('/teacher/questions/import')}>
+                    Import đề
                 </button>
             </div>
 

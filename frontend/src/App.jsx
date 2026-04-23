@@ -27,6 +27,8 @@ import TeacherClassesPage from './pages/Teacher/TeacherClassesPage';
 import ClassDetailPage from './pages/Teacher/ClassDetailPage';
 // ngân hàng câu hỏi
 import TeacherQuestionsPage from './pages/Teacher/TeacherQuestionsPage';
+// import câu hỏi từ file
+import TeacherQuestionImportPage from './pages/Teacher/TeacherQuestionImportPage';
 //template de thi
 import TeacherTemplatesPage from './pages/Teacher/TeacherTemplatesPage';
 // de thi
@@ -74,6 +76,7 @@ function App() {
               <Route path="classes" element={<TeacherClassesPage />} />
               <Route path="classes/:id" element={<ClassDetailPage />} />
               <Route path="questions" element={<TeacherQuestionsPage />} />
+              <Route path="questions/import" element={<TeacherQuestionImportPage />} />
               <Route path="exam-templates" element={<TeacherTemplatesPage />} />
               <Route path="exam-templates/:templateId" element={<TeacherExamInstancesPage />} />
               <Route path="classes/:classId/exams/:examInstanceId" element={<ClassExamSessionPage />} />

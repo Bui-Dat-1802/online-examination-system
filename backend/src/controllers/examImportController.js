@@ -61,12 +61,11 @@ async function confirmExamImport(req, res, next) {
       questions: result.questions,
     });
   } catch (error) {
-    next(
-      Object.assign(new Error("Thêm câu hỏi thất bại"), {
-        status: 400,
-        cause: error,
-      })
-    );
+    // SỬA TẠI ĐÂY: Trả về trực tiếp message của error từ Service
+    return res.status(400).json({
+      success: false,
+      error: error.message || "Thêm câu hỏi thất bại"
+    });
   }
 }
 

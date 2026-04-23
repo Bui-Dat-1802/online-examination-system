@@ -226,7 +226,7 @@ const ClassDetailPage = () => {
                     {/* ACTION BUTTONS + NOTIFICATION */}
                     <div className={styles.headerActions}>
                         {/* API 44 – Danh sách template */}
-                        <button
+                        {/* <button
                             className={styles.actionBtn}
                             onClick={() => openTemplatesModalForCreate()}
                             title="Tạo đề thi từ Template có sẵn"
@@ -234,7 +234,7 @@ const ClassDetailPage = () => {
                             style={{ background: 'linear-gradient(135deg,#059669,#047857)', marginLeft: '6px' }}
                         >
                             📄 Tạo đề từ Template
-                        </button>
+                        </button> */}
 
                         <button
                             className={styles.actionBtn}

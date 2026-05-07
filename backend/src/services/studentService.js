@@ -87,6 +87,27 @@ module.exports = {
                         passing_score: true,
                     },
                 },
+                exam_session: {
+                    where: {
+                        user_id: studentId,
+                    },
+                    select: {
+                        id: true,
+                        state: true,
+                        started_at: true,
+                        ends_at: true,
+                        submission: {
+                            select: {
+                                id: true,
+                                score: true,
+                                max_score: true,
+                                graded_at: true,
+                            },
+                            take: 1,
+                        },
+                    },
+                    take: 1,
+                },
             },
         });
 
@@ -110,6 +131,8 @@ module.exports = {
                 duration: exam.exam_template.duration_seconds,
                 passing_score: exam.exam_template.passing_score,
                 status,
+                session_state: exam.exam_session[0]?.state || null,
+                submitted: exam.exam_session[0]?.state === "submitted" || exam.exam_session[0]?.submission?.length > 0,
             };
         });
         
@@ -658,7 +681,16 @@ module.exports = {
         const scoringMode = session.exam_instance.scoring_mode || "ALL_OR_NOTHING";
 
         for (const eq of session.exam_instance.exam_question) {
-            const points = Number(eq.points);
+            const points = eq.points === undefined || eq.points === null
+                ? 1
+                : Number(eq.points);
+
+            if (Number.isNaN(points) || points <= 0) {
+                const err = new Error(`Điểm của câu hỏi ${eq.question_id} không hợp lệ`);
+                err.status = 500;
+                throw err;
+                }
+
             maxScore += points;
 
             const answerData = answerMap.get(eq.question_id) || { choice_ids: [], text_answer: "" };
@@ -743,31 +775,35 @@ module.exports = {
         }
 
         // Chuyển state sang submitted
-        await prisma.exam_session.update({
-            where: { id: sessionId },
-            data: { state: "submitted" },
-        });
+        const submission = await prisma.$transaction(async (tx) => {
+            await tx.exam_session.update({
+                where: { id: sessionId },
+                data: { state: "submitted" },
+            });
 
-        // Tạo submission
-        const submission = await prisma.submission.create({
-            data: {
+            const createdSubmission = await tx.submission.create({
+                data: {
                 exam_session_id: sessionId,
-                score: totalScore,
-                max_score: maxScore,
+                score: Number(totalScore.toFixed(2)),
+                max_score: Number(maxScore.toFixed(2)),
                 graded_at: new Date(),
-                graded_by: null, // auto-graded
-                details: details,
-            },
-        });
-        await prisma.audit_log.create({
-            data: {
+                graded_by: null,
+                details,
+                },
+            });
+
+            await tx.audit_log.create({
+                data: {
                 event_type: "EXAM_SUBMIT",
                 exam_session_id: sessionId,
                 user_id: studentId,
                 payload: `Học sinh nộp bài thi cho phiên ${sessionId}`,
                 source_ip: null,
                 user_agent: null,
-            },
+                },
+            });
+
+            return createdSubmission;
         });
 
         // Kiểm tra cờ hiển thị đáp án

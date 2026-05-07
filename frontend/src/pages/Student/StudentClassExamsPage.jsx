@@ -44,6 +44,24 @@ const StudentClassExamsPage = () => {
 
     const formatDate = (str) => new Date(str).toLocaleString('vi-VN');
 
+    const getExamPriority = (exam) => {
+        if (exam.status === 'ongoing' && !exam.submitted) return 0;
+        if (exam.status === 'upcoming') return 1;
+        if (exam.status === 'ongoing' && exam.submitted) return 2;
+        return 3;
+    };
+
+    const sortedExams = [...exams].sort((a, b) => {
+        const priorityDiff = getExamPriority(a) - getExamPriority(b);
+        if (priorityDiff !== 0) return priorityDiff;
+
+        if (a.status === 'ended' && b.status === 'ended') {
+            return new Date(b.ends_at) - new Date(a.ends_at);
+        }
+
+        return new Date(a.starts_at) - new Date(b.starts_at);
+    });
+
     return (
         // XÓA wrapper .mainContent vì Layout đã có .pageContent
         // Chỉ giữ lại .contentBody hoặc div bao ngoài nội dung
@@ -69,9 +87,13 @@ const StudentClassExamsPage = () => {
             ) : (
                 <>
                     <div className={styles.examList}>
-                        {exams.length > 0 ? exams
+                        {sortedExams.length > 0 ? sortedExams
                             .slice((currentPage - 1) * examsPerPage, currentPage * examsPerPage)
-                            .map(exam => (
+                            .map(exam => {
+                                const isCompleted = exam.submitted || ['submitted', 'expired'].includes(exam.session_state);
+                                const canTakeExam = exam.status === 'ongoing' && !isCompleted;
+
+                                return (
                         <div key={exam.id} className={styles.examCard}>
                             <div className={styles.cardLeft}>
                                 <h3 className={styles.examTitle}>{exam.title}</h3>
@@ -88,22 +110,24 @@ const StudentClassExamsPage = () => {
                             </div>
 
                             <div className={styles.cardRight}>
-                                <span className={`${styles.statusBadge} ${styles[exam.status]}`}>
-                                    {exam.status === 'ongoing' && 'Đang diễn ra'}
-                                    {exam.status === 'upcoming' && 'Sắp diễn ra'}
-                                    {exam.status === 'ended' && 'Đã kết thúc'}
+                                <span className={`${styles.statusBadge} ${styles[isCompleted ? 'completed' : exam.status]}`}>
+                                    {isCompleted && 'Đã hoàn thành'}
+                                    {!isCompleted && exam.status === 'ongoing' && 'Đang diễn ra'}
+                                    {!isCompleted && exam.status === 'upcoming' && 'Sắp diễn ra'}
+                                    {!isCompleted && exam.status === 'ended' && 'Đã kết thúc'}
                                 </span>
 
                                 <button
                                     className={styles.startBtn}
-                                    disabled={exam.status !== 'ongoing'}
+                                    disabled={!canTakeExam}
                                     onClick={() => handleTakeExam(exam.id)}
                                 >
-                                    {exam.status === 'ongoing' ? 'Làm bài ngay' : 'Đóng'}
+                                    {canTakeExam ? 'Làm bài ngay' : (isCompleted ? 'Đã hoàn thành' : 'Đóng')}
                                 </button>
                             </div>
                         </div>
-                    )) : (
+                    );
+                            }) : (
                         <div className={styles.emptyState}>
                             <p>Lớp này chưa có bài kiểm tra nào.</p>
                         </div>

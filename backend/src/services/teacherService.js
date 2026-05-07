@@ -1,6 +1,57 @@
 const prisma = require("../prisma");
 const userService = require("../services/userService");
 
+// Hàm chuẩn hóa điểm của câu hỏi
+function normalizeQuestionPoints(points) {
+  if (points === undefined || points === null || points === "") {
+    return 1;
+  }
+
+  const value = Number(points);
+
+  if (Number.isNaN(value) || value <= 0) {
+    const err = new Error("Điểm của câu hỏi phải là số lớn hơn 0");
+    err.status = 400;
+    throw err;
+  }
+
+  return Number(value.toFixed(2));
+}
+
+function normalizeInstanceQuestions(questions) {
+  if (!Array.isArray(questions) || questions.length === 0) {
+    const err = new Error("Đề thi phải có ít nhất 1 câu hỏi");
+    err.status = 400;
+    throw err;
+  }
+
+  const seen = new Set();
+
+  return questions.map((q, index) => {
+    const questionId = q.question_id || q.id;
+
+    if (!questionId) {
+      const err = new Error(`Câu hỏi thứ ${index + 1} thiếu question_id`);
+      err.status = 400;
+      throw err;
+    }
+
+    if (seen.has(questionId)) {
+      const err = new Error(`Câu hỏi bị trùng trong đề thi: ${questionId}`);
+      err.status = 400;
+      throw err;
+    }
+
+    seen.add(questionId);
+
+    return {
+      question_id: questionId,
+      ordinal: q.ordinal ?? index,
+      points: normalizeQuestionPoints(q.points),
+    };
+  });
+}
+
 module.exports = {
     // Tạo lớp học mới
     async createClass(name, description, teacherId, classCode) {
@@ -786,58 +837,107 @@ module.exports = {
 
     //tạo instance đề thi
     async addExam_instance(instanceData, teacher_id) {
-        const { questions = [], ... instanceFields} = instanceData;
+        const { questions = [], ...instanceFields } = instanceData;
 
-        const allowedModes = ["ALL_OR_NOTHING", "PARTIAL_WITH_PENALTY"];
         if (
             instanceFields.scoring_mode &&
-            !allowedModes.includes(instanceFields.scoring_mode)
+            !["ALL_OR_NOTHING", "PARTIAL_WITH_PENALTY"].includes(instanceFields.scoring_mode)
         ) {
-            throw new Error("Kiểu chấm điểm không hợp lệ");
+            const err = new Error("Kiểu chấm điểm không hợp lệ");
+            err.status = 400;
+            throw err;
         }
 
+        const mappedQuestions = normalizeInstanceQuestions(questions);
+
         return await prisma.$transaction(async (tx) => {
-            const createData = {
-                starts_at: new Date(instanceFields.starts_at),
-                ends_at: new Date(instanceFields.ends_at),
+            const template = await tx.exam_template.findFirst({
+            where: {
+                id: instanceFields.templateId,
+                created_by: teacher_id,
+                is_deleted: false,
+            },
+            });
+
+            if (!template) {
+            const err = new Error("Template đề thi không tồn tại hoặc không có quyền truy cập");
+            err.status = 404;
+            throw err;
+            }
+
+            const questionIds = mappedQuestions.map((q) => q.question_id);
+
+            const validQuestions = await tx.question.findMany({
+            where: {
+                id: { in: questionIds },
+                owner_id: teacher_id,
+                is_deleted: false,
+            },
+            select: { id: true },
+            });
+
+            if (validQuestions.length !== questionIds.length) {
+            const err = new Error("Có câu hỏi không tồn tại, đã bị xóa hoặc không thuộc giáo viên này");
+            err.status = 400;
+            throw err;
+            }
+
+            const startDate = new Date(instanceFields.starts_at);
+            const endDate = new Date(instanceFields.ends_at);
+
+            if (!instanceFields.starts_at || !instanceFields.ends_at) {
+            const err = new Error("Thiếu thời gian bắt đầu hoặc kết thúc bài thi");
+            err.status = 400;
+            throw err;
+            }
+
+            if (startDate >= endDate) {
+            const err = new Error("Thời gian bắt đầu phải trước thời gian kết thúc");
+            err.status = 400;
+            throw err;
+            }
+
+            const newExamInstance = await tx.exam_instance.create({
+            data: {
                 template_id: instanceFields.templateId,
-                // exam_template: {connect: { id: instanceFields.templateId } },
+                starts_at: startDate,
+                ends_at: endDate,
                 show_answers: instanceFields.show_answers ?? false,
                 published: instanceFields.published ?? false,
                 scoring_mode: instanceFields.scoring_mode ?? "ALL_OR_NOTHING",
                 created_by: teacher_id,
-                created_at: new Date()
-            }
-            const newExamInstance = await tx.exam_instance.create({
-                data: createData,
+                created_at: new Date(),
+            },
             });
-            
-            console.log("newExamInstance:", newExamInstance);
 
-            if (Array.isArray(questions) && questions.length > 0) {
-                const mapped = questions.map((q, i) => ({
-                    exam_instance_id: newExamInstance.id,
-                    question_id: q.question_id,
-                    ordinal: q.ordinal ?? i,
-                    points: q.points,
-                }));
-                await tx.exam_question.createMany({
-                    data: mapped,
-                    skipDuplicates: true,
-                });
-            }
+            await tx.exam_question.createMany({
+            data: mappedQuestions.map((q) => ({
+                exam_instance_id: newExamInstance.id,
+                question_id: q.question_id,
+                ordinal: q.ordinal,
+                points: q.points,
+            })),
+            });
 
-            const result = await tx.exam_instance.findUnique({
-                where: { id: newExamInstance.id },
+            return await tx.exam_instance.findUnique({
+            where: { id: newExamInstance.id },
+            include: {
+                exam_question: {
+                orderBy: { ordinal: "asc" },
                 include: {
-                    exam_question: {
-                        orderBy: { ordinal: "asc" }
-                    }
-                }
+                    question: {
+                    include: {
+                        question_choice: {
+                        orderBy: { order: "asc" },
+                        },
+                    },
+                    },
+                },
+                },
+            },
             });
-            return result;
         });
-    },
+        },
 
     // xóa instance đề thi
     async deleteExam_instance(instanceId, teacherId) {
@@ -911,7 +1011,6 @@ module.exports = {
 
     // chinh sua instance de thi
     async updateExamInstance(instanceId, teacher_id, updateData) {
-
         if (
             updateData.scoring_mode &&
             !["ALL_OR_NOTHING", "PARTIAL_WITH_PENALTY"].includes(updateData.scoring_mode)
@@ -920,95 +1019,146 @@ module.exports = {
             err.status = 400;
             throw err;
         }
-        
+
         return await prisma.$transaction(async (tx) => {
-            // Lấy instance hiện tại và kiểm tra quyền
             const instance = await tx.exam_instance.findFirst({
-                where: { id: instanceId, created_by: teacher_id },
+            where: {
+                id: instanceId,
+                created_by: teacher_id,
+                is_deleted: false,
+            },
+            include: {
+                exam_session: {
+                select: {
+                    id: true,
+                    state: true,
+                },
+                },
+            },
             });
+
             if (!instance) {
-                const err = new Error("Instance đề thi không tồn tại hoặc không có quyền sửa");
-                err.status = 404;
+            const err = new Error("Instance đề thi không tồn tại hoặc không có quyền sửa");
+            err.status = 404;
+            throw err;
+            }
+
+            const hasStartedSession = instance.exam_session.some((s) =>
+            ["started", "submitted", "locked"].includes(s.state)
+            );
+
+            if (hasStartedSession && updateData.questions !== undefined) {
+            const err = new Error("Không thể sửa danh sách câu hỏi/điểm vì đã có học sinh bắt đầu hoặc nộp bài");
+            err.status = 400;
+            throw err;
+            }
+
+            if (updateData.starts_at && updateData.ends_at) {
+            const startDate = new Date(updateData.starts_at);
+            const endDate = new Date(updateData.ends_at);
+
+            if (startDate >= endDate) {
+                const err = new Error("Thời gian kết thúc phải sau thời gian bắt đầu");
+                err.status = 400;
+                throw err;
+            }
+            } else if (updateData.starts_at) {
+            const startDate = new Date(updateData.starts_at);
+
+            if (startDate >= instance.ends_at) {
+                const err = new Error("Thời gian bắt đầu mới phải trước thời gian kết thúc cũ");
+                err.status = 400;
+                throw err;
+            }
+            } else if (updateData.ends_at) {
+            const endDate = new Date(updateData.ends_at);
+
+            if (instance.starts_at >= endDate) {
+                const err = new Error("Thời gian kết thúc mới phải sau thời gian bắt đầu cũ");
+                err.status = 400;
+                throw err;
+            }
+            }
+
+            const iUpdate = {};
+
+            if (updateData.starts_at !== undefined) {
+            iUpdate.starts_at = new Date(updateData.starts_at);
+            }
+
+            if (updateData.ends_at !== undefined) {
+            iUpdate.ends_at = new Date(updateData.ends_at);
+            }
+
+            if (updateData.published !== undefined) {
+            iUpdate.published = updateData.published;
+            }
+
+            if (updateData.show_answers !== undefined) {
+            iUpdate.show_answers = updateData.show_answers;
+            }
+
+            if (updateData.scoring_mode !== undefined) {
+            iUpdate.scoring_mode = updateData.scoring_mode;
+            }
+
+            await tx.exam_instance.update({
+            where: { id: instanceId },
+            data: iUpdate,
+            });
+
+            if (updateData.questions !== undefined) {
+            const mappedQuestions = normalizeInstanceQuestions(updateData.questions);
+            const questionIds = mappedQuestions.map((q) => q.question_id);
+
+            const validQuestions = await tx.question.findMany({
+                where: {
+                id: { in: questionIds },
+                owner_id: teacher_id,
+                is_deleted: false,
+                },
+                select: { id: true },
+            });
+
+            if (validQuestions.length !== questionIds.length) {
+                const err = new Error("Có câu hỏi không tồn tại, đã bị xóa hoặc không thuộc giáo viên này");
+                err.status = 400;
                 throw err;
             }
 
-            // kiểm tra dữ liệu thời gian trước khi cập nhập
-            if (updateData.starts_at && updateData.ends_at) {
-                const startDate = new Date(updateData.starts_at);
-                const endDate = new Date(updateData.ends_at);
-                if (startDate >= endDate) {
-                    const err = new Error("Thời gian kết thúc phải sau thời gian bắt đầu");
-                    err.status = 400;
-                    throw err;
-                }
-            }
-            else if (updateData.starts_at) {
-                const startDate = new Date(updateData.starts_at);
-                const endDate = instance.ends_at;   
-                if (startDate >= endDate) {
-                    const err = new Error("Thời gian bắt đầu mới phải trước thời gian kết thúc cũ");
-                    err.status = 400;
-                    throw err;
-                }
-                if (startDate <= new Date()) {
-                    const err = new Error("Thời gian bắt đầu phải là tương lai");
-                    err.status = 400;
-                    throw err;
-                }
-            }
-            else if (updateData.ends_at) {
-                const startDate = instance.starts_at;
-                const endDate = new Date(updateData.ends_at);
-                if (startDate >= endDate) {
-                    const err = new Error("Thời gian kết thúc mới phải sau thời gian bắt đầu cũ");
-                    err.status = 400;
-                    throw err;
-                }
-            }
-
-            // Chuẩn bị dữ liệu cập nhật
-            const iUpdate = {};
-            if (updateData.starts_at !== undefined) iUpdate.starts_at = new Date(updateData.starts_at);
-            if (updateData.ends_at !== undefined) iUpdate.ends_at = new Date(updateData.ends_at);
-            if (updateData.published !== undefined) iUpdate.published = updateData.published;
-            if (updateData.show_answers !== undefined) iUpdate.show_answers = updateData.show_answers;
-            if (updateData.scoring_mode !== undefined) iUpdate.scoring_mode = updateData.scoring_mode;
-            // Cập nhật instance
-            const updatedInstance = await tx.exam_instance.update({
-                where: { id: instanceId },
-                data: iUpdate,
-            });
-
-            // xóa hết câu hỏi cũ
             await tx.exam_question.deleteMany({
-                where: { exam_instance_id: instanceId }
+                where: { exam_instance_id: instanceId },
             });
-            // thêm câu hỏi mới
-            const { questions = [] } = updateData;
-            if (Array.isArray(questions) && questions.length > 0) {
-                const mapped = questions.map((q, i) => ({
-                    exam_instance_id: instanceId,
-                    question_id: q.question_id,
-                    ordinal: q.ordinal ?? i,
-                    points: q.points,
-                }));
-                await tx.exam_question.createMany({
-                    data: mapped,
-                    skipDuplicates: true,
-                });
+
+            await tx.exam_question.createMany({
+                data: mappedQuestions.map((q) => ({
+                exam_instance_id: instanceId,
+                question_id: q.question_id,
+                ordinal: q.ordinal,
+                points: q.points,
+                })),
+            });
             }
 
-            const result = await tx.exam_instance.findUnique({
-                where: { id: updatedInstance.id },
+            return await tx.exam_instance.findUnique({
+            where: { id: instanceId },
+            include: {
+                exam_question: {
+                orderBy: { ordinal: "asc" },
                 include: {
-                    exam_question: {
-                        orderBy: { ordinal: "asc" }
-                    }
-                }
+                    question: {
+                    include: {
+                        question_choice: {
+                        orderBy: { order: "asc" },
+                        },
+                    },
+                    },
+                },
+                },
+            },
             });
-            return result;
         });
-    },
+        },
 
     // lấy chi tiết instance đề thi theo ID
     async getExamInstanceById(instanceId, teacherId) {
@@ -2024,6 +2174,10 @@ module.exports = {
         });
         return deleted;
     }
+
+    
+
+    
 
 };
 

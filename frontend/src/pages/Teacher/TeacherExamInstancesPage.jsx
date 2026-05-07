@@ -40,8 +40,8 @@ const TeacherExamInstancesPage = () => {
         published: false,
         show_answers: false,
         scoring_mode: 'ALL_OR_NOTHING',
-        selectedQuestionIds: []
-    };
+        selectedQuestions: []
+        };
     const [formData, setFormData] = useState(initialForm);
 
     // --- 1. LOAD DATA ---
@@ -80,9 +80,32 @@ const TeacherExamInstancesPage = () => {
         return localDate.toISOString().substring(0, 16);
     };
     const formatDate = (str) => new Date(str).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+    const getQuestionContent = (q) => {
+        return (
+            q?.text ||
+            q?.content ||
+            q?.question_text ||
+            q?.title ||
+            q?.description ||
+            ''
+        );
+    };
+
     const getQuestionText = (qId) => {
         const found = questions.find(q => q.id === qId);
-        return found ? found.text : "Câu hỏi đã bị xóa";
+        return found ? getQuestionContent(found) : "Câu hỏi đã bị xóa";
+    };
+
+    const getSelectedQuestion = (qId) => {
+        return formData.selectedQuestions.find(item => item.question_id === qId);
+    };
+
+    const isQuestionSelected = (qId) => {
+        return !!getSelectedQuestion(qId);
+    };
+
+    const getQuestionPoint = (qId) => {
+        return getSelectedQuestion(qId)?.points ?? 1;
     };
 
     // --- LOGIC FORM ---
@@ -93,9 +116,40 @@ const TeacherExamInstancesPage = () => {
 
     const handleQuestionToggle = (qId) => {
         setFormData(prev => {
-            const current = prev.selectedQuestionIds;
-            if (current.includes(qId)) return { ...prev, selectedQuestionIds: current.filter(id => id !== qId) };
-            else return { ...prev, selectedQuestionIds: [...current, qId] };
+            const exists = prev.selectedQuestions.some(item => item.question_id === qId);
+
+            if (exists) {
+                return {
+                    ...prev,
+                    selectedQuestions: prev.selectedQuestions.filter(item => item.question_id !== qId)
+                };
+            }
+
+            return {
+                ...prev,
+                selectedQuestions: [
+                    ...prev.selectedQuestions,
+                    {
+                    question_id: qId,
+                    points: 1
+                    }
+                ]
+            };
+        });
+    };
+
+    const handleQuestionPointChange = (qId, value) => {
+        setFormData(prev => {
+            const pointValue = value === '' ? '' : Number(value);
+
+            return {
+                ...prev,
+                selectedQuestions: prev.selectedQuestions.map(item =>
+                    item.question_id === qId
+                    ? { ...item, points: pointValue }
+                    : item
+                )
+            };
         });
     };
 
@@ -110,45 +164,51 @@ const TeacherExamInstancesPage = () => {
         const matchesSearch =
             keywords.length === 0 ||
             keywords.every(keyword =>
-            q.text.toLowerCase().includes(keyword) ||
+            getQuestionContent(q).toLowerCase().includes(keyword) ||
             (q.tags && q.tags.some(tag => tag.toLowerCase().includes(keyword)))
             );
-
-        // bỏ lọc độ khó vì độ khó cũng là một dạng tag rồi, tìm theo tag sẽ tiện hơn và linh hoạt hơn, chứ lọc cứng theo 3 mức độ thì hơi gò bó
-        // const matchesDifficulty =
-        //     difficultyFilter === 'all' || q.difficulty === difficultyFilter;
-
-        // return matchesSearch && matchesDifficulty;
 
         return matchesSearch;
     });
 
     // Kiểm tra nếu tất cả câu hỏi đã lọc đều nằm trong danh sách đã chọn thì checkbox "Chọn tất cả" sẽ được đánh dấu
     const filteredIds = filteredQuestions.map(q => q.id);
+
+    const selectedQuestionIds = formData.selectedQuestions.map(item => item.question_id);
+
     const allFilteredSelected =
         filteredIds.length > 0 &&
-        filteredIds.every(id => formData.selectedQuestionIds.includes(id));
+        filteredIds.every(id => isQuestionSelected(id));
 
     // Hàm xử lý khi click vào checkbox "Chọn tất cả"
     const handleSelectAllFiltered = () => {
         setFormData(prev => {
+            const currentIds = prev.selectedQuestions.map(item => item.question_id);
+
             if (allFilteredSelected) {
-                // ❌ bỏ chọn
                 return {
                     ...prev,
-                    selectedQuestionIds: prev.selectedQuestionIds.filter(
-                        id => !filteredIds.includes(id)
+                    selectedQuestions: prev.selectedQuestions.filter(
+                    item => !filteredIds.includes(item.question_id)
                     )
                 };
-            } else {
-                // ✅ chọn thêm
-                return {
-                    ...prev,
-                    selectedQuestionIds: [
-                        ...new Set([...prev.selectedQuestionIds, ...filteredIds])
-                    ]
-                };
             }
+
+            const newSelected = [...prev.selectedQuestions];
+
+            filteredIds.forEach(id => {
+                if (!currentIds.includes(id)) {
+                    newSelected.push({
+                    question_id: id,
+                    points: 1
+                    });
+                }
+            });
+
+            return {
+                ...prev,
+                selectedQuestions: newSelected
+            };
         });
     };
     
@@ -171,12 +231,16 @@ const TeacherExamInstancesPage = () => {
             const res = await teacherService.getExamInstanceDetail(exam.id);
             const fullExamData = res.data;
 
-            // 2. Lấy list ID câu hỏi từ dữ liệu chi tiết
-            const currentQuestionIds = fullExamData.exam_question && Array.isArray(fullExamData.exam_question)
-                ? fullExamData.exam_question.map(item => item.question_id)
+            // 2. Lấy danh sách ID câu hỏi đã chọn
+            const currentQuestions =
+                fullExamData.exam_question && Array.isArray(fullExamData.exam_question)
+                    ? fullExamData.exam_question.map(item => ({
+                        question_id: item.question_id,
+                        points: item.points ?? 1
+                    }))
                 : [];
 
-            console.log("IDs câu hỏi đã chọn:", currentQuestionIds);
+            console.log("Câu hỏi đã chọn:", currentQuestions);
 
             // 3. Fill dữ liệu vào Form
             setFormData({
@@ -185,7 +249,7 @@ const TeacherExamInstancesPage = () => {
                 published: fullExamData.published,
                 show_answers: fullExamData.show_answers || false,
                 scoring_mode: fullExamData.scoring_mode || 'ALL_OR_NOTHING',
-                selectedQuestionIds: currentQuestionIds //  Gán vào đây thì checkbox mới hiện
+                selectedQuestions: currentQuestions //  Gán vào đây thì checkbox mới hiện
             });
 
             // Reset bộ lọc tìm kiếm trong modal
@@ -243,10 +307,24 @@ const TeacherExamInstancesPage = () => {
             published: formData.published,
             show_answers: formData.show_answers,
             scoring_mode: formData.scoring_mode,
-            questions: formData.selectedQuestionIds.map(id => ({ question_id: id }))
+            questions: formData.selectedQuestions.map((item, index) => ({
+                question_id: item.question_id,
+                ordinal: index,
+                points: Number(item.points || 1)
+            }))
         };
 
         if (payload.questions.length === 0) { showAlert("Vui lòng chọn ít nhất 1 câu hỏi!"); setIsSubmitting(false); return; }
+
+        const invalidPoint = payload.questions.find(q =>
+            Number.isNaN(q.points) || q.points <= 0
+        );
+
+        if (invalidPoint) {
+            showAlert("Điểm của mỗi câu hỏi phải là số lớn hơn 0!");
+            setIsSubmitting(false);
+            return;
+        }
 
         try {
             if (editingExam) {
@@ -443,7 +521,7 @@ const TeacherExamInstancesPage = () => {
                                 <div className={styles.questionSection}>
                                     {/* <h4>Chọn câu hỏi ({formData.selectedQuestionIds.length})</h4> */}
                                     <h4>
-                                        Chọn câu hỏi ({formData.selectedQuestionIds.length})
+                                        Chọn câu hỏi ({formData.selectedQuestions.length})
                                         <span style={{ marginLeft: 8, color: '#888', fontSize: '0.9rem' }}>
                                             ({filteredQuestions.length} đang hiển thị)
                                         </span>
@@ -481,22 +559,51 @@ const TeacherExamInstancesPage = () => {
                                     </div> */}
 
                                     <div className={styles.questionList}>
-                                        {questions.length === 0 ? <p>Ngân hàng câu hỏi trống.</p> :
-                                            filteredQuestions.length === 0 ? <p>Không tìm thấy câu hỏi phù hợp.</p> :
-                                                filteredQuestions.map(q => (
-                                                    <div key={q.id} className={styles.qItem}>
-                                                        <input
-                                                            type="checkbox"
-                                                            id={`q-${q.id}`}
-                                                            checked={formData.selectedQuestionIds.includes(q.id)}
-                                                            onChange={() => handleQuestionToggle(q.id)}
-                                                        />
-                                                        <label htmlFor={`q-${q.id}`}>
-                                                            {/* <span className={`${styles.badge} ${styles.gray}`}>{q.difficulty}</span> */}
-                                                            <MathRenderer text={q.text} />
-                                                        </label>
-                                                    </div>
-                                                ))}
+                                        {questions.length === 0 ? (
+                                            <p>Ngân hàng câu hỏi trống.</p>
+                                        ) : filteredQuestions.length === 0 ? (
+                                            <p>Không tìm thấy câu hỏi phù hợp.</p>
+                                        ) : (
+                                            filteredQuestions.map((q) => {
+                                            const selected = isQuestionSelected(q.id);
+
+                                            return (
+                                                <div key={q.id} className={styles.qItem}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selected}
+                                                    onChange={() => handleQuestionToggle(q.id)}
+                                                />
+
+                                                <label onClick={() => handleQuestionToggle(q.id)}>
+                                                    <MathRenderer text={getQuestionContent(q)} />
+                                                </label>
+
+                                                <div className={styles.pointBox}>
+                                                    <span>Điểm</span>
+                                                    <input
+                                                    type="number"
+                                                    min="0.25"
+                                                    step="0.25"
+                                                    value={getQuestionPoint(q.id)}
+                                                    disabled={!selected}
+                                                    onChange={(e) => handleQuestionPointChange(q.id, e.target.value)}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    />
+                                                </div>
+                                                </div>
+                                            );
+                                            })
+                                        )}
+                                    </div>
+
+
+                                    <div className={styles.totalPointBox}>
+                                        Tổng điểm đề thi: {
+                                            formData.selectedQuestions
+                                            .reduce((sum, item) => sum + Number(item.points || 0), 0)
+                                            .toFixed(2)
+                                        } điểm
                                     </div>
                                 </div>
                             </div>

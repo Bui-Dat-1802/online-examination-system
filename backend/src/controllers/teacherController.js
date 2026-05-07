@@ -517,59 +517,99 @@ module.exports = {
     // }
 
     //tạo instance đề thi
-    async createExamInstance(req, res, next) { {
+    async createExamInstance(req, res, next) {
         try {
             const teacherId = req.user.id;
-            let { templateId, starts_at, ends_at, published, show_answers, scoring_mode } = req.body || {};
 
-            // Convert kiểu dữ liệu
-            if (typeof published === 'string') {
-                published = published.toLowerCase() === 'true';
+            let {
+            templateId,
+            starts_at,
+            ends_at,
+            published,
+            show_answers,
+            scoring_mode,
+            questions,
+            } = req.body || {};
+
+            if (typeof published === "string") {
+            published = published.toLowerCase() === "true";
             }
+
+            if (typeof show_answers === "string") {
+            show_answers = show_answers.toLowerCase() === "true";
+            }
+
             if (!templateId) {
-                const err = new Error("Cần có mã mẫu đề thi để tạo đề thi");
-                err.status = 400;
-                throw err;
+            return res.status(400).json({ error: "Cần có mã mẫu đề thi để tạo đề thi" });
             }
+
             if (!starts_at || !ends_at) {
-                const err = new Error("Thiếu thời gian bắt đầu hoặc kết thúc bài thi");
-                err.status = 400;
-                throw err;
+            return res.status(400).json({ error: "Thiếu thời gian bắt đầu hoặc kết thúc bài thi" });
             }
+
             const startDate = new Date(starts_at);
             const endDate = new Date(ends_at);
+
+            if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+            return res.status(400).json({ error: "Thời gian không hợp lệ" });
+            }
+
             if (startDate >= endDate) {
-                const err = new Error("Thời gian bắt đầu phải trước thời gian kết thúc");
-                err.status = 400;
-                throw err;
+            return res.status(400).json({ error: "Thời gian bắt đầu phải trước thời gian kết thúc" });
             }
-            // kiểm tra thời gian là tương lai không
-            const now = new Date();
-            if (startDate <= now) {
-                const err = new Error("Thời gian bắt đầu phải là tương lai");
-                err.status = 400;
-                throw err;
-            }
-            if (typeof show_answers === 'string') {
-                show_answers = show_answers.toLowerCase() === 'true';
+
+            if (startDate <= new Date()) {
+            return res.status(400).json({ error: "Thời gian bắt đầu phải là tương lai" });
             }
 
             const allowedModes = ["ALL_OR_NOTHING", "PARTIAL_WITH_PENALTY"];
-            if (
-                scoring_mode &&
-                !allowedModes.includes(scoring_mode)
-            ) {
-                const err = new Error("Kiểu chấm điểm không hợp lệ");
-                err.status = 400;
-                throw err;
+
+            if (scoring_mode && !allowedModes.includes(scoring_mode)) {
+            return res.status(400).json({ error: "Kiểu chấm điểm không hợp lệ" });
             }
-            const instanceData = req.body || {};
+
+            if (!Array.isArray(questions) || questions.length === 0) {
+            return res.status(400).json({ error: "Đề thi phải có ít nhất 1 câu hỏi" });
+            }
+
+            for (let i = 0; i < questions.length; i++) {
+            const q = questions[i];
+
+            if (!q.question_id && !q.id) {
+                return res.status(400).json({
+                error: `Câu hỏi thứ ${i + 1} thiếu question_id`,
+                });
+            }
+
+            if (q.points !== undefined && q.points !== null && q.points !== "") {
+                const pointValue = Number(q.points);
+
+                if (Number.isNaN(pointValue) || pointValue <= 0) {
+                return res.status(400).json({
+                    error: `Điểm của câu hỏi thứ ${i + 1} phải lớn hơn 0`,
+                });
+                }
+            }
+            }
+
+            const instanceData = {
+            ...req.body,
+            published,
+            show_answers,
+            scoring_mode,
+            questions,
+            };
+
             const newInstance = await teacherService.addExam_instance(instanceData, teacherId);
-            res.status(201).json({ newInstance, message: "Đề thi đã được tạo thành công" });
+
+            res.status(201).json({
+            newInstance,
+            message: "Đề thi đã được tạo thành công",
+            });
         } catch (error) {
             next(error);
         }
-    }},
+        },
 
     // Xóa instace đề thi
     async deleteExamInstance(req, res, next) {
@@ -616,14 +656,66 @@ module.exports = {
     async updateExamInstance(req, res, next) {
         try {
             const instanceId = req.params.id;
-            const updateData = req.body || {};
             const teacherId = req.user.id;
-            const updatedInstance = await teacherService.updateExamInstance(instanceId, teacherId, updateData);
-            res.json({ updatedInstance, message: "Cập nhật đề thi thành công" });   
+            const updateData = { ...(req.body || {}) };
+
+            if (typeof updateData.published === "string") {
+            updateData.published = updateData.published.toLowerCase() === "true";
+            }
+
+            if (typeof updateData.show_answers === "string") {
+            updateData.show_answers = updateData.show_answers.toLowerCase() === "true";
+            }
+
+            const allowedModes = ["ALL_OR_NOTHING", "PARTIAL_WITH_PENALTY"];
+
+            if (
+            updateData.scoring_mode &&
+            !allowedModes.includes(updateData.scoring_mode)
+            ) {
+            return res.status(400).json({ error: "Kiểu chấm điểm không hợp lệ" });
+            }
+
+            if (updateData.questions !== undefined) {
+            if (!Array.isArray(updateData.questions) || updateData.questions.length === 0) {
+                return res.status(400).json({ error: "Danh sách câu hỏi không hợp lệ" });
+            }
+
+            for (let i = 0; i < updateData.questions.length; i++) {
+                const q = updateData.questions[i];
+
+                if (!q.question_id && !q.id) {
+                return res.status(400).json({
+                    error: `Câu hỏi thứ ${i + 1} thiếu question_id`,
+                });
+                }
+
+                if (q.points !== undefined && q.points !== null && q.points !== "") {
+                const pointValue = Number(q.points);
+
+                if (Number.isNaN(pointValue) || pointValue <= 0) {
+                    return res.status(400).json({
+                    error: `Điểm của câu hỏi thứ ${i + 1} phải lớn hơn 0`,
+                    });
+                }
+                }
+            }
+            }
+
+            const updatedInstance = await teacherService.updateExamInstance(
+            instanceId,
+            teacherId,
+            updateData
+            );
+
+            res.json({
+            updatedInstance,
+            message: "Cập nhật đề thi thành công",
+            });
         } catch (error) {
             next(error);
         }
-    },
+        },
 
     // lấy instance đề thi theo ID 
     async getExamInstanceById(req, res, next) {

@@ -260,6 +260,9 @@ const TeacherQuestionsPage = () => {
         return /\$.*?\$/.test(text) || /\$\$.*?\$\$/.test(text);
     };
 
+    const hasImage = (text) => /!\[[^\]]*\]\([^)]+\)/.test(text || "");
+    const hasRichPreview = (text) => hasLatex(text || "") || hasImage(text || "");
+
     return (
         <div className={styles.contentBody}>
             <div className={styles.pageHeader}>
@@ -355,9 +358,16 @@ const TeacherQuestionsPage = () => {
                         <form onSubmit={handleSubmit} className={styles.formScroll}>
                             <div className={styles.formGroup}>
                                 <label>Nội dung câu hỏi *</label>
-                                <textarea name="text" value={formData.text} onChange={handleInputChange} required rows="2" />
+                                <textarea
+                                    className={styles.questionTextarea}
+                                    name="text"
+                                    value={formData.text}
+                                    onChange={handleInputChange}
+                                    required
+                                    rows="7"
+                                />
                                 {/* Preview LaTeX */}
-                                {formData.text && hasLatex(formData.text) && (
+                                {formData.text && hasRichPreview(formData.text) && (
                                     <div className={styles.previewBox}>
                                         <strong>Preview:</strong>
                                         <MathRenderer text={formData.text} />
@@ -399,7 +409,7 @@ const TeacherQuestionsPage = () => {
                                         placeholder="Nhập đáp án đúng"
                                     />
 
-                                    {formData.correct_text_answer && hasLatex(formData.correct_text_answer) && (
+                                    {formData.correct_text_answer && hasRichPreview(formData.correct_text_answer) && (
                                         <div className={styles.previewBox}>
                                             <MathRenderer text={formData.correct_text_answer} />
                                         </div>
@@ -422,13 +432,14 @@ const TeacherQuestionsPage = () => {
                                             />
 
                                             <div style={{ flex: 1 }}>
-                                                <input
-                                                    type="text"
+                                                <textarea
+                                                    className={styles.choiceTextarea}
                                                     value={choice.text}
                                                     onChange={(e) => handleChoiceChange(index, e.target.value)}
+                                                    rows="2"
                                                 />
 
-                                                {choice.text && hasLatex(choice.text) && (
+                                                {choice.text && hasRichPreview(choice.text) && (
                                                     <div className={styles.choicePreview}>
                                                         <MathRenderer text={choice.text} />
                                                     </div>
@@ -459,9 +470,9 @@ const TeacherQuestionsPage = () => {
 
                             <div className={styles.formGroup}>
                                 <label>Giải thích (Optional)</label>
-                                <textarea name="explanation" value={formData.explanation} onChange={handleInputChange} rows="2" />
+                                <textarea name="explanation" value={formData.explanation} onChange={handleInputChange} rows="4" />
                                 {/* Preview LaTeX cho giải thích */}
-                                {formData.explanation && hasLatex(formData.explanation) && (
+                                {formData.explanation && hasRichPreview(formData.explanation) && (
                                     <div className={styles.previewBox}>
                                         <strong>Preview:</strong>
                                         <MathRenderer text={formData.explanation} />

@@ -4,6 +4,8 @@ const { MATH_UNSCANNED_TOKEN } = require('./extractTextFromFile');
 // Hỗ trợ đáp án từ A đến Z
 const CHOICE_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const OPTION_LABEL_PATTERN = '[A-Za-z]';
+const POINT_LINE_REGEX = /^\(?\s*\d+(?:[,.]\d+)?\s*(?:diem|điểm|Ä‘iá»ƒm|point|points)\s*\)?$/i;
+const FILL_ANSWER_LINE_REGEX = /^(?:tra\s*loi|trả\s*lời|Tráº£\s*lá»i|answer)\s*[:：]/i;
 
 function normalizeText(text) {
   return String(text || '')
@@ -103,6 +105,40 @@ function splitNonEmptyLines(text) {
     .filter(Boolean);
 }
 
+function stripExportPointLine(blockText) {
+  const lines = String(blockText || '').split('\n');
+
+  while (lines.length && POINT_LINE_REGEX.test(lines[0].trim())) {
+    lines.shift();
+  }
+
+  return lines.join('\n').trim();
+}
+
+function parseFillQuestionFromExport(blockText, answerFromKey = null) {
+  const lines = splitNonEmptyLines(blockText);
+  const answerLineIndex = lines.findIndex((line) => FILL_ANSWER_LINE_REGEX.test(line));
+
+  if (answerLineIndex === -1) return null;
+
+  const question = lines.slice(0, answerLineIndex).join('\n').trim();
+  const answerLine = lines[answerLineIndex] || '';
+  const inlineAnswer = answerLine
+    .replace(FILL_ANSWER_LINE_REGEX, '')
+    .replace(/[.。…\s]+/g, ' ')
+    .trim();
+  const answer = answerFromKey || (inlineAnswer ? inlineAnswer : null);
+  const warning = buildQuestionWarning(question, []);
+
+  return {
+    question,
+    options: [],
+    answer,
+    type: 'FILL_IN_THE_BLANK',
+    warning,
+  };
+}
+
 function looksLikeQuestionBoundary(line) {
   if (!line) return false;
 
@@ -116,6 +152,7 @@ function looksLikeOptionCandidate(line) {
   if (!line) return false;
   if (/^(?:Cau|Câu|Question)\s*\d+/i.test(line)) return false;
   if (/^(?:DAP\s*AN|ĐÁP\s*ÁN|Đáp\s*án|ANSWER)\b/i.test(line)) return false;
+  if (FILL_ANSWER_LINE_REGEX.test(line)) return false;
   return true;
 }
 
@@ -160,6 +197,13 @@ function recoverTailOptions(lines, neededCount = null) {
   if (neededCount) return null;
 
   if (collected.length >= 2) {
+    if (collected.length === lines.length && lines.length >= 3) {
+      return {
+        questionLines: [lines[0]],
+        optionTexts: lines.slice(1),
+      };
+    }
+
     return {
       questionLines: lines.slice(0, lines.length - collected.length),
       optionTexts: collected,
@@ -283,7 +327,10 @@ function buildQuestionWarning(question, options) {
 }
 
 function parseQuestionBlock(raw, answerFromKey = null) {
-  const cleanedRaw = stripTrailingAnswerKeySection(raw);
+  const cleanedRaw = stripExportPointLine(stripTrailingAnswerKeySection(raw));
+  const exportedFillQuestion = parseFillQuestionFromExport(cleanedRaw, answerFromKey);
+  if (exportedFillQuestion) return exportedFillQuestion;
+
   const inlineAnswer = extractInlineAnswer(cleanedRaw);
   const body = removeInlineAnswer(cleanedRaw);
   const normalizedBody = normalizeText(body);

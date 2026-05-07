@@ -50,6 +50,63 @@
     color: white;
 }
 
+.exportBox {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+    padding: 16px 18px;
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+
+    > div:first-child {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        flex: 1;
+        min-width: 220px;
+
+        strong {
+            color: $text-color;
+        }
+
+        span {
+            color: $secondary-text-color;
+            font-size: 0.9rem;
+        }
+    }
+
+    select {
+        min-width: 240px;
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: white;
+        font-weight: 700;
+    }
+}
+
+.exportActions {
+    display: flex;
+    gap: 8px;
+
+    button {
+        border: none;
+        border-radius: 6px;
+        padding: 10px 14px;
+        background: #2563eb;
+        color: white;
+        font-weight: 800;
+        cursor: pointer;
+
+        &:hover {
+            background: #1d4ed8;
+        }
+    }
+}
+
 .infoGrid,
 .questionCard {
     background: white;
@@ -269,6 +326,24 @@
 
     .headerActions {
         flex-wrap: wrap;
+    }
+
+    .exportBox {
+        flex-direction: column;
+        align-items: stretch;
+
+        select {
+            min-width: 0;
+            width: 100%;
+        }
+    }
+
+    .exportActions {
+        flex-wrap: wrap;
+
+        button {
+            flex: 1;
+        }
     }
 
     .infoGrid {

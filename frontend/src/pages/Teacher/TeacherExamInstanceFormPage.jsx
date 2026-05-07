@@ -436,8 +436,10 @@ const TeacherExamInstanceFormPage = () => {
                                                         key={choice.id || choiceIndex}
                                                         className={`${styles.choiceRow} ${choice.is_correct ? styles.correctChoice : ''}`}
                                                     >
-                                                        <span>{getChoiceLabel(choice, choiceIndex)}</span>
-                                                        <MathRenderer text={choice.text || ''} />
+                                                        <span className={styles.choiceLabel}>{getChoiceLabel(choice, choiceIndex)}</span>
+                                                        <div className={styles.choiceText}>
+                                                            <MathRenderer text={choice.text || ''} />
+                                                        </div>
                                                         {choice.is_correct && <strong>Đúng</strong>}
                                                     </div>
                                                 ))}

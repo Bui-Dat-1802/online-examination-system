@@ -7,6 +7,7 @@ const admin = require("../middleware/admin");
 
 router.use("/auth", require("./authRoutes"));
 router.use("/users",auth, require("./userRoutes"));
+router.use("/media", auth, require("./mediaRoutes"));
 
 router.use("/teacher", auth, teacher, require("./teacherRoutes"));
 

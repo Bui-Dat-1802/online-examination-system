@@ -2,6 +2,7 @@ const teacherController = require("../controllers/teacherController");
 const {
   previewExamImport,
   confirmExamImport,
+  cleanupExamImportMedia,
 } = require("../controllers/examImportController");
 
 const uploadExamFile = require("../middleware/uploadExamFile");
@@ -76,6 +77,11 @@ router.post(
 router.post(
   "/questions/import/confirm",
   confirmExamImport
+);
+
+router.post(
+  "/questions/import/cleanup-media",
+  cleanupExamImportMedia
 );
 
 module.exports = router;

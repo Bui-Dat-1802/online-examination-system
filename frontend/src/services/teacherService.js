@@ -100,6 +100,13 @@ const teacherService = {
         );
     },
 
+    cleanupImportMedia(mediaUrls) {
+        return axiosClient.post(
+            "/api/teacher/questions/import/cleanup-media",
+            { mediaUrls }
+        );
+    },
+
     // Xóa lớp theo id(Endpiont 11)
     deleteClass(id) {
         // --- KHI CÓ BACKEND: Bỏ comment dòng này ---

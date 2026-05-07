@@ -2,6 +2,40 @@ import React, { useEffect, useRef } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+
+const getAuthToken = () => localStorage.getItem('accessToken') || '';
+
+const getMediaUrl = (src = '') => {
+    if (!src || src.startsWith('data:') || src.startsWith('blob:')) return src;
+
+    const fallbackUrl = src.startsWith('/') ? `${API_BASE_URL}${src}` : src;
+
+    try {
+        const url = new URL(src, API_BASE_URL);
+
+        if (url.pathname.startsWith('/uploads/imported-media/')) {
+            return `${API_BASE_URL}/api/media/imported/${url.pathname.slice('/uploads/imported-media/'.length)}`;
+        }
+
+        if (url.pathname.startsWith('/api/media/imported/')) {
+            return `${API_BASE_URL}${url.pathname}`;
+        }
+
+        return fallbackUrl;
+    } catch {
+        return fallbackUrl;
+    }
+};
+
+const shouldFetchWithAuth = (src = '') => {
+    try {
+        return new URL(src, API_BASE_URL).pathname.startsWith('/api/media/imported/');
+    } catch {
+        return false;
+    }
+};
+
 const MathRenderer = ({ text = '', className = '' }) => {
     const containerRef = useRef(null);
 
@@ -9,15 +43,24 @@ const MathRenderer = ({ text = '', className = '' }) => {
         if (!containerRef.current || !text) return;
 
         const container = containerRef.current;
+        const objectUrls = [];
+        let cancelled = false;
         container.innerHTML = '';
 
         // Regex pattern để tìm các công thức LaTeX
         // $$...$$: display mode, $...$: inline mode
         const displayPattern = /\$\$(.+?)\$\$/g;
         const inlinePattern = /\$(.+?)\$/g;
+        const imagePattern = /!\[([^\]]*)\]\(([^)\s]+)\)/g;
 
         // Thay thế display math trước để tránh xung đột
         let html = text;
+
+        let imageMatches = [];
+        html = html.replace(imagePattern, (match, alt, src) => {
+            imageMatches.push({ alt, src });
+            return `__IMAGE_${imageMatches.length - 1}__`;
+        });
 
         // Xử lý display math ($$...$$)
         let displayMatches = [];
@@ -50,7 +93,7 @@ const MathRenderer = ({ text = '', className = '' }) => {
 
         // Parse text để tách regular text và placeholders
         let currentPos = 0;
-        let regex = /__DISPLAY_MATH_\d+__|__INLINE_MATH_\d+__/g;
+        let regex = /__IMAGE_\d+__|__DISPLAY_MATH_\d+__|__INLINE_MATH_\d+__/g;
         let match;
 
         while ((match = regex.exec(fullText)) !== null) {
@@ -61,7 +104,7 @@ const MathRenderer = ({ text = '', className = '' }) => {
                 });
             }
             tokens.push({
-                type: 'math',
+                type: match[0].includes('IMAGE') ? 'image' : 'math',
                 isDisplay: match[0].includes('DISPLAY'),
                 index: parseInt(match[0].match(/\d+/)[0])
             });
@@ -80,6 +123,43 @@ const MathRenderer = ({ text = '', className = '' }) => {
             if (token.type === 'text') {
                 const textNode = document.createTextNode(token.value);
                 container.appendChild(textNode);
+            } else if (token.type === 'image') {
+                const image = imageMatches[token.index];
+                if (!image) return;
+
+                const img = document.createElement('img');
+                img.alt = image.alt || 'question image';
+                img.loading = 'lazy';
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '360px';
+                img.style.display = 'block';
+                img.style.margin = '8px 0';
+                img.style.objectFit = 'contain';
+                container.appendChild(img);
+
+                const mediaUrl = getMediaUrl(image.src);
+                if (shouldFetchWithAuth(mediaUrl)) {
+                    fetch(mediaUrl, {
+                        headers: { Authorization: `Bearer ${getAuthToken()}` }
+                    })
+                        .then((response) => {
+                            if (!response.ok) throw new Error(`Cannot load image: ${mediaUrl}`);
+                            return response.blob();
+                        })
+                        .then((blob) => {
+                            if (cancelled) return;
+                            const objectUrl = URL.createObjectURL(blob);
+                            objectUrls.push(objectUrl);
+                            img.src = objectUrl;
+                        })
+                        .catch(() => {
+                            if (!cancelled) {
+                                img.alt = 'Khong tai duoc anh';
+                            }
+                        });
+                } else {
+                    img.src = mediaUrl;
+                }
             } else if (token.type === 'math') {
                 const mathSpan = document.createElement('span');
                 mathSpan.className = token.isDisplay ? 'math-display' : 'math-inline';
@@ -104,6 +184,11 @@ const MathRenderer = ({ text = '', className = '' }) => {
                 }
             }
         });
+
+        return () => {
+            cancelled = true;
+            objectUrls.forEach((url) => URL.revokeObjectURL(url));
+        };
     }, [text]);
 
     return (

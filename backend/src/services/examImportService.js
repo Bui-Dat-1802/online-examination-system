@@ -1,8 +1,161 @@
 const fs = require("fs/promises");
+const path = require("path");
 
 const { extractTextFromFile } = require("../utils/extractTextFromFile");
 const { parseQuestionsFromText } = require("../utils/parseQuestions");
 const teacherService = require("./teacherService");
+const prisma = require("../prisma");
+
+const IMPORTED_MEDIA_URL_REGEX = /(?:https?:\/\/[^)\s"']+)?((?:\/uploads\/imported-media|\/api\/media\/imported)\/[^)\s"']+)/g;
+
+function extractImportedMediaUrlsFromText(value) {
+  const urls = new Set();
+  const text = String(value || "");
+  let match;
+
+  IMPORTED_MEDIA_URL_REGEX.lastIndex = 0;
+  while ((match = IMPORTED_MEDIA_URL_REGEX.exec(text)) !== null) {
+    urls.add(match[1]);
+  }
+
+  return urls;
+}
+
+function extractImportedMediaUrlsFromQuestion(question) {
+  const urls = new Set();
+
+  for (const value of [
+    question?.text,
+    question?.explanation,
+    question?.correct_text_answer,
+  ]) {
+    for (const url of extractImportedMediaUrlsFromText(value)) {
+      urls.add(url);
+    }
+  }
+
+  for (const choice of question?.choices || question?.question_choice || []) {
+    for (const url of extractImportedMediaUrlsFromText(choice?.text)) {
+      urls.add(url);
+    }
+  }
+
+  return urls;
+}
+
+async function isImportedMediaUrlStillUsed(url) {
+  const variants = getImportedMediaUrlVariants(url);
+  const referencedQuestion = await prisma.question.findFirst({
+    where: {
+      is_deleted: false,
+      OR: variants.flatMap((variant) => [
+        { text: { contains: variant } },
+        { explanation: { contains: variant } },
+        { correct_text_answer: { contains: variant } },
+        { question_choice: { some: { text: { contains: variant } } } },
+      ]),
+    },
+    select: { id: true },
+  });
+
+  return !!referencedQuestion;
+}
+
+function getImportedMediaUrlVariants(url) {
+  const normalized = normalizeImportedMediaUrl(url);
+  if (!normalized) return [];
+
+  const variants = new Set([normalized]);
+
+  if (normalized.startsWith("/api/media/imported/")) {
+    variants.add(`/uploads/imported-media/${normalized.slice("/api/media/imported/".length)}`);
+  } else if (normalized.startsWith("/uploads/imported-media/")) {
+    variants.add(`/api/media/imported/${normalized.slice("/uploads/imported-media/".length)}`);
+  }
+
+  return [...variants];
+}
+
+function normalizeImportedMediaUrl(url) {
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname;
+  } catch {
+    return url;
+  }
+}
+
+function importedMediaUrlToFilePath(url) {
+  const normalized = normalizeImportedMediaUrl(url);
+  if (!normalized) return null;
+
+  let relativePath = null;
+  if (normalized.startsWith("/api/media/imported/")) {
+    relativePath = normalized.slice("/api/media/imported/".length);
+  } else if (normalized.startsWith("/uploads/imported-media/")) {
+    relativePath = normalized.slice("/uploads/imported-media/".length);
+  }
+
+  if (!relativePath) return null;
+
+  const mediaRoot = path.resolve(__dirname, "../../uploads/imported-media");
+  const filePath = path.resolve(mediaRoot, decodeURIComponent(relativePath));
+
+  if (!filePath.startsWith(`${mediaRoot}${path.sep}`)) return null;
+  return filePath;
+}
+
+function importedMediaFilePathToUrl(filePath) {
+  const mediaRoot = path.resolve(__dirname, "../../uploads/imported-media");
+  const resolved = path.resolve(filePath);
+
+  if (!resolved.startsWith(`${mediaRoot}${path.sep}`)) return null;
+
+  const relative = path.relative(mediaRoot, resolved).split(path.sep).map(encodeURIComponent).join("/");
+  return `/api/media/imported/${relative}`;
+}
+
+async function removeEmptyImportedMediaDirs(startDir) {
+  const mediaRoot = path.resolve(__dirname, "../../uploads/imported-media");
+  let currentDir = path.resolve(startDir);
+
+  while (currentDir.startsWith(`${mediaRoot}${path.sep}`)) {
+    try {
+      const entries = await fs.readdir(currentDir);
+      if (entries.length > 0) break;
+      await fs.rmdir(currentDir);
+    } catch {
+      break;
+    }
+
+    currentDir = path.dirname(currentDir);
+  }
+}
+
+async function cleanupUnusedImportedMediaUrls(urls) {
+  const deleted = [];
+
+  for (const url of new Set(urls || [])) {
+    if (await isImportedMediaUrlStillUsed(url)) continue;
+
+    const filePath = importedMediaUrlToFilePath(url);
+    if (!filePath) continue;
+
+    try {
+      await fs.unlink(filePath);
+      deleted.push(url);
+      await removeEmptyImportedMediaDirs(path.dirname(filePath));
+    } catch (error) {
+      if (error.code !== "ENOENT") {
+        console.error("Khong the xoa anh import khong con su dung:", error.message);
+      }
+    }
+  }
+
+  return deleted;
+}
 
 // Hàm chuẩn hóa định dạng câu hỏi cho frontend preview
 function normalizePreviewQuestion(rawQuestion) {
@@ -49,11 +202,17 @@ async function importExamPreview(filePath, originalName) {
   const parsedQuestions = parseQuestionsFromText(rawText);
 
   const questions = parsedQuestions.map(normalizePreviewQuestion);
+  const mediaUrls = [
+    ...new Set(questions.flatMap((question) => [
+      ...extractImportedMediaUrlsFromQuestion(question),
+    ])),
+  ];
 
   return {
     sourceFile: originalName,
     total: questions.length,
     questions,
+    mediaUrls,
   };
 }
 
@@ -131,8 +290,76 @@ async function confirmExamImport(questions, teacherId) {
   };
 }
 
+async function cleanupImportPreviewMedia(mediaUrls = []) {
+  if (!Array.isArray(mediaUrls) || mediaUrls.length === 0) {
+    return { deleted: [] };
+  }
+
+  const deleted = await cleanupUnusedImportedMediaUrls(mediaUrls);
+  return { deleted };
+}
+
+async function listFilesRecursive(dir) {
+  const files = [];
+
+  let entries = [];
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === "ENOENT") return files;
+    throw error;
+  }
+
+  for (const entry of entries) {
+    const entryPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await listFilesRecursive(entryPath));
+    } else if (entry.isFile()) {
+      files.push(entryPath);
+    }
+  }
+
+  return files;
+}
+
+async function cleanupStaleImportedMedia(maxAgeMs = 24 * 60 * 60 * 1000) {
+  const mediaRoot = path.resolve(__dirname, "../../uploads/imported-media");
+  const now = Date.now();
+  const staleUrls = [];
+  const files = await listFilesRecursive(mediaRoot);
+
+  for (const filePath of files) {
+    try {
+      const stat = await fs.stat(filePath);
+      if (now - stat.mtimeMs < maxAgeMs) continue;
+
+      const url = importedMediaFilePathToUrl(filePath);
+      if (url) staleUrls.push(url);
+    } catch {
+      // File may have been removed by a concurrent cleanup.
+    }
+  }
+
+  const deleted = await cleanupUnusedImportedMediaUrls(staleUrls);
+  return { scanned: staleUrls.length, deleted };
+}
+
+function startImportedMediaCleanupJob() {
+  const run = () => {
+    cleanupStaleImportedMedia().catch((error) => {
+      console.error("Imported media cleanup error:", error.message);
+    });
+  };
+
+  setTimeout(run, 60 * 1000);
+  setInterval(run, 60 * 60 * 1000);
+}
+
 module.exports = {
   importExamPreview,
   removeUploadedFile,
   confirmExamImport,
+  cleanupImportPreviewMedia,
+  cleanupStaleImportedMedia,
+  startImportedMediaCleanupJob,
 };

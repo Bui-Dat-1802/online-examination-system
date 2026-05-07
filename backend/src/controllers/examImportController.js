@@ -1,6 +1,7 @@
 const {
   importExamPreview,
   removeUploadedFile,
+  cleanupImportPreviewMedia,
 } = require("../services/examImportService");
 
 async function previewExamImport(req, res) {
@@ -69,7 +70,25 @@ async function confirmExamImport(req, res, next) {
   }
 }
 
+async function cleanupExamImportMedia(req, res) {
+  try {
+    const { mediaUrls } = req.body || {};
+    const result = await cleanupImportPreviewMedia(mediaUrls);
+
+    return res.json({
+      success: true,
+      deleted: result.deleted,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      error: error.message || "Khong the don dep anh import",
+    });
+  }
+}
+
 module.exports = {
   previewExamImport,
   confirmExamImport,
+  cleanupExamImportMedia,
 };

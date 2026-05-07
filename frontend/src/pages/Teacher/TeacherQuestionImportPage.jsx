@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import teacherService from "../../services/teacherService";
 import MathRenderer from "../../components/MathRenderer";
@@ -13,8 +13,30 @@ const TeacherQuestionImportPage = () => {
   const [previewData, setPreviewData] = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const importedConfirmedRef = useRef(false);
+  const previewMediaUrlsRef = useRef([]);
 
   const hasLatex = (text) => /\$.*?\$/.test(text) || /\$\$.*?\$\$/.test(text);
+  const hasImage = (text) => /!\[[^\]]*\]\([^)]+\)/.test(text || "");
+  const hasRichPreview = (text) => hasLatex(text || "") || hasImage(text || "");
+
+  const cleanupCurrentPreviewMedia = async () => {
+    const mediaUrls = previewMediaUrlsRef.current;
+    if (!mediaUrls.length || importedConfirmedRef.current) return;
+
+    previewMediaUrlsRef.current = [];
+    try {
+      await teacherService.cleanupImportMedia(mediaUrls);
+    } catch (error) {
+      console.warn("Khong the don dep anh preview import:", error);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      cleanupCurrentPreviewMedia();
+    };
+  }, []);
 
   const buildDefaultTag = (fileName) => {
     return fileName
@@ -25,6 +47,8 @@ const TeacherQuestionImportPage = () => {
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
+    cleanupCurrentPreviewMedia();
+    importedConfirmedRef.current = false;
     setSelectedFile(file || null);
     setPreviewData(null);
   };
@@ -37,6 +61,8 @@ const TeacherQuestionImportPage = () => {
 
     try {
       setLoadingPreview(true);
+      await cleanupCurrentPreviewMedia();
+      importedConfirmedRef.current = false;
 
       const formData = new FormData();
       formData.append("file", selectedFile);
@@ -60,6 +86,7 @@ const TeacherQuestionImportPage = () => {
         ...res.data.data,
         questions,
       });
+      previewMediaUrlsRef.current = res.data.data.mediaUrls || [];
     } catch (error) {
       showAlert(
         error.response?.data?.message || "Không thể phân tích file đề"
@@ -79,7 +106,7 @@ const TeacherQuestionImportPage = () => {
 
     // validate lại ngay khi sửa
     const error = validateQuestion(updatedQuestion);
-    const hasWarning = hasUnscannedMath(question);
+    const hasWarning = hasUnscannedMath(updatedQuestion);
 
     newQuestions[index] = {
       ...updatedQuestion,
@@ -294,6 +321,8 @@ const TeacherQuestionImportPage = () => {
         };
 
       await teacherService.confirmImportQuestions(payload);
+      importedConfirmedRef.current = true;
+      previewMediaUrlsRef.current = [];
 
       showAlert("Import câu hỏi thành công");
       navigate("/teacher/questions");
@@ -322,6 +351,11 @@ const TeacherQuestionImportPage = () => {
           behavior: "smooth",
           block: "center"
       });
+  };
+
+  const handleCancel = async () => {
+      await cleanupCurrentPreviewMedia();
+      navigate("/teacher/questions");
   };
 
 
@@ -394,7 +428,7 @@ const TeacherQuestionImportPage = () => {
                                     }
                                 />
 
-                                {question.text && hasLatex(question.text) && (
+                                {question.text && hasRichPreview(question.text) && (
                                     <div className={styles.previewBox}>
                                         <MathRenderer text={question.text} />
                                     </div>
@@ -466,7 +500,7 @@ const TeacherQuestionImportPage = () => {
                                             }
                                           />
 
-                                          {choice.text && hasLatex(choice.text) && (
+                                          {choice.text && hasRichPreview(choice.text) && (
                                             <div className={styles.choicePreview}>
                                               <MathRenderer text={choice.text} />
                                             </div>
@@ -504,7 +538,7 @@ const TeacherQuestionImportPage = () => {
                                 }
                               />
 
-                              {question.explanation && hasLatex(question.explanation) && (
+                              {question.explanation && hasRichPreview(question.explanation) && (
                                 <div className={styles.previewBox}>
                                   <MathRenderer text={question.explanation} />
                                 </div>
@@ -518,7 +552,7 @@ const TeacherQuestionImportPage = () => {
                     <button
                         type="button"
                         className={styles.btnCancel}
-                        onClick={() => navigate("/teacher/questions")}
+                        onClick={handleCancel}
                     >
                         Hủy
                     </button>

@@ -1,5 +1,7 @@
 const prisma = require("../prisma");
 const userService = require("../services/userService");
+const fs = require("node:fs/promises");
+const path = require("node:path");
 
 // Hàm chuẩn hóa điểm của câu hỏi
 function normalizeQuestionPoints(points) {
@@ -50,6 +52,145 @@ function normalizeInstanceQuestions(questions) {
       points: normalizeQuestionPoints(q.points),
     };
   });
+}
+
+const IMPORTED_MEDIA_URL_REGEX = /(?:https?:\/\/[^)\s"']+)?((?:\/uploads\/imported-media|\/api\/media\/imported)\/[^)\s"']+)/g;
+
+function extractImportedMediaUrlsFromText(value) {
+  const urls = new Set();
+  const text = String(value || "");
+  let match;
+
+  IMPORTED_MEDIA_URL_REGEX.lastIndex = 0;
+  while ((match = IMPORTED_MEDIA_URL_REGEX.exec(text)) !== null) {
+    urls.add(match[1]);
+  }
+
+  return urls;
+}
+
+function extractQuestionMediaUrls(question) {
+  const urls = new Set();
+
+  for (const value of [
+    question?.text,
+    question?.explanation,
+    question?.correct_text_answer,
+  ]) {
+    for (const url of extractImportedMediaUrlsFromText(value)) {
+      urls.add(url);
+    }
+  }
+
+  for (const choice of question?.question_choice || []) {
+    for (const url of extractImportedMediaUrlsFromText(choice?.text)) {
+      urls.add(url);
+    }
+  }
+
+  return urls;
+}
+
+async function isImportedMediaUrlStillUsed(url) {
+  const variants = getImportedMediaUrlVariants(url);
+  const referencedQuestion = await prisma.question.findFirst({
+    where: {
+      is_deleted: false,
+      OR: variants.flatMap((variant) => [
+        { text: { contains: variant } },
+        { explanation: { contains: variant } },
+        { correct_text_answer: { contains: variant } },
+        { question_choice: { some: { text: { contains: variant } } } },
+      ]),
+    },
+    select: { id: true },
+  });
+
+  return !!referencedQuestion;
+}
+
+function getImportedMediaUrlVariants(url) {
+  const normalized = normalizeImportedMediaUrl(url);
+  if (!normalized) return [];
+
+  const variants = new Set([normalized]);
+
+  if (normalized.startsWith("/api/media/imported/")) {
+    variants.add(`/uploads/imported-media/${normalized.slice("/api/media/imported/".length)}`);
+  } else if (normalized.startsWith("/uploads/imported-media/")) {
+    variants.add(`/api/media/imported/${normalized.slice("/uploads/imported-media/".length)}`);
+  }
+
+  return [...variants];
+}
+
+function normalizeImportedMediaUrl(url) {
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname;
+  } catch {
+    return url;
+  }
+}
+
+function importedMediaUrlToFilePath(url) {
+  const normalized = normalizeImportedMediaUrl(url);
+  if (!normalized) return null;
+
+  let relativePath = null;
+  if (normalized.startsWith("/api/media/imported/")) {
+    relativePath = normalized.slice("/api/media/imported/".length);
+  } else if (normalized.startsWith("/uploads/imported-media/")) {
+    relativePath = normalized.slice("/uploads/imported-media/".length);
+  }
+
+  if (!relativePath) return null;
+
+  const mediaRoot = path.resolve(__dirname, "../../uploads/imported-media");
+  const filePath = path.resolve(mediaRoot, decodeURIComponent(relativePath));
+
+  if (!filePath.startsWith(`${mediaRoot}${path.sep}`)) {
+    return null;
+  }
+
+  return filePath;
+}
+
+async function removeEmptyImportedMediaDirs(startDir) {
+  const mediaRoot = path.resolve(__dirname, "../../uploads/imported-media");
+  let currentDir = path.resolve(startDir);
+
+  while (currentDir.startsWith(`${mediaRoot}${path.sep}`)) {
+    try {
+      const entries = await fs.readdir(currentDir);
+      if (entries.length > 0) break;
+      await fs.rmdir(currentDir);
+    } catch {
+      break;
+    }
+
+    currentDir = path.dirname(currentDir);
+  }
+}
+
+async function cleanupUnusedImportedMediaUrls(urls) {
+  for (const url of new Set(urls || [])) {
+    if (await isImportedMediaUrlStillUsed(url)) continue;
+
+    const filePath = importedMediaUrlToFilePath(url);
+    if (!filePath) continue;
+
+    try {
+      await fs.unlink(filePath);
+      await removeEmptyImportedMediaDirs(path.dirname(filePath));
+    } catch (error) {
+      if (error.code !== "ENOENT") {
+        console.error("Khong the xoa anh cau hoi khong con su dung:", error.message);
+      }
+    }
+  }
 }
 
 module.exports = {
@@ -378,7 +519,7 @@ module.exports = {
     async updateQuestion(questionId, updateData) {
         const { choices = [], type, correct_text_answer, ...questionFields } = updateData;
 
-        return await prisma.$transaction(async (tx) => {
+        const { result, oldMediaUrls } = await prisma.$transaction(async (tx) => {
             // 1. Lấy question hiện tại
             const existing = await tx.question.findFirst({
                 where: { id: questionId },
@@ -391,6 +532,7 @@ module.exports = {
                 throw err;
             }
 
+            const oldMediaUrls = [...extractQuestionMediaUrls(existing)];
             const newType = type ?? existing.type;
 
             // 2. Chuẩn bị update question
@@ -454,12 +596,14 @@ module.exports = {
                     });
                 }
 
-                return await tx.question.findUnique({
+                const result = await tx.question.findUnique({
                     where: { id: questionId },
                     include: {
                         question_choice: true
                     }
                 });
+
+                return { result, oldMediaUrls };
             }
 
             // CASE 2: TRẮC NGHIỆM
@@ -529,8 +673,11 @@ module.exports = {
                 }
             });
 
-            return result;
+            return { result, oldMediaUrls };
         });
+
+        await cleanupUnusedImportedMediaUrls(oldMediaUrls);
+        return result;
     },
 
     // Xóa câu hỏi 
@@ -551,7 +698,7 @@ module.exports = {
     
     //xóa câu hỏi - dat (soft delete)
     async deleteQuestion(questionId, teacherId) {
-        return await prisma.$transaction(async (tx) => {
+        const { result, oldMediaUrls } = await prisma.$transaction(async (tx) => {
 
             // 1. Check quyền sở hữu 
             const question = await tx.question.findFirst({
@@ -559,7 +706,8 @@ module.exports = {
                     id: questionId,
                     owner_id: teacherId,
                     is_deleted: false
-                }
+                },
+                include: { question_choice: true }
             });
 
             if (!question) {
@@ -567,6 +715,8 @@ module.exports = {
             }
 
             // 2. Soft delete câu hỏi
+            const oldMediaUrls = [...extractQuestionMediaUrls(question)];
+
             await tx.question.update({
                 where: { id: questionId },
                 data: {
@@ -576,8 +726,11 @@ module.exports = {
                 }
             });
 
-            return true;
+            return { result: true, oldMediaUrls };
         });
+
+        await cleanupUnusedImportedMediaUrls(oldMediaUrls);
+        return result;
     },
 
     // Khôi phục câu hỏi

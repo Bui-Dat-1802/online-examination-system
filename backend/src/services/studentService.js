@@ -140,6 +140,149 @@ module.exports = {
     },
 
     // Bắt đầu kỳ thi: tạo phiên làm bài (exam_session)
+    async getExamOverview(studentId) {
+        const enrollments = await prisma.enrollment_request.findMany({
+            where: {
+                student_id: studentId,
+                status: "approved",
+                Renamedclass: {
+                    is_deleted: false,
+                },
+            },
+            select: {
+                class_id: true,
+            },
+        });
+
+        const classIds = enrollments.map((enrollment) => enrollment.class_id);
+        if (classIds.length === 0) {
+            return {
+                exams: [],
+                summary: {
+                    completedCount: 0,
+                    notAttemptedCount: 0,
+                    upcomingCount: 0,
+                    averageScore: 0,
+                },
+            };
+        }
+
+        const exams = await prisma.exam_instance.findMany({
+            where: {
+                is_deleted: false,
+                published: true,
+                exam_template: {
+                    class_id: { in: classIds },
+                    is_deleted: false,
+                    Renamedclass: {
+                        is_deleted: false,
+                    },
+                },
+            },
+            select: {
+                id: true,
+                starts_at: true,
+                ends_at: true,
+                exam_template: {
+                    select: {
+                        title: true,
+                        duration_seconds: true,
+                        passing_score: true,
+                        Renamedclass: {
+                            select: {
+                                id: true,
+                                name: true,
+                                code: true,
+                            },
+                        },
+                    },
+                },
+                exam_session: {
+                    where: {
+                        user_id: studentId,
+                    },
+                    select: {
+                        id: true,
+                        state: true,
+                        started_at: true,
+                        ends_at: true,
+                        submission: {
+                            select: {
+                                id: true,
+                                score: true,
+                                max_score: true,
+                                graded_at: true,
+                                created_at: true,
+                            },
+                            take: 1,
+                        },
+                    },
+                    take: 1,
+                },
+            },
+        });
+
+        const now = new Date();
+        const normalized = exams.map((exam) => {
+            let status;
+            if (now < exam.starts_at) {
+                status = "upcoming";
+            } else if (now > exam.ends_at) {
+                status = "ended";
+            } else {
+                status = "ongoing";
+            }
+
+            const session = exam.exam_session[0] || null;
+            const submission = session?.submission?.[0] || null;
+            const submitted = session?.state === "submitted" || Boolean(submission);
+            const normalizedScore = submission && Number(submission.max_score) > 0
+                ? Number(((Number(submission.score) / Number(submission.max_score)) * 10).toFixed(2))
+                : null;
+
+            return {
+                id: exam.id,
+                title: exam.exam_template.title,
+                starts_at: exam.starts_at,
+                ends_at: exam.ends_at,
+                duration: exam.exam_template.duration_seconds,
+                passing_score: exam.exam_template.passing_score,
+                status,
+                session_state: session?.state || null,
+                submitted,
+                class: exam.exam_template.Renamedclass,
+                submission: submission ? {
+                    id: submission.id,
+                    score: Number(submission.score),
+                    max_score: Number(submission.max_score),
+                    normalized_score: normalizedScore,
+                    graded_at: submission.graded_at,
+                    submitted_at: submission.created_at,
+                } : null,
+            };
+        });
+
+        const completed = normalized.filter((exam) => exam.submitted);
+        const notAttempted = normalized.filter((exam) => exam.status === "ongoing" && !exam.submitted && !exam.session_state);
+        const upcoming = normalized.filter((exam) => exam.status === "upcoming");
+        const scoreItems = completed
+            .map((exam) => exam.submission?.normalized_score)
+            .filter((score) => score !== null);
+        const averageScore = scoreItems.length > 0
+            ? Number((scoreItems.reduce((sum, score) => sum + score, 0) / scoreItems.length).toFixed(2))
+            : 0;
+
+        return {
+            exams: normalized,
+            summary: {
+                completedCount: completed.length,
+                notAttemptedCount: notAttempted.length,
+                upcomingCount: upcoming.length,
+                averageScore,
+            },
+        };
+    },
+
     async startExam(studentId, examInstanceId, clientMeta = {}) {
         const examInstance = await prisma.exam_instance.findUnique({
             where: { id: examInstanceId },

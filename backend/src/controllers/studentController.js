@@ -55,6 +55,18 @@ module.exports = {
     },
 
     // Bắt đầu kỳ thi: tạo phiên làm bài
+    async getExamOverview(req, res, next) {
+        try {
+            const studentId = req.user.id;
+            const overview = await studentService.getExamOverview(studentId);
+            res.status(200).json(overview);
+        } catch (error) {
+            const err = new Error("Lấy tổng quan bài thi thất bại: " + error.message);
+            err.status = error.status || 400;
+            next(err);
+        }
+    },
+
     async startExam(req, res, next) {
         try {
             const studentId = req.user.id;

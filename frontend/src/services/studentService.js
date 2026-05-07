@@ -6,6 +6,10 @@ const studentService = {
     getDashboard() {
         return axiosClient.get('/api/student/dashboard');
     },
+
+    getExamOverview() {
+        return axiosClient.get('/api/student/exams/overview');
+    },
     // Endpoint 1: Enroll
     enrollClass(data) {
         return axiosClient.post('/api/student/enroll', data);

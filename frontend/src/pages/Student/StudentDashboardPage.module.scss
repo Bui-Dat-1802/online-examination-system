@@ -155,6 +155,20 @@
     }
 }
 
+.clickableCard {
+    width: 100%;
+    border: 1px solid #eee;
+    font-family: inherit;
+    appearance: none;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+
+    &:hover {
+        border-color: $primary-color;
+        transform: translateY(-1px);
+    }
+}
+
 .contentSection {
     background: white;
     padding: 30px;

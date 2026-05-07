@@ -33,11 +33,14 @@ import TeacherQuestionImportPage from './pages/Teacher/TeacherQuestionImportPage
 import TeacherTemplatesPage from './pages/Teacher/TeacherTemplatesPage';
 // de thi
 import TeacherExamInstancesPage from './pages/Teacher/TeacherExamInstancesPage';
+import TeacherExamInstanceFormPage from './pages/Teacher/TeacherExamInstanceFormPage';
+import TeacherExamInstanceDetailPage from './pages/Teacher/TeacherExamInstanceDetailPage';
 // Quan ly phien thi
 import ClassExamSessionPage from './pages/Teacher/ClassExamSessionPage';
 // trang cho student
 import StudentClassesPage from './pages/Student/StudentClassesPage';
 import StudentClassExamsPage from './pages/Student/StudentClassExamsPage';
+import StudentExamsOverviewPage from './pages/Student/StudentExamsOverviewPage';
 import StudentTakeExamPage from './pages/Student/StudentTakeExamPage';
 
 //trang cho admin
@@ -64,6 +67,7 @@ function App() {
             <Route path="/student" element={<StudentLayout />}>
               <Route path="dashboard" element={<StudentDashboardPage />} />
               <Route path="classes" element={<StudentClassesPage />} />
+              <Route path="exams" element={<StudentExamsOverviewPage />} />
               <Route path="classes/:classId/exams" element={<StudentClassExamsPage />} />
               <Route path="exam/take/:examId" element={<StudentTakeExamPage />} />
             </Route>
@@ -78,6 +82,9 @@ function App() {
               <Route path="questions" element={<TeacherQuestionsPage />} />
               <Route path="questions/import" element={<TeacherQuestionImportPage />} />
               <Route path="exam-templates" element={<TeacherTemplatesPage />} />
+              <Route path="exam-templates/:templateId/exams/create" element={<TeacherExamInstanceFormPage />} />
+              <Route path="exam-templates/:templateId/exams/:examId/detail" element={<TeacherExamInstanceDetailPage />} />
+              <Route path="exam-templates/:templateId/exams/:examId/edit" element={<TeacherExamInstanceFormPage />} />
               <Route path="exam-templates/:templateId" element={<TeacherExamInstancesPage />} />
               <Route path="classes/:classId/exams/:examInstanceId" element={<ClassExamSessionPage />} />
             </Route>

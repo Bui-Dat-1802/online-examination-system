@@ -2,368 +2,66 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import teacherService from '../../services/teacherService';
-import MathRenderer from '../../components/MathRenderer';
 import Pagination from '../../components/Pagination';
-import styles from './TeacherExamInstancesPage.module.scss';
 import { useModal } from '../../context/ModalContext';
+import styles from './TeacherExamInstancesPage.module.scss';
 
 const TeacherExamInstancesPage = () => {
     const { templateId } = useParams();
     const { showConfirm, showAlert } = useModal();
 
-    // KHÔNG CẦN AuthContext hay logout nữa
-
-    // Data State
     const [exams, setExams] = useState([]);
-    const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    // Modal & Form State
-    const [showModal, setShowModal] = useState(false);
-    const [editingExam, setEditingExam] = useState(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    // Modal Xem chi tiết
-    const [viewExam, setViewExam] = useState(null);
-
-    // Search state2
-    const [searchTerm, setSearchTerm] = useState('');
-//    const [difficultyFilter, setDifficultyFilter] = useState('all');
-
-    // Pagination state
+    const [templateInfo, setTemplateInfo] = useState(null);
     const [currentExamPage, setCurrentExamPage] = useState(1);
     const examsPerPage = 10;
-
-    const initialForm = {
-        starts_at: '',
-        ends_at: '',
-        published: false,
-        show_answers: false,
-        scoring_mode: 'ALL_OR_NOTHING',
-        selectedQuestions: []
-        };
-    const [formData, setFormData] = useState(initialForm);
-
-    // --- 1. LOAD DATA ---
-    // also load template info so we can get the class_id
-    const [templateInfo, setTemplateInfo] = useState(null);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const [examRes, questRes, tplRes] = await Promise.all([
+                const [examRes, tplRes] = await Promise.all([
                     teacherService.getExamInstancesByTemplate(templateId),
-                    teacherService.getQuestions(),
-                    teacherService.getExamTemplates() // get all templates and find the one we want
+                    teacherService.getExamTemplates()
                 ]);
-                setExams(examRes.data);
-                setQuestions(questRes.data);
-                const foundTpl = (tplRes.data || []).find(t => t.id === templateId);
-                setTemplateInfo(foundTpl || null);
+                setExams(examRes.data || []);
+                setTemplateInfo((tplRes.data || []).find(t => t.id === templateId) || null);
             } catch (error) {
                 console.error(error);
+                showAlert('Lỗi', 'Không thể tải danh sách đề thi.');
             } finally {
                 setLoading(false);
             }
         };
+
         fetchData();
     }, [templateId]);
 
-    // Helpers
-    const toInputDateTime = (isoString) => {
-        if (!isoString) return '';
-        // Convert UTC to +7 timezone (Vietnam) for display
-        const date = new Date(isoString);
-        const offset = 7 * 60; // +7 hours in minutes
-        const localDate = new Date(date.getTime() + offset * 60000);
-        return localDate.toISOString().substring(0, 16);
-    };
     const formatDate = (str) => new Date(str).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-    const getQuestionContent = (q) => {
-        return (
-            q?.text ||
-            q?.content ||
-            q?.question_text ||
-            q?.title ||
-            q?.description ||
-            ''
-        );
-    };
-
-    const getQuestionText = (qId) => {
-        const found = questions.find(q => q.id === qId);
-        return found ? getQuestionContent(found) : "Câu hỏi đã bị xóa";
-    };
-
-    const getSelectedQuestion = (qId) => {
-        return formData.selectedQuestions.find(item => item.question_id === qId);
-    };
-
-    const isQuestionSelected = (qId) => {
-        return !!getSelectedQuestion(qId);
-    };
-
-    const getQuestionPoint = (qId) => {
-        return getSelectedQuestion(qId)?.points ?? 1;
-    };
-
-    // --- LOGIC FORM ---
-    const handleInputChange = (e) => {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-        setFormData({ ...formData, [e.target.name]: value });
-    };
-
-    const handleQuestionToggle = (qId) => {
-        setFormData(prev => {
-            const exists = prev.selectedQuestions.some(item => item.question_id === qId);
-
-            if (exists) {
-                return {
-                    ...prev,
-                    selectedQuestions: prev.selectedQuestions.filter(item => item.question_id !== qId)
-                };
-            }
-
-            return {
-                ...prev,
-                selectedQuestions: [
-                    ...prev.selectedQuestions,
-                    {
-                    question_id: qId,
-                    points: 1
-                    }
-                ]
-            };
-        });
-    };
-
-    const handleQuestionPointChange = (qId, value) => {
-        setFormData(prev => {
-            const pointValue = value === '' ? '' : Number(value);
-
-            return {
-                ...prev,
-                selectedQuestions: prev.selectedQuestions.map(item =>
-                    item.question_id === qId
-                    ? { ...item, points: pointValue }
-                    : item
-                )
-            };
-        });
-    };
-
-    // Filter questions based on search and difficulty
-    const keywords = searchTerm
-        .toLowerCase()
-        .split(/[,\s]+/)
-        .map(k => k.trim())
-        .filter(Boolean);
-
-    const filteredQuestions = questions.filter(q => {
-        const matchesSearch =
-            keywords.length === 0 ||
-            keywords.every(keyword =>
-            getQuestionContent(q).toLowerCase().includes(keyword) ||
-            (q.tags && q.tags.some(tag => tag.toLowerCase().includes(keyword)))
-            );
-
-        return matchesSearch;
-    });
-
-    // Kiểm tra nếu tất cả câu hỏi đã lọc đều nằm trong danh sách đã chọn thì checkbox "Chọn tất cả" sẽ được đánh dấu
-    const filteredIds = filteredQuestions.map(q => q.id);
-
-    const selectedQuestionIds = formData.selectedQuestions.map(item => item.question_id);
-
-    const allFilteredSelected =
-        filteredIds.length > 0 &&
-        filteredIds.every(id => isQuestionSelected(id));
-
-    // Hàm xử lý khi click vào checkbox "Chọn tất cả"
-    const handleSelectAllFiltered = () => {
-        setFormData(prev => {
-            const currentIds = prev.selectedQuestions.map(item => item.question_id);
-
-            if (allFilteredSelected) {
-                return {
-                    ...prev,
-                    selectedQuestions: prev.selectedQuestions.filter(
-                    item => !filteredIds.includes(item.question_id)
-                    )
-                };
-            }
-
-            const newSelected = [...prev.selectedQuestions];
-
-            filteredIds.forEach(id => {
-                if (!currentIds.includes(id)) {
-                    newSelected.push({
-                    question_id: id,
-                    points: 1
-                    });
-                }
-            });
-
-            return {
-                ...prev,
-                selectedQuestions: newSelected
-            };
-        });
-    };
-    
-    // --- CÁC HÀM XỬ LÝ ---
-    const openCreateModal = () => {
-        setEditingExam(null);
-        setFormData(initialForm);
-        setSearchTerm('');
-        // setDifficultyFilter('all');
-        setShowModal(true);
-    };
-
-    // --- SỬA  ---
-    const openEditModal = async (exam) => {
-        setEditingExam(exam);
-
-        try {
-            // 1. Gọi API lấy chi tiết đề thi để có danh sách câu hỏi chính xác
-            // (Vì API danh sách thường không trả về field exam_question đầy đủ)
-            const res = await teacherService.getExamInstanceDetail(exam.id);
-            const fullExamData = res.data;
-
-            // 2. Lấy danh sách ID câu hỏi đã chọn
-            const currentQuestions =
-                fullExamData.exam_question && Array.isArray(fullExamData.exam_question)
-                    ? fullExamData.exam_question.map(item => ({
-                        question_id: item.question_id,
-                        points: item.points ?? 1
-                    }))
-                : [];
-
-            console.log("Câu hỏi đã chọn:", currentQuestions);
-
-            // 3. Fill dữ liệu vào Form
-            setFormData({
-                starts_at: toInputDateTime(fullExamData.starts_at),
-                ends_at: toInputDateTime(fullExamData.ends_at),
-                published: fullExamData.published,
-                show_answers: fullExamData.show_answers || false,
-                scoring_mode: fullExamData.scoring_mode || 'ALL_OR_NOTHING',
-                selectedQuestions: currentQuestions //  Gán vào đây thì checkbox mới hiện
-            });
-
-            // Reset bộ lọc tìm kiếm trong modal
-            setSearchTerm('');
-            // setDifficultyFilter('all');
-
-            // 4. Mở Modal
-            setShowModal(true);
-        } catch (error) {
-            console.error(error);
-            alert("Không thể tải thông tin chi tiết đề thi để sửa.");
-        }
-    };
 
     const handleDelete = (id) => {
-        // 3. THAY THẾ window.confirm BẰNG showConfirm
         showConfirm(
-            "Xóa đề thi", // Tiêu đề
-            "Bạn có chắc chắn muốn xóa đề thi này không? Hành động này không thể hoàn tác.", // Nội dung
-            async () => { // Callback: Hàm này sẽ chạy khi bấm "Đồng ý"
+            'Xóa đề thi',
+            'Bạn có chắc chắn muốn xóa đề thi này không? Hành động này không thể hoàn tác.',
+            async () => {
                 try {
                     await teacherService.deleteExamInstance(id);
                     setExams(prev => prev.filter(e => e.id !== id));
-                    showAlert("Thành công", "Xóa đề thi thành công!"); // Thay alert thường
+                    showAlert('Thành công', 'Xóa đề thi thành công!');
                 } catch (error) {
-                    showAlert("Lỗi", error.response?.data?.error || "Xóa thất bại");
+                    showAlert('Lỗi', error.response?.data?.error || 'Xóa thất bại');
                 }
             }
         );
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-
-        // Keep the datetime as +7 timezone when sending to backend
-        const startsAtLocal = new Date(formData.starts_at);
-        const endsAtLocal = new Date(formData.ends_at);
-
-        // Format as ISO string with +07:00 timezone offset
-        const formatWithTimezone = (date) => {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            const seconds = String(date.getSeconds()).padStart(2, '0');
-            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+07:00`;
-        };
-
-        const payload = {
-            ...(editingExam ? {} : { templateId }),
-            starts_at: formatWithTimezone(startsAtLocal),
-            ends_at: formatWithTimezone(endsAtLocal),
-            published: formData.published,
-            show_answers: formData.show_answers,
-            scoring_mode: formData.scoring_mode,
-            questions: formData.selectedQuestions.map((item, index) => ({
-                question_id: item.question_id,
-                ordinal: index,
-                points: Number(item.points || 1)
-            }))
-        };
-
-        if (payload.questions.length === 0) { showAlert("Vui lòng chọn ít nhất 1 câu hỏi!"); setIsSubmitting(false); return; }
-
-        const invalidPoint = payload.questions.find(q =>
-            Number.isNaN(q.points) || q.points <= 0
-        );
-
-        if (invalidPoint) {
-            showAlert("Điểm của mỗi câu hỏi phải là số lớn hơn 0!");
-            setIsSubmitting(false);
-            return;
-        }
-
-        try {
-            if (editingExam) {
-                const res = await teacherService.updateExamInstance(editingExam.id, payload);
-                setExams(prev => prev.map(ex =>
-                    ex.id === editingExam.id ? { ...ex, ...res.data.updatedInstance, title: ex.title } : ex
-                ));
-                showAlert("Thành công", res.data.message);
-            } else {
-                const res = await teacherService.createExam(payload);
-                const newExam = { ...res.data.newInstance, title: "Đề thi mới" };
-                setExams([newExam, ...exams]);
-                showAlert("Thành công", res.data.message);
-            }
-            setShowModal(false);
-        } catch (error) {
-            showAlert("Thất bại", error.response?.data?.error || "Có lỗi xảy ra");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleViewDetail = async (id) => {
-        try {
-            const res = await teacherService.getExamInstanceDetail(id);
-            setViewExam(res.data);
-        } catch (error) {
-            console.error(error);
-            showAlert("Lỗi", "Không thể tải chi tiết đề thi.");
-        }
-    };
-
     return (
-        // XÓA .layout, .sidebar, .mainContent, <TopHeader>
-        // CHỈ GIỮ LẠI PHẦN NỘI DUNG CHÍNH (CONTENT BODY)
         <div className={styles.contentBody}>
             <div className={styles.pageHeader}>
                 <h2>Danh sách Đề thi (Instances)</h2>
-                <button className={styles.createBtn} onClick={openCreateModal}>+ Tạo Đề Thi</button>
+                <Link className={styles.createBtn} to={`/teacher/exam-templates/${templateId}/exams/create`}>
+                    + Tạo Đề Thi
+                </Link>
             </div>
 
             {loading ? <p style={{ textAlign: 'center' }}>Đang tải dữ liệu...</p> : (
@@ -382,7 +80,7 @@ const TeacherExamInstancesPage = () => {
                         <tbody>
                             {exams.length > 0 ? exams
                                 .slice((currentExamPage - 1) * examsPerPage, currentExamPage * examsPerPage)
-                                .map((exam, index) => (
+                                .map((exam) => (
                                     <tr key={exam.id}>
                                         <td data-label="ID Đề thi" style={{ fontFamily: 'monospace', color: '#007bff' }}>
                                             {exam.title || exam.id.substring(0, 8)}
@@ -402,16 +100,20 @@ const TeacherExamInstancesPage = () => {
                                         </td>
                                         <td data-label="Thao tác">
                                             <div className={styles.actionButtons}>
-                                                <button
+                                                <Link
                                                     className={`${styles.btnIcon} ${styles.btnView}`}
-                                                    onClick={() => handleViewDetail(exam.id)}
+                                                    to={`/teacher/exam-templates/${templateId}/exams/${exam.id}/detail`}
                                                     title="Xem chi tiết"
                                                 >
                                                     <i className="fa-solid fa-eye"></i>
-                                                </button>
-                                                <button className={`${styles.btnIcon} ${styles.btnEdit}`} onClick={() => openEditModal(exam)} title="Sửa">
+                                                </Link>
+                                                <Link
+                                                    className={`${styles.btnIcon} ${styles.btnEdit}`}
+                                                    to={`/teacher/exam-templates/${templateId}/exams/${exam.id}/edit`}
+                                                    title="Sửa"
+                                                >
                                                     <i className="fa-solid fa-pen"></i>
-                                                </button>
+                                                </Link>
                                                 <button className={`${styles.btnIcon} ${styles.btnDelete}`} onClick={() => handleDelete(exam.id)} title="Xóa">
                                                     <i className="fa-solid fa-trash"></i>
                                                 </button>
@@ -431,7 +133,6 @@ const TeacherExamInstancesPage = () => {
                         </tbody>
                     </table>
 
-                    {/* Pagination for exams */}
                     {exams.length > examsPerPage && (
                         <Pagination
                             currentPage={currentExamPage}
@@ -441,233 +142,6 @@ const TeacherExamInstancesPage = () => {
                             totalItems={exams.length}
                         />
                     )}
-                </div>
-            )}
-
-            {/* --- MODAL TẠO/SỬA --- */}
-            {showModal && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.modalContent}>
-                        <div className={styles.modalHeader}>
-                            <h3>{editingExam ? 'Chỉnh sửa Đề Thi' : 'Tạo Đề Thi Mới'}</h3>
-                            <button onClick={() => setShowModal(false)}>&times;</button>
-                        </div>
-                        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-                            <div className={styles.formScroll}>
-                                <div className={styles.row}>
-                                    <div className={styles.formGroup}>
-                                        <label>Bắt đầu *</label>
-                                        <input type="datetime-local" name="starts_at" value={formData.starts_at} onChange={handleInputChange} required />
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label>Kết thúc *</label>
-                                        <input type="datetime-local" name="ends_at" value={formData.ends_at} onChange={handleInputChange} required />
-                                    </div>
-                                </div>
-
-                                <div className={styles.checkboxRow}>
-                                    <label className={styles.checkboxLabel}>
-                                        <input
-                                            type="checkbox"
-                                            name="published"
-                                            checked={formData.published}
-                                            onChange={handleInputChange}
-                                        />
-                                        <span>Công bố ngay</span>
-                                    </label>
-                                    <label className={styles.checkboxLabel}>
-                                        <input
-                                            type="checkbox"
-                                            name="show_answers"
-                                            checked={formData.show_answers}
-                                            onChange={handleInputChange}
-                                        />
-                                        <span>Hiển thị đáp án sau khi thi</span>
-                                    </label>
-                                </div>
-
-                                <div className={styles.scoringSection}>
-                                    <label className={styles.sectionLabel}>
-                                        Chấm điểm câu nhiều đáp án đúng
-                                    </label>
-
-                                    <label className={styles.radioOption}>
-                                        <input
-                                            type="radio"
-                                            name="scoring_mode"
-                                            value="ALL_OR_NOTHING"
-                                            checked={formData.scoring_mode === 'ALL_OR_NOTHING'}
-                                            onChange={handleInputChange}
-                                        />
-                                        <span>Đúng toàn bộ mới có điểm</span>
-                                    </label>
-
-                                    <label className={styles.radioOption}>
-                                        <input
-                                            type="radio"
-                                            name="scoring_mode"
-                                            value="PARTIAL_WITH_PENALTY"
-                                            checked={formData.scoring_mode === 'PARTIAL_WITH_PENALTY'}
-                                            onChange={handleInputChange}
-                                        />
-                                        <span>Chấm từng phần, chọn sai bị trừ</span>
-                                    </label>
-
-                                    <small className={styles.helpText}>
-                                        Áp dụng cho các câu hỏi có nhiều đáp án đúng trong đề thi.
-                                    </small>
-                                </div>
-
-                                <div className={styles.questionSection}>
-                                    {/* <h4>Chọn câu hỏi ({formData.selectedQuestionIds.length})</h4> */}
-                                    <h4>
-                                        Chọn câu hỏi ({formData.selectedQuestions.length})
-                                        <span style={{ marginLeft: 8, color: '#888', fontSize: '0.9rem' }}>
-                                            ({filteredQuestions.length} đang hiển thị)
-                                        </span>
-                                    </h4>
-
-                                    <div className={styles.filterRow}>
-                                        <input
-                                            type="text"
-                                            placeholder="Tìm kiếm câu hỏi theo nội dung hoặc tags..."
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                            className={styles.searchInput}
-                                        />
-
-                                        <button
-                                            type="button"
-                                            onClick={handleSelectAllFiltered}
-                                            className={`${styles.btnSelectAll} ${
-                                                allFilteredSelected ? styles.danger : styles.success
-                                            }`}
-                                        >
-                                            {allFilteredSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-                                        </button>
-                                    </div>
-                                    
-
-                                    {/* <div style={{ marginBottom: '10px' }}>
-                                        <button
-                                            type="button"
-                                            onClick={handleSelectAllFiltered}
-                                            className={styles.btnSelectAll}
-                                        >
-                                            {allFilteredSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-                                        </button>
-                                    </div> */}
-
-                                    <div className={styles.questionList}>
-                                        {questions.length === 0 ? (
-                                            <p>Ngân hàng câu hỏi trống.</p>
-                                        ) : filteredQuestions.length === 0 ? (
-                                            <p>Không tìm thấy câu hỏi phù hợp.</p>
-                                        ) : (
-                                            filteredQuestions.map((q) => {
-                                            const selected = isQuestionSelected(q.id);
-
-                                            return (
-                                                <div key={q.id} className={styles.qItem}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selected}
-                                                    onChange={() => handleQuestionToggle(q.id)}
-                                                />
-
-                                                <label onClick={() => handleQuestionToggle(q.id)}>
-                                                    <MathRenderer text={getQuestionContent(q)} />
-                                                </label>
-
-                                                <div className={styles.pointBox}>
-                                                    <span>Điểm</span>
-                                                    <input
-                                                    type="number"
-                                                    min="0.25"
-                                                    step="0.25"
-                                                    value={getQuestionPoint(q.id)}
-                                                    disabled={!selected}
-                                                    onChange={(e) => handleQuestionPointChange(q.id, e.target.value)}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    />
-                                                </div>
-                                                </div>
-                                            );
-                                            })
-                                        )}
-                                    </div>
-
-
-                                    <div className={styles.totalPointBox}>
-                                        Tổng điểm đề thi: {
-                                            formData.selectedQuestions
-                                            .reduce((sum, item) => sum + Number(item.points || 0), 0)
-                                            .toFixed(2)
-                                        } điểm
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className={styles.modalActions}>
-                                <button type="button" className={styles.btnCancel} onClick={() => setShowModal(false)}>Hủy</button>
-                                <button type="submit" className={styles.btnSubmit} disabled={isSubmitting}>
-                                    {isSubmitting ? 'Đang xử lý...' : (editingExam ? 'Cập nhật' : 'Tạo mới')}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* --- MODAL XEM CHI TIẾT --- */}
-            {viewExam && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.modalContent}>
-                        <div className={styles.modalHeader}>
-                            <h3>Chi tiết Đề Thi</h3>
-                            <button onClick={() => setViewExam(null)}>&times;</button>
-                        </div>
-                        <div className={styles.detailBody}>
-                            <div className={styles.infoGrid}>
-                                <div className={styles.infoItem}>
-                                    <label>ID Đề thi:</label> <span>{viewExam.id}</span>
-                                </div>
-                                <div className={styles.infoItem}>
-                                    <label>Trạng thái:</label>
-                                    <span className={`${styles.badge} ${viewExam.published ? styles.pub : styles.draft}`}>
-                                        {viewExam.published ? 'Đã công bố' : 'Bản nháp'}
-                                    </span>
-                                </div>
-                                <div className={styles.infoItem}>
-                                    <label>Bắt đầu:</label> <span>{formatDate(viewExam.starts_at)}</span>
-                                </div>
-                                <div className={styles.infoItem}>
-                                    <label>Kết thúc:</label> <span>{formatDate(viewExam.ends_at)}</span>
-                                </div>
-                            </div>
-                            <h4 style={{ marginTop: '20px', marginBottom: '10px', borderBottom: '1px solid #eee' }}>
-                                Danh sách câu hỏi ({viewExam.exam_question?.length || 0})
-                            </h4>
-                            <div className={styles.questionListPreview}>
-                                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                    {viewExam.exam_question?.map((eq, index) => (
-                                        <li key={eq.id} style={{ padding: '10px', borderBottom: '1px solid #f0f0f0', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                                            <span style={{ fontWeight: 'bold', color: '#007bff', minWidth: '60px' }}>
-                                                Câu {index + 1}:
-                                            </span>
-                                            <span style={{ flex: 1 }}>
-                                                <MathRenderer text={getQuestionText(eq.question_id)} />
-                                            </span>
-                                            <span style={{ fontSize: '0.8rem', color: '#999' }}>({eq.points} điểm)</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
-                        <div className={styles.modalActions}>
-                            <button className={styles.btnCancel} onClick={() => setViewExam(null)}>Đóng</button>
-                        </div>
-                    </div>
                 </div>
             )}
         </div>

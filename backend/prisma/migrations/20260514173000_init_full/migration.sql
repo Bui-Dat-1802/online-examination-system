@@ -1,3 +1,9 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
+-- Required by uuid_generate_v4() defaults.
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- CreateEnum
 CREATE TYPE "difficulty_level" AS ENUM ('easy', 'medium', 'hard');
 
@@ -6,6 +12,12 @@ CREATE TYPE "enrollment_status" AS ENUM ('pending', 'approved', 'rejected', 'can
 
 -- CreateEnum
 CREATE TYPE "session_state" AS ENUM ('pending', 'started', 'submitted', 'expired', 'locked');
+
+-- CreateEnum
+CREATE TYPE "QuestionType" AS ENUM ('SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'FILL_IN_THE_BLANK');
+
+-- CreateEnum
+CREATE TYPE "ScoringMode" AS ENUM ('ALL_OR_NOTHING', 'PARTIAL_WITH_PENALTY');
 
 -- CreateTable
 CREATE TABLE "accommodation" (
@@ -26,6 +38,7 @@ CREATE TABLE "answer" (
     "question_id" UUID NOT NULL,
     "choice_id" UUID,
     "selected_choice_ids" UUID[],
+    "text_answer" TEXT,
     "answered_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "answer_pkey" PRIMARY KEY ("id")
@@ -96,6 +109,7 @@ CREATE TABLE "exam_instance" (
     "deleted_at" TIMESTAMPTZ(6),
     "deleted_by" UUID,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "scoring_mode" "ScoringMode" NOT NULL DEFAULT 'ALL_OR_NOTHING',
 
     CONSTRAINT "exam_instance_pkey" PRIMARY KEY ("id")
 );
@@ -162,6 +176,8 @@ CREATE TABLE "question" (
     "deleted_by" UUID,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "type" TEXT NOT NULL DEFAULT 'MULTIPLE_CHOICE',
+    "correct_text_answer" TEXT,
 
     CONSTRAINT "question_pkey" PRIMARY KEY ("id")
 );

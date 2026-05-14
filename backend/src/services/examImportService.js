@@ -1,12 +1,13 @@
 const fs = require("fs/promises");
 const path = require("path");
 
-const { extractTextFromFile } = require("../utils/extractTextFromFile");
+const { extractTextFromBuffer } = require("../utils/extractTextFromFile");
 const { parseQuestionsFromText } = require("../utils/parseQuestions");
 const teacherService = require("./teacherService");
 const prisma = require("../prisma");
+const { deleteImageFromCloudinaryUrl } = require("./cloudinaryUploadService");
 
-const IMPORTED_MEDIA_URL_REGEX = /(?:https?:\/\/[^)\s"']+)?((?:\/uploads\/imported-media|\/api\/media\/imported)\/[^)\s"']+)/g;
+const IMPORTED_MEDIA_URL_REGEX = /((?:https?:\/\/res\.cloudinary\.com\/[^)\s"']+\/image\/upload\/[^)\s"']+)|(?:https?:\/\/[^)\s"']+)?(?:\/uploads\/imported-media|\/api\/media\/imported)\/[^)\s"']+)/g;
 
 function extractImportedMediaUrlsFromText(value) {
   const urls = new Set();
@@ -66,6 +67,10 @@ function getImportedMediaUrlVariants(url) {
   if (!normalized) return [];
 
   const variants = new Set([normalized]);
+
+  if (/^https?:\/\/res\.cloudinary\.com\//i.test(normalized)) {
+    return [...variants];
+  }
 
   if (normalized.startsWith("/api/media/imported/")) {
     variants.add(`/uploads/imported-media/${normalized.slice("/api/media/imported/".length)}`);
@@ -140,6 +145,11 @@ async function cleanupUnusedImportedMediaUrls(urls) {
   for (const url of new Set(urls || [])) {
     if (await isImportedMediaUrlStillUsed(url)) continue;
 
+    if (await deleteImageFromCloudinaryUrl(url)) {
+      deleted.push(url);
+      continue;
+    }
+
     const filePath = importedMediaUrlToFilePath(url);
     if (!filePath) continue;
 
@@ -196,8 +206,8 @@ function normalizePreviewQuestion(rawQuestion) {
 
 
 //Đọc file đề thi và parse ra danh sách câu hỏi để frontend preview
-async function importExamPreview(filePath, originalName) {
-  const rawText = await extractTextFromFile(filePath);
+async function importExamPreview(fileBuffer, originalName) {
+  const rawText = await extractTextFromBuffer(fileBuffer, originalName);
 
   const parsedQuestions = parseQuestionsFromText(rawText);
 

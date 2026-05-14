@@ -3,7 +3,6 @@ const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
 const http = require("http");
-const path = require("path");
 const { Server } = require("socket.io");
 
 const apiRoutes = require("./routes");
@@ -22,19 +21,11 @@ const io = new Server(server, {
 });
 
 const PORT = process.env.PORT || 3000;
-const uploadsStatic = express.static(path.join(__dirname, "../uploads"));
 
 // Middlewares
 app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
-app.use("/uploads", (req, res, next) => {
-  if (req.path.startsWith("/imported-media/")) {
-    return res.status(404).json({ error: "Not found" });
-  }
-
-  return uploadsStatic(req, res, next);
-});
 
 
 // console.log(typeof examImportRoutes);

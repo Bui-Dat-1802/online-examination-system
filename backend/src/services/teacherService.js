@@ -2,6 +2,7 @@ const prisma = require("../prisma");
 const userService = require("../services/userService");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const { deleteImageFromCloudinaryUrl } = require("./cloudinaryUploadService");
 
 // Hàm chuẩn hóa điểm của câu hỏi
 function normalizeQuestionPoints(points) {
@@ -54,7 +55,7 @@ function normalizeInstanceQuestions(questions) {
   });
 }
 
-const IMPORTED_MEDIA_URL_REGEX = /(?:https?:\/\/[^)\s"']+)?((?:\/uploads\/imported-media|\/api\/media\/imported)\/[^)\s"']+)/g;
+const IMPORTED_MEDIA_URL_REGEX = /((?:https?:\/\/res\.cloudinary\.com\/[^)\s"']+\/image\/upload\/[^)\s"']+)|(?:https?:\/\/[^)\s"']+)?(?:\/uploads\/imported-media|\/api\/media\/imported)\/[^)\s"']+)/g;
 
 function extractImportedMediaUrlsFromText(value) {
   const urls = new Set();
@@ -114,6 +115,10 @@ function getImportedMediaUrlVariants(url) {
   if (!normalized) return [];
 
   const variants = new Set([normalized]);
+
+  if (/^https?:\/\/res\.cloudinary\.com\//i.test(normalized)) {
+    return [...variants];
+  }
 
   if (normalized.startsWith("/api/media/imported/")) {
     variants.add(`/uploads/imported-media/${normalized.slice("/api/media/imported/".length)}`);
@@ -178,6 +183,8 @@ async function removeEmptyImportedMediaDirs(startDir) {
 async function cleanupUnusedImportedMediaUrls(urls) {
   for (const url of new Set(urls || [])) {
     if (await isImportedMediaUrlStillUsed(url)) continue;
+
+    if (await deleteImageFromCloudinaryUrl(url)) continue;
 
     const filePath = importedMediaUrlToFilePath(url);
     if (!filePath) continue;

@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const JSZip = require('jszip');
 const xpath = require('xpath');
 const { DOMParser } = require('@xmldom/xmldom');
+const { uploadImageBufferToCloudinary } = require('../services/cloudinaryUploadService');
 
 require('pdf-parse/worker');
 const { PDFParse } = require('pdf-parse');
@@ -591,19 +592,20 @@ function getExternalImagePublicUrl(target) {
   }
 }
 
-function getPublicUploadUrl(filePath) {
-  const mediaRoot = path.resolve(__dirname, '../../uploads/imported-media');
-  const resolved = path.resolve(filePath);
+function getMimeTypeFromExt(ext) {
+  const normalized = String(ext || '').toLowerCase();
+  const mimeTypes = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.bmp': 'image/bmp',
+    '.tif': 'image/tiff',
+    '.tiff': 'image/tiff',
+  };
 
-  if (!resolved.startsWith(`${mediaRoot}${path.sep}`)) return null;
-
-  const relative = path
-    .relative(mediaRoot, resolved)
-    .split(path.sep)
-    .map(encodeURIComponent)
-    .join('/');
-
-  return `/api/media/imported/${relative}`;
+  return mimeTypes[normalized] || 'image/png';
 }
 
 async function buildDocxMediaContext(filePath, zip) {
@@ -617,9 +619,7 @@ async function buildDocxMediaContext(filePath, zip) {
   const relationships = toArray(relsDoc.getElementsByTagName('Relationship'));
   const imagesByRelationshipId = new Map();
   const baseName = crypto.randomUUID();
-  const mediaDir = path.join(__dirname, '../../uploads/imported-media', baseName);
-
-  await fs.mkdir(mediaDir, { recursive: true });
+  const folder = `${process.env.CLOUDINARY_FOLDER || 'online-exam'}/imported-media/${baseName}`;
 
   for (const relationship of relationships) {
     const id = relationship.getAttribute('Id');
@@ -644,14 +644,19 @@ async function buildDocxMediaContext(filePath, zip) {
     if (!zipEntry) continue;
 
     const ext = path.extname(target).toLowerCase() || '.png';
-
-    const imageFileName = `${crypto.randomUUID()}${ext}`;
-    const imagePath = path.join(mediaDir, imageFileName);
-    await fs.writeFile(imagePath, await zipEntry.async('nodebuffer'));
+    const buffer = await zipEntry.async('nodebuffer');
+    const uploadResult = await uploadImageBufferToCloudinary(
+      {
+        buffer,
+        mimetype: getMimeTypeFromExt(ext),
+        originalname: path.basename(target),
+      },
+      folder
+    );
 
     imagesByRelationshipId.set(id, {
-      filePath: imagePath,
-      publicUrl: getPublicUploadUrl(imagePath),
+      filePath: null,
+      publicUrl: uploadResult.secure_url,
     });
   }
 
@@ -660,8 +665,12 @@ async function buildDocxMediaContext(filePath, zip) {
 
 async function extractDocxTextWithMathPlaceholders(filePath) {
   const buffer = await fs.readFile(filePath);
+  return extractDocxTextWithMathPlaceholdersFromBuffer(buffer);
+}
+
+async function extractDocxTextWithMathPlaceholdersFromBuffer(buffer) {
   const zip = await JSZip.loadAsync(buffer);
-  const docxContext = await buildDocxMediaContext(filePath, zip);
+  const docxContext = await buildDocxMediaContext(null, zip);
 
   const documentXmlFile = zip.file('word/document.xml');
   if (!documentXmlFile) {
@@ -699,6 +708,10 @@ async function extractDocxTextWithMathPlaceholders(filePath) {
 
 async function extractTextFromPdf(filePath) {
   const buffer = await fs.readFile(filePath);
+  return extractTextFromPdfBuffer(buffer);
+}
+
+async function extractTextFromPdfBuffer(buffer) {
   const parser = new PDFParse({ data: buffer });
   const result = await parser.getText({ lineEnforce: true });
 
@@ -719,7 +732,22 @@ async function extractTextFromFile(filePath) {
   throw new Error(`Khong ho tro dinh dang file: ${ext}`);
 }
 
+async function extractTextFromBuffer(buffer, originalName) {
+  const ext = path.extname(originalName || '').toLowerCase();
+
+  if (ext === '.docx') {
+    return extractDocxTextWithMathPlaceholdersFromBuffer(buffer);
+  }
+
+  if (ext === '.pdf') {
+    return extractTextFromPdfBuffer(buffer);
+  }
+
+  throw new Error(`Khong ho tro dinh dang file: ${ext}`);
+}
+
 module.exports = {
   extractTextFromFile,
+  extractTextFromBuffer,
   MATH_UNSCANNED_TOKEN,
 };

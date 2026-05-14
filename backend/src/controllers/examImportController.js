@@ -1,12 +1,9 @@
 const {
   importExamPreview,
-  removeUploadedFile,
   cleanupImportPreviewMedia,
 } = require("../services/examImportService");
 
 async function previewExamImport(req, res) {
-  let filePath = null;
-
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -15,10 +12,8 @@ async function previewExamImport(req, res) {
       });
     }
 
-    filePath = req.file.path;
-
     const result = await importExamPreview(
-      filePath,
+      req.file.buffer,
       req.file.originalname
     );
 
@@ -33,10 +28,6 @@ async function previewExamImport(req, res) {
       success: false,
       message: error.message,
     });
-  } finally {
-    if (filePath) {
-      await removeUploadedFile(filePath);
-    }
   }
 }
 

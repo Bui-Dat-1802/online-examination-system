@@ -6,6 +6,7 @@ const student = require("../middleware/student");
 const admin = require("../middleware/admin");
 
 router.use("/auth", require("./authRoutes"));
+router.use("/upload", require("./uploadRoutes"));
 router.use("/users",auth, require("./userRoutes"));
 router.use("/media", auth, require("./mediaRoutes"));
 

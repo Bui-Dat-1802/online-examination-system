@@ -1,39 +1,16 @@
 import React, { useEffect, useRef } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { buildImportedMediaUrl, isImportedMediaUrl } from '../config/api';
 
 const getAuthToken = () => localStorage.getItem('accessToken') || '';
 
 const getMediaUrl = (src = '') => {
-    if (!src || src.startsWith('data:') || src.startsWith('blob:')) return src;
-
-    const fallbackUrl = src.startsWith('/') ? `${API_BASE_URL}${src}` : src;
-
-    try {
-        const url = new URL(src, API_BASE_URL);
-
-        if (url.pathname.startsWith('/uploads/imported-media/')) {
-            return `${API_BASE_URL}/api/media/imported/${url.pathname.slice('/uploads/imported-media/'.length)}`;
-        }
-
-        if (url.pathname.startsWith('/api/media/imported/')) {
-            return `${API_BASE_URL}${url.pathname}`;
-        }
-
-        return fallbackUrl;
-    } catch {
-        return fallbackUrl;
-    }
+    return buildImportedMediaUrl(src);
 };
 
 const shouldFetchWithAuth = (src = '') => {
-    try {
-        return new URL(src, API_BASE_URL).pathname.startsWith('/api/media/imported/');
-    } catch {
-        return false;
-    }
+    return isImportedMediaUrl(src);
 };
 
 const MathRenderer = ({ text = '', className = '' }) => {

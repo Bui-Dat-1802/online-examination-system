@@ -1,5 +1,6 @@
 // src/services/socketService.js
 import { io } from 'socket.io-client';
+import { SOCKET_URL } from '../config/api';
 
 class SocketService {
   constructor() {
@@ -14,12 +15,10 @@ class SocketService {
       return this.socket;
     }
 
-    const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-    
-    console.log('[SocketService] Connecting to:', `${BACKEND_URL}/exam-timer`);
+    console.log('[SocketService] Connecting to:', `${SOCKET_URL}/exam-timer`);
     console.log('[SocketService] Token provided:', token ? 'Yes' : 'No');
     
-    this.socket = io(`${BACKEND_URL}/exam-timer`, {
+    this.socket = io(`${SOCKET_URL}/exam-timer`, {
       auth: {
         token: token
       },

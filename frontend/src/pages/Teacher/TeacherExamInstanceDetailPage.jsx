@@ -4,9 +4,8 @@ import katex from 'katex';
 import teacherService from '../../services/teacherService';
 import MathRenderer from '../../components/MathRenderer';
 import { useModal } from '../../context/ModalContext';
+import { buildImportedMediaUrl, isImportedMediaUrl } from '../../config/api';
 import styles from './TeacherExamInstanceDetailPage.module.scss';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 const TeacherExamInstanceDetailPage = () => {
     const { templateId, examId } = useParams();
@@ -114,33 +113,11 @@ const TeacherExamInstanceDetailPage = () => {
     const getAuthToken = () => localStorage.getItem('accessToken') || '';
 
     const getAssetUrl = (src = '') => {
-        if (!src || src.startsWith('data:') || src.startsWith('blob:')) return src;
-
-        const fallbackUrl = src.startsWith('/') ? `${API_BASE_URL}${src}` : src;
-
-        try {
-            const url = new URL(src, API_BASE_URL);
-
-            if (url.pathname.startsWith('/uploads/imported-media/')) {
-                return `${API_BASE_URL}/api/media/imported/${url.pathname.slice('/uploads/imported-media/'.length)}`;
-            }
-
-            if (url.pathname.startsWith('/api/media/imported/')) {
-                return `${API_BASE_URL}${url.pathname}`;
-            }
-
-            return fallbackUrl;
-        } catch {
-            return fallbackUrl;
-        }
+        return buildImportedMediaUrl(src);
     };
 
     const shouldFetchAssetWithAuth = (src = '') => {
-        try {
-            return new URL(src, API_BASE_URL).pathname.startsWith('/api/media/imported/');
-        } catch {
-            return false;
-        }
+        return isImportedMediaUrl(src);
     };
 
     const renderMathText = (text = '') => {

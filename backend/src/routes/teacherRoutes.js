@@ -45,6 +45,7 @@ router.put("/exam-instances/:id/restore", teacherController.restoreExamInstance)
 router.get("/exam-templates/:templateId/exam-instances", teacherController.getExamInstancesByTemplate); // Lấy danh sách instance đề thi theo template  
 router.put("/exam-instances/:id", teacherController.updateExamInstance); // Cập nhật instance đề thi
 router.get("/exam-instances/:id", teacherController.getExamInstanceById); // Lấy thông tin instance đề thi theo ID
+router.post("/exams/:id/export-variants", teacherController.exportExamVariants); // Xuất nhiều mã đề đã trộn
 router.get("/classes/:classId/students",teacherController.searchStudentsInClass); // Tìm kiếm sinh viên trong lớp học theo tên
 router.post("/exam-instances/:id/publish", teacherController.publishExamInstance); // Công bố đề thi
 router.post("/exam-instances/:id/unpublish", teacherController.unpublishExamInstance); // Hủy công bố đề thi

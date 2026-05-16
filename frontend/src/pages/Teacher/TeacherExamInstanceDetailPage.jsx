@@ -16,7 +16,11 @@ const TeacherExamInstanceDetailPage = () => {
     const [questions, setQuestions] = useState([]);
     const [templateInfo, setTemplateInfo] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [exportMode, setExportMode] = useState('withoutAnswers');
+    const [variantCount, setVariantCount] = useState(1);
+    const [shuffleQuestionsExport, setShuffleQuestionsExport] = useState(false);
+    const [shuffleChoicesExport, setShuffleChoicesExport] = useState(false);
+    const [includeAnswerCsv, setIncludeAnswerCsv] = useState(true);
+    const [isExporting, setIsExporting] = useState(false);
 
     const backPath = `/teacher/exam-templates/${templateId}`;
 
@@ -173,7 +177,7 @@ const TeacherExamInstanceDetailPage = () => {
             .replace(/[^a-zA-Z0-9]+/g, '-')
             .replace(/(^-|-$)/g, '')
             .toLowerCase() || 'de-thi';
-        return `${safeTitle}-${exportMode === 'withAnswers' ? 'co-dap-an' : 'khong-dap-an'}.${extension}`;
+        return `${safeTitle}-xuat-de.${extension}`;
     };
 
     const getExportQuestions = () => {
@@ -376,7 +380,51 @@ const TeacherExamInstanceDetailPage = () => {
         URL.revokeObjectURL(url);
     };
 
+    const getFilenameFromDisposition = (disposition = '', fallback = 'de-thi.zip') => {
+        const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+        if (utf8Match?.[1]) return decodeURIComponent(utf8Match[1]);
+
+        const match = disposition.match(/filename="?([^"]+)"?/i);
+        return match?.[1] || fallback;
+    };
+
+    const downloadResponseBlob = (response, fallbackName) => {
+        const filename = getFilenameFromDisposition(
+            response.headers?.['content-disposition'] || '',
+            fallbackName
+        );
+        const url = URL.createObjectURL(response.data);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    };
+
     const handleExport = async (format) => {
+        try {
+            setIsExporting(true);
+            const count = Math.max(1, Math.min(50, Number(variantCount) || 1));
+            const response = await teacherService.exportExamVariants(examId, {
+                format,
+                variantCount: count,
+                shuffleQuestions: shuffleQuestionsExport,
+                shuffleChoices: shuffleChoicesExport,
+                includeAnswerCsv,
+            });
+
+            const fallbackExt = count > 1 || includeAnswerCsv ? 'zip' : format;
+            downloadResponseBlob(response, getExportFileName(fallbackExt));
+        } catch (error) {
+            console.error(error);
+            showAlert('Thất bại', 'Xuất đề thi thất bại. Vui lòng kiểm tra lại hệ thống.');
+        } finally {
+            setIsExporting(false);
+        }
+        /*
+
         const includeAnswers = exportMode === 'withAnswers';
 
         if (format === 'txt') {
@@ -413,6 +461,7 @@ const TeacherExamInstanceDetailPage = () => {
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => printWindow.print(), 250);
+        */
     };
 
     if (loading) {
@@ -442,16 +491,48 @@ const TeacherExamInstanceDetailPage = () => {
             <div className={styles.exportBox}>
                 <div>
                     <strong>Xuất đề thi</strong>
-                    <span>Chọn phiên bản đề để in hoặc lưu file.</span>
+                    <span>Chọn số mã đề và cấu hình trộn để tải file từ backend.</span>
                 </div>
-                <select value={exportMode} onChange={(e) => setExportMode(e.target.value)}>
-                    <option value="withoutAnswers">Câu hỏi + đáp án để khoanh</option>
-                    <option value="withAnswers">Kèm đáp án đúng</option>
-                </select>
+                <div className={styles.exportControls}>
+                    <label>
+                        Số mã đề
+                        <input
+                            type="number"
+                            min="1"
+                            max="50"
+                            value={variantCount}
+                            onChange={(e) => setVariantCount(e.target.value)}
+                        />
+                    </label>
+                    <label className={styles.checkboxControl}>
+                        <input
+                            type="checkbox"
+                            checked={shuffleQuestionsExport}
+                            onChange={(e) => setShuffleQuestionsExport(e.target.checked)}
+                        />
+                        Trộn thứ tự câu hỏi
+                    </label>
+                    <label className={styles.checkboxControl}>
+                        <input
+                            type="checkbox"
+                            checked={shuffleChoicesExport}
+                            onChange={(e) => setShuffleChoicesExport(e.target.checked)}
+                        />
+                        Trộn thứ tự đáp án
+                    </label>
+                    <label className={styles.checkboxControl}>
+                        <input
+                            type="checkbox"
+                            checked={includeAnswerCsv}
+                            onChange={(e) => setIncludeAnswerCsv(e.target.checked)}
+                        />
+                        Xuất kèm file đáp án CSV
+                    </label>
+                </div>
                 <div className={styles.exportActions}>
-                    <button type="button" onClick={() => handleExport('doc')}>DOC</button>
-                    <button type="button" onClick={() => handleExport('txt')}>TXT</button>
-                    <button type="button" onClick={() => handleExport('pdf')}>PDF</button>
+                    <button type="button" onClick={() => handleExport('doc')} disabled={isExporting}>DOC</button>
+                    <button type="button" onClick={() => handleExport('txt')} disabled={isExporting}>TXT</button>
+                    <button type="button" onClick={() => handleExport('pdf')} disabled={isExporting}>PDF</button>
                 </div>
             </div>
 

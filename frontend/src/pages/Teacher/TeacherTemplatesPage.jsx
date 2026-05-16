@@ -29,7 +29,7 @@ const TeacherTemplatesPage = () => {
 
     const initialForm = {
         title: '', description: '', class_id: '',
-        duration_minutes: '', passing_score: '', shuffle_questions: false
+        duration_minutes: '', passing_score: '', shuffle_questions: false, shuffle_choices: false
     };
     const [formData, setFormData] = useState(initialForm);
 
@@ -87,8 +87,9 @@ const TeacherTemplatesPage = () => {
             description: tpl.description,
             class_id: tpl.class_id,
             duration_minutes: Math.floor(tpl.duration_seconds / 60),
-            passing_score: tpl.passing_score,
-            shuffle_questions: tpl.shuffle_questions
+            passing_score: tpl.passing_score ?? '',
+            shuffle_questions: !!tpl.shuffle_questions,
+            shuffle_choices: !!tpl.shuffle_choices
         });
         setShowModal(true);
     };
@@ -103,8 +104,9 @@ const TeacherTemplatesPage = () => {
             description: formData.description,
             class_id: formData.class_id,
             duration_seconds: parseInt(formData.duration_minutes) * 60,
-            passing_score: parseInt(formData.passing_score),
-            shuffle_questions: formData.shuffle_questions
+            passing_score: formData.passing_score !== '' ? parseFloat(formData.passing_score) : undefined,
+            shuffle_questions: formData.shuffle_questions,
+            shuffle_choices: formData.shuffle_choices
         };
 
         try {
@@ -190,6 +192,7 @@ const TeacherTemplatesPage = () => {
                                 <th>Thời gian</th>
                                 <th>Ngưỡng qua bài kiểm tra (%)</th>
                                 <th>Đảo câu</th>
+                                <th>Trộn đáp án</th>
                                 <th>Thao tác</th>
                             </tr>
                         </thead>
@@ -215,6 +218,11 @@ const TeacherTemplatesPage = () => {
                                                 : <span className={styles.tagNo}>Không</span>}
                                         </td>
                                         <td>
+                                            {tpl.shuffle_choices
+                                                ? <span className={styles.tagYes}>Có</span>
+                                                : <span className={styles.tagNo}>Không</span>}
+                                        </td>
+                                        <td>
                                             <div className={styles.actionButtons}>
                                                 <button
                                                     className={`${styles.btnIcon} ${styles.btnEdit}`}
@@ -235,7 +243,7 @@ const TeacherTemplatesPage = () => {
                                         </td>
                                     </tr>
                                 )) : (
-                                <tr><td colSpan="6" style={{ textAlign: 'center' }}>Không tìm thấy mẫu đề thi nào.</td></tr>
+                                <tr><td colSpan="7" style={{ textAlign: 'center' }}>Không tìm thấy mẫu đề thi nào.</td></tr>
                             )}
                         </tbody>
                     </table>
@@ -299,12 +307,18 @@ const TeacherTemplatesPage = () => {
                                     <label>Ngưỡng qua bài kiểm tra (%)</label>
                                     <input type="number" name="passing_score" value={formData.passing_score} onChange={handleInputChange} />
                                 </div>
-                                {/* <div className={styles.formGroup} style={{ marginTop: '30px' }}>
+                                <div className={styles.formGroup} style={{ marginTop: '30px' }}>
                                     <label className={styles.checkboxLabel}>
                                         <input type="checkbox" name="shuffle_questions" checked={formData.shuffle_questions} onChange={handleInputChange} />
-                                        Đảo câu hỏi
+                                        Trộn thứ tự câu hỏi
                                     </label>
-                                </div> */}
+                                </div>
+                                <div className={styles.formGroup} style={{ marginTop: '30px' }}>
+                                    <label className={styles.checkboxLabel}>
+                                        <input type="checkbox" name="shuffle_choices" checked={formData.shuffle_choices} onChange={handleInputChange} />
+                                        Trộn thứ tự đáp án
+                                    </label>
+                                </div>
                             </div>
                             <div className={styles.modalActions}>
                                 <button type="button" className={styles.btnCancel} onClick={() => setShowModal(false)}>Hủy</button>

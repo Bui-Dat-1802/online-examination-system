@@ -1,8 +1,23 @@
 const prisma = require("../prisma");
 const userService = require("../services/userService");
+const fsSync = require("node:fs");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const JSZip = require("jszip");
+const puppeteer = require("puppeteer-core");
 const { deleteImageFromCloudinaryUrl } = require("./cloudinaryUploadService");
+const { buildExamVariant } = require("../utils/examShuffle");
+
+let katex = null;
+try {
+  katex = require("katex");
+} catch {
+  try {
+    katex = require(path.resolve(__dirname, "../../../frontend/node_modules/katex"));
+  } catch {
+    katex = null;
+  }
+}
 
 // Hàm chuẩn hóa điểm của câu hỏi
 function normalizeQuestionPoints(points) {
@@ -53,6 +68,463 @@ function normalizeInstanceQuestions(questions) {
       points: normalizeQuestionPoints(q.points),
     };
   });
+}
+
+function stripHtml(value = "") {
+  return String(value).replace(/<[^>]+>/g, "").trim();
+}
+
+function escapeHtml(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function escapeCsv(value = "") {
+  const text = String(value ?? "");
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function normalizeAscii(value = "") {
+  return String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7E\r\n]/g, "");
+}
+
+function getKatexCss() {
+  const candidates = [
+    path.resolve(__dirname, "../../node_modules/katex/dist/katex.min.css"),
+    path.resolve(__dirname, "../../../frontend/node_modules/katex/dist/katex.min.css"),
+  ];
+
+  for (const filePath of candidates) {
+    try {
+      if (fsSync.existsSync(filePath)) {
+        return fsSync.readFileSync(filePath, "utf8");
+      }
+    } catch {
+      // Ignore CSS loading failures; formulas still render as HTML/MathML.
+    }
+  }
+
+  return "";
+}
+
+function renderRichText(value = "") {
+  const rawText = String(value || "");
+  const tokens = [];
+  let cursor = 0;
+  const pattern = /!\[([^\]]*)\]\(([^)\s]+)\)|\$\$(.+?)\$\$|\$(.+?)\$|\\\((.+?)\\\)|\\\[(.+?)\\\]/gs;
+  let match;
+
+  while ((match = pattern.exec(rawText)) !== null) {
+    if (match.index > cursor) {
+      tokens.push(escapeHtml(rawText.slice(cursor, match.index)));
+    }
+
+    if (match[2]) {
+      tokens.push(
+        `<img class="question-image" src="${escapeHtml(match[2])}" alt="${escapeHtml(match[1] || "image")}" width="480" style="display:block;width:480px;max-width:480px;height:auto;max-height:300px;object-fit:contain;margin:8px 0;" />`
+      );
+      cursor = match.index + match[0].length;
+      continue;
+    }
+
+    const isDisplay = Boolean(match[3] || match[6]);
+    const formula = match[3] || match[4] || match[5] || match[6];
+
+    try {
+      if (!katex) throw new Error("KaTeX is not available");
+      tokens.push(katex.renderToString(formula, {
+        throwOnError: false,
+        displayMode: isDisplay,
+      }));
+    } catch {
+      tokens.push(escapeHtml(match[0]));
+    }
+
+    cursor = match.index + match[0].length;
+  }
+
+  if (cursor < rawText.length) {
+    tokens.push(escapeHtml(rawText.slice(cursor)));
+  }
+
+  return tokens.join("");
+}
+
+function plainTextForExport(value = "") {
+  return stripHtml(String(value || ""))
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, "$2")
+    .trim();
+}
+
+const exportImageDataUrlCache = new Map();
+
+function getMimeTypeFromPath(filePath = "") {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  if (ext === ".gif") return "image/gif";
+  if (ext === ".webp") return "image/webp";
+  if (ext === ".svg") return "image/svg+xml";
+  return "image/png";
+}
+
+function resolveImportedMediaPath(src = "") {
+  const decodedSrc = decodeURIComponent(String(src || ""));
+  const importedMarker = "/uploads/imported-media/";
+  const apiMarker = "/api/media/imported/";
+  let relativePath = "";
+
+  if (decodedSrc.includes(importedMarker)) {
+    relativePath = decodedSrc.slice(decodedSrc.indexOf(importedMarker) + importedMarker.length);
+  } else if (decodedSrc.includes(apiMarker)) {
+    relativePath = decodedSrc.slice(decodedSrc.indexOf(apiMarker) + apiMarker.length);
+  }
+
+  if (!relativePath || relativePath.includes("\0")) return null;
+
+  const mediaRoot = path.resolve(__dirname, "../../uploads/imported-media");
+  const filePath = path.resolve(mediaRoot, relativePath);
+  return filePath.startsWith(`${mediaRoot}${path.sep}`) ? filePath : null;
+}
+
+async function getImageDataUrl(src = "") {
+  if (!src || src.startsWith("data:")) return src;
+  if (exportImageDataUrlCache.has(src)) return exportImageDataUrlCache.get(src);
+
+  try {
+    const localFilePath = resolveImportedMediaPath(src);
+    if (localFilePath && fsSync.existsSync(localFilePath)) {
+      const buffer = fsSync.readFileSync(localFilePath);
+      const dataUrl = `data:${getMimeTypeFromPath(localFilePath)};base64,${buffer.toString("base64")}`;
+      exportImageDataUrlCache.set(src, dataUrl);
+      return dataUrl;
+    }
+
+    const response = await fetch(src);
+    if (!response.ok) throw new Error(`Cannot fetch image: ${src}`);
+
+    const contentType = response.headers.get("content-type") || "image/png";
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const dataUrl = `data:${contentType};base64,${buffer.toString("base64")}`;
+    exportImageDataUrlCache.set(src, dataUrl);
+    return dataUrl;
+  } catch (error) {
+    console.warn("Khong the nhung anh vao file export:", error.message);
+    return src;
+  }
+}
+
+async function embedMarkdownImagesForExport(value = "") {
+  const rawText = String(value || "");
+  const pattern = /!\[([^\]]*)\]\(([^)\s]+)\)/g;
+  const matches = [...rawText.matchAll(pattern)];
+
+  if (!matches.length) return rawText;
+
+  let result = rawText;
+  for (const match of matches) {
+    const [fullMatch, alt, src] = match;
+    const embeddedSrc = await getImageDataUrl(src);
+    result = result.replace(fullMatch, `![${alt}](${embeddedSrc})`);
+  }
+
+  return result;
+}
+
+async function embedVariantImagesForExport(variant) {
+  const questions = await Promise.all(variant.questions.map(async (item) => {
+    const question = item.question || {};
+    const orderedChoices = await Promise.all((item.orderedChoices || []).map(async (choice) => ({
+      ...choice,
+      text: await embedMarkdownImagesForExport(choice.text || ""),
+    })));
+
+    return {
+      ...item,
+      question: {
+        ...question,
+        text: await embedMarkdownImagesForExport(question.text || ""),
+        correct_text_answer: await embedMarkdownImagesForExport(question.correct_text_answer || ""),
+      },
+      orderedChoices,
+    };
+  }));
+
+  return {
+    ...variant,
+    questions,
+  };
+}
+
+function isFillQuestion(question) {
+  return question?.type === "FILL_IN_THE_BLANK"
+    || question?.type === "fill_in_the_blank"
+    || question?.type === "TEXT"
+    || question?.type === 3;
+}
+
+function getExamTitle(exam) {
+  return exam?.exam_template?.title || "de-thi";
+}
+
+function getSafeTitle(title = "de-thi") {
+  return String(title)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .toLowerCase() || "de-thi";
+}
+
+function getVariantCode(index, total) {
+  const width = Math.max(2, String(total).length);
+  return String(index + 1).padStart(width, "0");
+}
+
+// Hàm định dạng nội dung đề thi thành plain text để xuất ra file .txt hoặc tạo PDF đơn giản khi không có Chrome/Edge để render HTML.
+function formatExamVariantPlain(exam, variant, variantCode) {
+  const lines = [
+    `Mau de: ${getExamTitle(exam)}`,
+    `Ma de: ${variantCode}`,
+    `Lop: ${exam.exam_template?.Renamedclass?.name || ""}`,
+    `So cau hoi: ${variant.questions.length}`,
+    "",
+    "Ho va ten: ................................................",
+    "Ma sinh vien: ..............................................",
+    "",
+    "DE THI",
+    "",
+  ];
+
+  for (const item of variant.questions) {
+    const question = item.question || {};
+    lines.push(`Cau ${item.displayIndex} (${Number(item.points ?? 1)} diem): ${plainTextForExport(question.text || "")}`);
+
+    if (isFillQuestion(question)) {
+      lines.push("Tra loi: ................................................................................");
+    } else {
+      for (const choice of item.orderedChoices || []) {
+        lines.push(`${choice.displayLabel}. ${plainTextForExport(choice.text || "")}`);
+      }
+    }
+
+    lines.push("");
+  }
+
+  return lines.join("\r\n");
+}
+
+function formatExamVariantHtml(exam, variant, variantCode) {
+  const katexCss = getKatexCss();
+  const questionsHtml = variant.questions.map((item) => {
+    const question = item.question || {};
+    const answerHtml = isFillQuestion(question)
+      ? '<div class="blank-line">Tra loi: ........................................................................................................</div>'
+      : `<div class="choices">${(item.orderedChoices || []).map((choice) => `
+          <div class="choice">
+            <span class="choice-label">${escapeHtml(choice.displayLabel)}.</span>
+            ${renderRichText(choice.text || "")}
+          </div>
+        `).join("")}</div>`;
+
+    return `
+      <section class="question">
+        <h3>Cau ${item.displayIndex} <span>(${Number(item.points ?? 1)} diem)</span></h3>
+        <p>${renderRichText(question.text || "")}</p>
+        ${answerHtml}
+      </section>
+    `;
+  }).join("");
+
+  return `
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(getExamTitle(exam))} - ${escapeHtml(variantCode)}</title>
+        <style>
+          ${katexCss}
+          body { font-family: "Times New Roman", serif; color: #111; line-height: 1.45; padding: 28px; }
+          .meta h1 { text-align: center; margin: 0 0 14px; font-size: 22px; text-transform: uppercase; }
+          .meta p { margin: 4px 0; }
+          .student-info { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 18px 0 24px; }
+          .question { margin: 0 0 18px; page-break-inside: avoid; }
+          .question h3 { margin: 0 0 8px; font-size: 16px; }
+          .question p { margin: 0 0 8px; font-size: 15px; }
+          .choice { margin: 5px 0; }
+          .choice-label { display: inline-block; min-width: 22px; font-weight: bold; }
+          .question-image {
+            display: block;
+            width: 480px;
+            max-width: 480px;
+            height: auto;
+            max-height: 300px;
+            object-fit: contain;
+            margin: 8px 0;
+            page-break-inside: avoid;
+          }
+          .katex { font-size: 1.05em; }
+          .katex-display { margin: 8px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="meta">
+          <h1>${escapeHtml(getExamTitle(exam))}</h1>
+          <p><strong>Ma de:</strong> ${escapeHtml(variantCode)}</p>
+          <p><strong>Lop:</strong> ${escapeHtml(exam.exam_template?.Renamedclass?.name || "")}</p>
+          <p><strong>So cau hoi:</strong> ${variant.questions.length}</p>
+        </div>
+        <div class="student-info">
+          <div>Ho va ten: ................................................</div>
+          <div>Ma sinh vien: ............................................</div>
+        </div>
+        ${questionsHtml}
+      </body>
+    </html>
+  `;
+}
+
+function createSimplePdfBuffer(text) {
+  const lines = normalizeAscii(text).split(/\r?\n/).flatMap((line) => {
+    if (line.length <= 95) return [line];
+    const chunks = [];
+    for (let i = 0; i < line.length; i += 95) chunks.push(line.slice(i, i + 95));
+    return chunks;
+  });
+
+  const escapedLines = lines.map((line) => line.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)"));
+  const pageHeight = Math.max(842, escapedLines.length * 14 + 100);
+  const content = [
+    "BT",
+    "/F1 11 Tf",
+    `50 ${pageHeight - 52} Td`,
+    "14 TL",
+    ...escapedLines.map((line, index) => `${index === 0 ? "" : "T* "}(${line}) Tj`),
+    "ET",
+  ].join("\n");
+
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 ${pageHeight}] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Length ${Buffer.byteLength(content, "utf8")} >>\nstream\n${content}\nendstream`,
+  ];
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(Buffer.byteLength(pdf, "utf8"));
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = Buffer.byteLength(pdf, "utf8");
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let i = 1; i < offsets.length; i++) {
+    pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return Buffer.from(pdf, "utf8");
+}
+
+// tìm executable của Chrome/Edge trên máy chạy backend, để puppeteer-core có thể sử dụng khi cần render PDF từ HTML. Nếu không tìm thấy, sẽ fallback sang tạo PDF đơn giản chỉ có text.
+function getBrowserExecutablePath() {
+  const candidates = [
+    process.env.CHROME_PATH,
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+  ].filter(Boolean);
+
+  return candidates.find((candidate) => fsSync.existsSync(candidate));
+}
+
+async function renderPdfFromHtml(html, browser) {
+  if (!browser) return null;
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: ["load", "networkidle0"], timeout: 30000 });
+    const buffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: {
+        top: "16mm",
+        right: "14mm",
+        bottom: "16mm",
+        left: "14mm",
+      },
+    });
+    await page.close();
+    return buffer;
+  } finally {
+    // Browser lifecycle is managed by the caller so multi-variant exports reuse one instance.
+  }
+}
+
+async function renderVariantFile(exam, variant, variantCode, format, browser = null) {
+  if (format === "txt") {
+    return Buffer.from("\uFEFF" + formatExamVariantPlain(exam, variant, variantCode), "utf8");
+  }
+
+  const exportVariant = await embedVariantImagesForExport(variant);
+  const html = formatExamVariantHtml(exam, exportVariant, variantCode);
+
+  if (format === "doc") {
+    return Buffer.from("\uFEFF" + html, "utf8");
+  }
+
+  const pdfBuffer = await renderPdfFromHtml(html, browser);
+  if (pdfBuffer) {
+    return pdfBuffer;
+  }
+
+  return createSimplePdfBuffer(formatExamVariantPlain(exam, variant, variantCode));
+}
+
+function buildAnswerCsvRows(variant, variantCode) {
+  return variant.questions.map((item) => {
+    const question = item.question || {};
+    const points = Number(item.points ?? 1);
+
+    if (isFillQuestion(question)) {
+      return [
+        variantCode,
+        item.displayIndex,
+        question.correct_text_answer || "",
+        points,
+      ];
+    }
+
+    const correctChoices = (item.orderedChoices || []).filter((choice) => choice.is_correct);
+    return [
+      variantCode,
+      item.displayIndex,
+      correctChoices.map((choice) => choice.displayLabel).join(";"),
+      points,
+    ];
+  });
+}
+
+function buildAnswerCsv(variants) {
+  const rows = [
+    ["ma_de", "cau_so", "dap_an", "diem"],
+  ];
+
+  for (const variant of variants) {
+    rows.push(...buildAnswerCsvRows(variant.data, variant.code));
+  }
+
+  return "\uFEFF" + rows.map((row) => row.map(escapeCsv).join(",")).join("\r\n");
 }
 
 const IMPORTED_MEDIA_URL_REGEX = /((?:https?:\/\/res\.cloudinary\.com\/[^)\s"']+\/image\/upload\/[^)\s"']+)|(?:https?:\/\/[^)\s"']+)?(?:\/uploads\/imported-media|\/api\/media\/imported)\/[^)\s"']+)/g;
@@ -801,12 +1273,14 @@ module.exports = {
                 Renamedclass: { connect: { id: class_id } },
                 duration_seconds: templateFields.duration_seconds || null,
                 shuffle_questions: templateFields.shuffle_questions || false,
+                shuffle_choices: templateFields.shuffle_choices || false,
                 passing_score: templateFields.passing_score || null,
                 user: { connect: { id: actorId } }
             };
             const newTemplate = await tx.exam_template.create({
                 data: createData,
             });
+            return newTemplate;
         });
     },
     // Sửa template câu hỏi
@@ -827,6 +1301,7 @@ module.exports = {
             if (updateData.description !== undefined) tUpdate.description = updateData.description ?? null;
             if (updateData.duration_seconds !== undefined) tUpdate.duration_seconds = updateData.duration_seconds || null;
             if (updateData.shuffle_questions !== undefined) tUpdate.shuffle_questions = updateData.shuffle_questions || false;
+            if (updateData.shuffle_choices !== undefined) tUpdate.shuffle_choices = updateData.shuffle_choices || false;
             if (updateData.passing_score !== undefined) tUpdate.passing_score = updateData.passing_score || null;
             // Cập nhật template
             const updatedTemplate = await tx.exam_template.update({
@@ -1334,6 +1809,113 @@ module.exports = {
     },
 
     // tìm kiếm sinh viên theo tên hoặc email trong lớp học
+    async exportExamVariants(examInstanceId, teacherId, options = {}) {
+        const format = String(options.format || "doc").toLowerCase();
+        const allowedFormats = new Set(["doc", "txt", "pdf"]);
+        if (!allowedFormats.has(format)) {
+            const err = new Error("Loại file xuất không hợp lệ");
+            err.status = 400;
+            throw err;
+        }
+
+        const variantCount = Math.min(Math.max(parseInt(options.variantCount ?? 1, 10) || 1, 1), 50);
+        const shuffleQuestions = !!options.shuffleQuestions;
+        const shuffleChoices = !!options.shuffleChoices;
+        const includeAnswerCsv = options.includeAnswerCsv !== false;
+
+        const exam = await prisma.exam_instance.findFirst({
+            where: {
+                id: examInstanceId,
+                created_by: teacherId,
+                is_deleted: false,
+            },
+            include: {
+                exam_template: {
+                    include: {
+                        Renamedclass: {
+                            select: { id: true, name: true, code: true },
+                        },
+                    },
+                },
+                exam_question: {
+                    orderBy: { ordinal: "asc" },
+                    include: {
+                        question: {
+                            include: {
+                                question_choice: {
+                                    orderBy: { order: "asc" },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!exam) {
+            const err = new Error("Không tìm thấy đề thi hoặc không có quyền xuất đề");
+            err.status = 404;
+            throw err;
+        }
+
+        const variants = Array.from({ length: variantCount }, (_, index) => ({
+            code: getVariantCode(index, variantCount),
+            data: buildExamVariant(exam.exam_question, { shuffleQuestions, shuffleChoices }),
+        }));
+
+        const safeTitle = getSafeTitle(getExamTitle(exam));
+        const contentTypes = {
+            doc: "application/msword; charset=utf-8",
+            txt: "text/plain; charset=utf-8",
+            pdf: "application/pdf",
+        };
+
+        let browser = null;
+        if (format === "pdf") {
+            const executablePath = getBrowserExecutablePath();
+            if (executablePath) {
+                browser = await puppeteer.launch({
+                    executablePath,
+                    headless: "new",
+                    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+                });
+            }
+        }
+
+        try {
+            if (variantCount === 1 && !includeAnswerCsv) {
+                const variant = variants[0];
+                return {
+                    filename: `${safeTitle}-de_${variant.code}.${format}`,
+                    contentType: contentTypes[format],
+                    buffer: await renderVariantFile(exam, variant.data, variant.code, format, browser),
+                };
+            }
+
+            const zip = new JSZip();
+            for (const variant of variants) {
+                zip.file(
+                    `de_${variant.code}.${format}`,
+                    await renderVariantFile(exam, variant.data, variant.code, format, browser)
+                );
+            }
+
+            if (includeAnswerCsv) {
+                zip.file("dap_an.csv", buildAnswerCsv(variants));
+            }
+
+            return {
+                filename: `${safeTitle}-ma-de.zip`,
+                contentType: "application/zip",
+                buffer: await zip.generateAsync({ type: "nodebuffer" }),
+            };
+        } finally {
+            if (browser) {
+                await browser.close();
+            }
+        }
+    },
+
     async searchStudentsInClass(teacherId, classId, keyword) {
         if (!keyword || keyword.trim() === "") {
             return [];

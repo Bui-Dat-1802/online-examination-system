@@ -361,7 +361,7 @@ module.exports = {
     async createExamTemplate(req, res, next) {
         try {
             const teacherId = req.user.id;
-            let { title, description, class_id, duration_seconds, shuffle_questions, passing_score } = req.body;
+            let { title, description, class_id, duration_seconds, shuffle_questions, shuffle_choices, passing_score } = req.body;
 
             // Convert kiểu dữ liệu
             if (duration_seconds) {
@@ -369,6 +369,9 @@ module.exports = {
             }
             if (typeof shuffle_questions === 'string') {
                 shuffle_questions = shuffle_questions.toLowerCase() === 'true';
+            }
+            if (typeof shuffle_choices === 'string') {
+                shuffle_choices = shuffle_choices.toLowerCase() === 'true';
             }
             if (passing_score) {
                 passing_score = parseFloat(passing_score);
@@ -404,7 +407,7 @@ module.exports = {
                 throw err;
             }
 
-            const templateData = { title, description, class_id, duration_seconds, shuffle_questions, passing_score };
+            const templateData = { title, description, class_id, duration_seconds, shuffle_questions, shuffle_choices, passing_score };
             console.log("Creating exam template with data:", templateData);
             console.log("Teacher ID:", teacherId);
             const newTemplate = await teacherService.createExamTemplate(templateData, class_id, teacherId);
@@ -436,6 +439,12 @@ module.exports = {
         try {
             const templateId = req.params.id;
             const updateData = req.body || {};
+            if (typeof updateData.shuffle_questions === "string") {
+                updateData.shuffle_questions = updateData.shuffle_questions.toLowerCase() === "true";
+            }
+            if (typeof updateData.shuffle_choices === "string") {
+                updateData.shuffle_choices = updateData.shuffle_choices.toLowerCase() === "true";
+            }
             const updatedTemplate = await teacherService.updateExamTemplate(templateId, updateData);
             res.json({ updatedTemplate, message: "Cập nhật mẫu đề thi thành công" });
         } catch (error) {
@@ -913,6 +922,20 @@ module.exports = {
             const err = new Error("Lấy thông tin dashboard thất bại");
             err.status = 400;
             next(err);
+        }
+    },
+
+    async exportExamVariants(req, res, next) {
+        try {
+            const teacherId = req.user.id;
+            const examId = req.params.id;
+            const result = await teacherService.exportExamVariants(examId, teacherId, req.body || {});
+
+            res.setHeader("Content-Type", result.contentType);
+            res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+            res.send(result.buffer);
+        } catch (error) {
+            next(error);
         }
     },
 

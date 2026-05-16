@@ -153,6 +153,8 @@ model exam_session {
   last_heartbeat_at DateTime?      @db.Timestamptz(6)
   created_at        DateTime       @default(now()) @db.Timestamptz(6)
   updated_at        DateTime       @default(now()) @db.Timestamptz(6)
+  question_order     String[]       @default([]) @db.Uuid
+  choice_order       Json?
   answer            answer[]
   audit_log         audit_log[]
   exam_instance     exam_instance  @relation(fields: [exam_instance_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -173,6 +175,7 @@ model exam_template {
   description               String?
   duration_seconds          Int
   shuffle_questions         Boolean         @default(false)
+  shuffle_choices           Boolean         @default(false)
   passing_score             Decimal?        @db.Decimal(5, 2)
   created_by                String?         @db.Uuid
   is_deleted                Boolean         @default(false)

@@ -1,5 +1,74 @@
 const prisma = require("../prisma");
 const userService = require("../services/userService");
+const { buildExamVariant } = require("../utils/examShuffle");
+
+function buildSessionOrder(examQuestions, template) {
+    const variant = buildExamVariant(examQuestions, {
+        shuffleQuestions: !!template.shuffle_questions,
+        shuffleChoices: !!template.shuffle_choices,
+    });
+
+    return {
+        questionOrder: variant.questionOrder,
+        choiceOrder: variant.choiceOrder,
+    };
+}
+
+function applySessionOrder(examQuestions, questionOrder = [], choiceOrder = {}) {
+    return buildExamVariant(examQuestions, { questionOrder, choiceOrder }).questions;
+}
+
+function formatSessionQuestions(examQuestions, answerMap = new Map()) {
+    return examQuestions.map((eq) => {
+        const correctCount = eq.question.question_choice.filter((c) => c.is_correct).length;
+        const answerData = answerMap.get(eq.question.id);
+        return {
+            id: eq.question.id,
+            text: eq.question.text,
+            explanation: null,
+            ordinal: eq.ordinal,
+            points: eq.points,
+            type: eq.question.type,
+            text_answer: answerData?.text_answer || "",
+            multichoice: correctCount > 1,
+            choices: (eq.orderedChoices || [])
+                .map((c, index) => ({
+                    id: c.id,
+                    label: c.displayLabel,
+                    order: index,
+                    text: c.text
+                })),
+            selected_choice_ids: answerData?.choice_ids || [],
+        };
+    });
+}
+
+async function ensureSessionOrder(session, examInstance, tx = prisma) {
+    const hasQuestionOrder = Array.isArray(session.question_order) && session.question_order.length > 0;
+    const hasChoiceOrder = session.choice_order && typeof session.choice_order === "object";
+
+    if (hasQuestionOrder && hasChoiceOrder) {
+        return {
+            questionOrder: session.question_order,
+            choiceOrder: session.choice_order,
+        };
+    }
+
+    const { questionOrder, choiceOrder } = buildSessionOrder(
+        examInstance.exam_question,
+        examInstance.exam_template
+    );
+
+    await tx.exam_session.update({
+        where: { id: session.id },
+        data: {
+            question_order: questionOrder,
+            choice_order: choiceOrder,
+        },
+    });
+
+    return { questionOrder, choiceOrder };
+}
 
 module.exports = {
     // Tham gia lớp học
@@ -338,28 +407,7 @@ module.exports = {
         });
         if (existingSession) {
             if (existingSession.state === "started") {
-                // Fetch và return questions cho existing session
-                const existingQuestions = examInstance.exam_question.map((eq) => {
-                    const correctCount = eq.question.question_choice.filter((c) => c.is_correct).length;
-                    return {
-                        id: eq.question.id,
-                        text: eq.question.text,
-                        explanation: null,
-                        ordinal: eq.ordinal,
-                        points: eq.points,
-                        type: eq.question.type, // ✅ THÊM DÒNG NÀY
-                        multichoice: correctCount > 1,
-                        choices: eq.question.question_choice
-                            .sort((a, b) => a.order - b.order)
-                            .map((c) => ({
-                                id: c.id,
-                                label: c.label,
-                                order: c.order,
-                                text: c.text
-                            })),
-                        selected_choice_ids: [],
-                    };
-                });
+                await ensureSessionOrder(existingSession, examInstance);
                 return {
                     session_id: existingSession.id,
                     token: existingSession.token,
@@ -396,6 +444,10 @@ module.exports = {
         const uaHash = clientMeta.userAgent
             ? crypto.createHash("sha256").update(clientMeta.userAgent).digest("hex")
             : undefined;
+        const { questionOrder, choiceOrder } = buildSessionOrder(
+            examInstance.exam_question,
+            examInstance.exam_template
+        );
 
         const created = await prisma.exam_session.create({
             data: {
@@ -407,6 +459,8 @@ module.exports = {
                 ends_at: sessionEndsAt,
                 ip_binding: clientMeta.ip || null,
                 ua_hash: uaHash || null,
+                question_order: questionOrder,
+                choice_order: choiceOrder,
             },
         });
         await prisma.audit_log.create({
@@ -420,23 +474,8 @@ module.exports = {
             },
         });
 
-        // Chuẩn bị danh sách câu hỏi (ẩn đáp án đúng)
-        const questions = examInstance.exam_question.map((eq) => {
-            const correctCount = eq.question.question_choice.filter((c) => c.is_correct).length;
-            return {
-                id: eq.question.id,
-                text: eq.question.text,
-                explanation: null, // không trả về giải thích của giáo viên
-                ordinal: eq.ordinal,
-                points: eq.points,
-                multichoice: correctCount > 1,
-                choices: eq.question.question_choice
-                    .sort((a, b) => a.order - b.order)
-                    .map((c) => ({ id: c.id, label: c.label, order: c.order, text: c.text })),
-                selected_choice_ids: [],
-            };
-        });
-        // console.log(questions);
+        const orderedQuestions = applySessionOrder(examInstance.exam_question, questionOrder, choiceOrder);
+        const questions = formatSessionQuestions(orderedQuestions);
         return {
             session_id: created.id,
             token: created.token,
@@ -515,29 +554,13 @@ module.exports = {
             ])
         );
 
-        const questions = session.exam_instance.exam_question.map((eq) => {
-            const correctCount = eq.question.question_choice.filter((c) => c.is_correct).length;
-            const answerData = answerMap.get(eq.question.id);
-            return {
-                id: eq.question.id,
-                text: eq.question.text,
-                explanation: null,
-                ordinal: eq.ordinal,
-                points: eq.points,
-                type: eq.question.type, 
-                text_answer: answerData?.text_answer || "",
-                multichoice: correctCount > 1,
-                choices: eq.question.question_choice
-                    .sort((a, b) => a.order - b.order)
-                    .map((c) => ({
-                        id: c.id,
-                        label: c.label,
-                        order: c.order,
-                        text: c.text
-                    })),
-                selected_choice_ids: answerData?.choice_ids || [],
-            };
-        });
+        const { questionOrder, choiceOrder } = await ensureSessionOrder(session, session.exam_instance);
+        const orderedQuestions = applySessionOrder(
+            session.exam_instance.exam_question,
+            questionOrder,
+            choiceOrder
+        );
+        const questions = formatSessionQuestions(orderedQuestions, answerMap);
         return questions;
     },
 

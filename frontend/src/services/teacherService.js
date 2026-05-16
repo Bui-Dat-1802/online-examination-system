@@ -228,6 +228,12 @@ const teacherService = {
         return axiosClient.get(`/teacher/exam-instances/${id}`);
     },
 
+    exportExamVariants(examId, data) {
+        return axiosClient.post(`/teacher/exams/${examId}/export-variants`, data, {
+            responseType: 'blob'
+        });
+    },
+
     // --- ENDPOINT 41: XUẤT KẾT QUẢ THI (CSV) ---
     exportResults(examId) {
         // responseType blob so we can download CSV

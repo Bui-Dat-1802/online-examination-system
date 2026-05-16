@@ -8,6 +8,7 @@ const ExamTemplateForm = ({ classId, onCreated, onClose }) => {
   const [description, setDescription] = useState('');
   const [duration, setDuration] = useState(''); // minutes
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
+  const [shuffleChoices, setShuffleChoices] = useState(false);
   const [passingScore, setPassingScore] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -60,6 +61,7 @@ const ExamTemplateForm = ({ classId, onCreated, onClose }) => {
       class_id: classId,
       duration_seconds: duration ? parseInt(duration, 10) * 60 : undefined,
       shuffle_questions: shuffleQuestions,
+      shuffle_choices: shuffleChoices,
       passing_score: passingScore !== '' ? parseFloat(passingScore) : undefined,
       questions: selectedQuestionIds.map(id => ({ question_id: id }))
     };
@@ -103,7 +105,22 @@ const ExamTemplateForm = ({ classId, onCreated, onClose }) => {
       </div>
 
       <div className={styles.row}>
-
+        <label>
+          <input
+            type="checkbox"
+            checked={shuffleQuestions}
+            onChange={(e) => setShuffleQuestions(e.target.checked)}
+          />
+          Trộn thứ tự câu hỏi
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={shuffleChoices}
+            onChange={(e) => setShuffleChoices(e.target.checked)}
+          />
+          Trộn thứ tự đáp án
+        </label>
       </div>
 
       <div className={styles.questionSection}>

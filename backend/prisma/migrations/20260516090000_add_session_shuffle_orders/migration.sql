@@ -1,0 +1,6 @@
+ALTER TABLE "exam_template"
+ADD COLUMN IF NOT EXISTS "shuffle_choices" BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE "exam_session"
+ADD COLUMN IF NOT EXISTS "question_order" UUID[] NOT NULL DEFAULT ARRAY[]::UUID[],
+ADD COLUMN IF NOT EXISTS "choice_order" JSONB;

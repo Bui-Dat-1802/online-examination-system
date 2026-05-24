@@ -267,12 +267,14 @@ const TeacherQuestionsPage = () => {
         <div className={styles.contentBody}>
             <div className={styles.pageHeader}>
                 <h2>Danh sách câu hỏi ({questions.length})</h2>
-                <button className={styles.createBtn} onClick={handleOpenCreate}>
-                    + Tạo câu hỏi
-                </button>
-                <button className={styles.createBtn} onClick={() => navigate('/teacher/questions/import')}>
-                    Import đề
-                </button>
+                <div className={styles.headerActions}>
+                    <button className={styles.createBtn} onClick={handleOpenCreate}>
+                        + Tạo câu hỏi
+                    </button>
+                    <button className={styles.createBtn} onClick={() => navigate('/teacher/questions/import')}>
+                        Import đề
+                    </button>
+                </div>
             </div>
 
             {loading ? (
@@ -283,14 +285,26 @@ const TeacherQuestionsPage = () => {
                         {questions
                             .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                             .map((q, i) => (
-                                <div key={q.id} className={styles.questionCard}>
+                                <div
+                                    key={q.id}
+                                    className={styles.questionCard}
+                                    onClick={() => handleViewDetail(q.id)}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            handleViewDetail(q.id);
+                                        }
+                                    }}
+                                >
                                     <div className={styles.qHeader}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             <span className={styles.qIndex}>Câu {(currentPage - 1) * itemsPerPage + i + 1}</span>
                                             <span className={`${styles.badge} ${styles[q.difficulty]}`}>{q.difficulty}</span>
                                         </div>
 
-                                        <div className={styles.actionButtons}>
+                                        <div className={styles.actionButtons} onClick={(e) => e.stopPropagation()}>
                                             <button className={styles.btnView} onClick={() => handleViewDetail(q.id)} title="Xem chi tiết">
                                                 Chi tiết
                                             </button>

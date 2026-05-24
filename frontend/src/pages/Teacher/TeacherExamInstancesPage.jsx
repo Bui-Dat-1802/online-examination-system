@@ -15,6 +15,7 @@ const TeacherExamInstancesPage = () => {
     const [templateInfo, setTemplateInfo] = useState(null);
     const [currentExamPage, setCurrentExamPage] = useState(1);
     const examsPerPage = 10;
+    const pagedExams = exams.slice((currentExamPage - 1) * examsPerPage, currentExamPage * examsPerPage);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -38,6 +39,19 @@ const TeacherExamInstancesPage = () => {
     }, [templateId]);
 
     const formatDate = (str) => new Date(str).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+    const getExamLabel = (exam) => exam.title || exam.id.substring(0, 8);
+
+    const renderStatusBadge = (exam) => (
+        <span className={`${styles.badge} ${exam.published ? styles.pub : styles.draft}`}>
+            {exam.published ? 'Công bố' : 'Nháp'}
+        </span>
+    );
+
+    const renderAnswerStatus = (exam) => (
+        exam.show_answers
+            ? <span className={styles.answerVisible}>Hiện</span>
+            : <span className={styles.answerHidden}>Ẩn</span>
+    );
 
     const handleDelete = (id) => {
         showConfirm(
@@ -55,6 +69,39 @@ const TeacherExamInstancesPage = () => {
         );
     };
 
+    const renderActions = (exam) => (
+        <div className={styles.actionButtons}>
+            <Link
+                className={`${styles.btnIcon} ${styles.btnView}`}
+                to={`/teacher/exam-templates/${templateId}/exams/${exam.id}/detail`}
+                title="Xem chi tiết"
+            >
+                <i className="fa-solid fa-eye"></i>
+                <span>Chi tiết</span>
+            </Link>
+            <Link
+                className={`${styles.btnIcon} ${styles.btnEdit}`}
+                to={`/teacher/exam-templates/${templateId}/exams/${exam.id}/edit`}
+                title="Sửa"
+            >
+                <i className="fa-solid fa-pen"></i>
+                <span>Sửa</span>
+            </Link>
+            <button className={`${styles.btnIcon} ${styles.btnDelete}`} onClick={() => handleDelete(exam.id)} title="Xóa">
+                <i className="fa-solid fa-trash"></i>
+                <span>Xóa</span>
+            </button>
+            <Link
+                to={`/teacher/classes/${templateInfo?.class_id || templateId}/exams/${exam.id}`}
+                className={styles.btnManage}
+                title="Quản lý phiên thi"
+            >
+                <i className="fa-solid fa-gauge"></i>
+                <span>Quản lý</span>
+            </Link>
+        </div>
+    );
+
     return (
         <div className={styles.contentBody}>
             <div className={styles.pageHeader}>
@@ -65,73 +112,65 @@ const TeacherExamInstancesPage = () => {
             </div>
 
             {loading ? <p style={{ textAlign: 'center' }}>Đang tải dữ liệu...</p> : (
-                <div className={styles.tableContainer}>
-                    <table className={styles.dataTable}>
-                        <thead>
-                            <tr>
-                                <th>ID Đề thi</th>
-                                <th>Bắt đầu</th>
-                                <th>Kết thúc</th>
-                                <th>Trạng thái</th>
-                                <th>Đáp án</th>
-                                <th>Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {exams.length > 0 ? exams
-                                .slice((currentExamPage - 1) * examsPerPage, currentExamPage * examsPerPage)
-                                .map((exam) => (
+                <>
+                    <div className={styles.tableContainer}>
+                        <table className={styles.dataTable}>
+                            <thead>
+                                <tr>
+                                    <th>ID Đề thi</th>
+                                    <th>Bắt đầu</th>
+                                    <th>Kết thúc</th>
+                                    <th>Trạng thái</th>
+                                    <th>Đáp án</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {exams.length > 0 ? pagedExams.map((exam) => (
                                     <tr key={exam.id}>
-                                        <td data-label="ID Đề thi" style={{ fontFamily: 'monospace', color: '#007bff' }}>
-                                            {exam.title || exam.id.substring(0, 8)}
+                                        <td data-label="ID Đề thi" className={styles.examCode}>
+                                            {getExamLabel(exam)}
                                         </td>
                                         <td data-label="Bắt đầu">{formatDate(exam.starts_at)}</td>
                                         <td data-label="Kết thúc">{formatDate(exam.ends_at)}</td>
-                                        <td data-label="Trạng thái">
-                                            <span className={`${styles.badge} ${exam.published ? styles.pub : styles.draft}`}>
-                                                {exam.published ? 'Công bố' : 'Nháp'}
-                                            </span>
-                                        </td>
-                                        <td data-label="Đáp án">
-                                            {exam.show_answers ?
-                                                <span style={{ color: 'green', fontWeight: 'bold' }}>Hiện</span> :
-                                                <span style={{ color: '#666' }}>Ẩn</span>
-                                            }
-                                        </td>
-                                        <td data-label="Thao tác">
-                                            <div className={styles.actionButtons}>
-                                                <Link
-                                                    className={`${styles.btnIcon} ${styles.btnView}`}
-                                                    to={`/teacher/exam-templates/${templateId}/exams/${exam.id}/detail`}
-                                                    title="Xem chi tiết"
-                                                >
-                                                    <i className="fa-solid fa-eye"></i>
-                                                </Link>
-                                                <Link
-                                                    className={`${styles.btnIcon} ${styles.btnEdit}`}
-                                                    to={`/teacher/exam-templates/${templateId}/exams/${exam.id}/edit`}
-                                                    title="Sửa"
-                                                >
-                                                    <i className="fa-solid fa-pen"></i>
-                                                </Link>
-                                                <button className={`${styles.btnIcon} ${styles.btnDelete}`} onClick={() => handleDelete(exam.id)} title="Xóa">
-                                                    <i className="fa-solid fa-trash"></i>
-                                                </button>
-                                                <Link
-                                                    to={`/teacher/classes/${templateInfo?.class_id || templateId}/exams/${exam.id}`}
-                                                    className={styles.btnManage}
-                                                    title="Quản lý phiên thi"
-                                                >
-                                                    <i className="fa-solid fa-gauge"></i>
-                                                </Link>
-                                            </div>
-                                        </td>
+                                        <td data-label="Trạng thái">{renderStatusBadge(exam)}</td>
+                                        <td data-label="Đáp án">{renderAnswerStatus(exam)}</td>
+                                        <td data-label="Thao tác">{renderActions(exam)}</td>
                                     </tr>
                                 )) : (
-                                <tr><td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>Chưa có đề thi nào.</td></tr>
-                            )}
-                        </tbody>
-                    </table>
+                                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>Chưa có đề thi nào.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {exams.length > 0 ? (
+                        <div className={styles.mobileList}>
+                            {pagedExams.map((exam) => (
+                                <article key={exam.id} className={styles.examCard}>
+                                    <div className={styles.examCardMain}>
+                                        <Link
+                                            className={styles.examCardTitle}
+                                            to={`/teacher/exam-templates/${templateId}/exams/${exam.id}/detail`}
+                                        >
+                                            {getExamLabel(exam)}
+                                        </Link>
+                                        <div className={styles.examCardMeta}>
+                                            <span>Bắt đầu: {formatDate(exam.starts_at)}</span>
+                                            <span>Kết thúc: {formatDate(exam.ends_at)}</span>
+                                        </div>
+                                        <div className={styles.examCardChips}>
+                                            {renderStatusBadge(exam)}
+                                            <span className={styles.answerChip}>Đáp án: {renderAnswerStatus(exam)}</span>
+                                        </div>
+                                    </div>
+                                    {renderActions(exam)}
+                                </article>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className={styles.emptyState}>Chưa có đề thi nào.</div>
+                    )}
 
                     {exams.length > examsPerPage && (
                         <Pagination
@@ -142,7 +181,7 @@ const TeacherExamInstancesPage = () => {
                             totalItems={exams.length}
                         />
                     )}
-                </div>
+                </>
             )}
         </div>
     );

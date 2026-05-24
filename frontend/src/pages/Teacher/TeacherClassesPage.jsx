@@ -1,6 +1,6 @@
 // src/pages/Teacher/TeacherClassesPage.jsx
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import teacherService from '../../services/teacherService';
 import Pagination from '../../components/Pagination';
 import styles from './TeacherClassesPage.module.scss';
@@ -8,6 +8,7 @@ import { useModal } from '../../context/ModalContext';
 
 const TeacherClassesPage = () => {
     const { showConfirm, showAlert } = useModal();
+    const navigate = useNavigate();
 
     // --- STATE DỮ LIỆU ---
     const [classes, setClasses] = useState([]);
@@ -98,6 +99,15 @@ const TeacherClassesPage = () => {
         return new Date(dateString).toLocaleDateString('vi-VN');
     };
 
+    const paginatedClasses = classes.slice(
+        (currentPage - 1) * classesPerPage,
+        currentPage * classesPerPage
+    );
+
+    const openClassDetail = (classId) => {
+        navigate(`/teacher/classes/${classId}`);
+    };
+
     return (
         // CHỈ GIỮ LẠI PHẦN NỘI DUNG CHÍNH (CONTENT BODY)
         <div className={styles.contentBody}>
@@ -111,56 +121,51 @@ const TeacherClassesPage = () => {
             {loading ? (
                 <p style={{ textAlign: 'center', marginTop: '20px' }}>Đang tải dữ liệu...</p>
             ) : classes.length > 0 ? (
-                <div className={styles.tableContainer}>
-                    <table className={styles.classTable}>
-                        <thead>
-                            <tr>
-                                <th>STT</th>
-                                <th>Tên lớp</th>
-                                <th>Mã lớp</th>
-                                <th>Mô tả</th>
-                                <th>Ngày tạo</th>
-                                <th>Hành động</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {classes
-                                .slice((currentPage - 1) * classesPerPage, currentPage * classesPerPage)
-                                .map((cls, index) => (
-                                    <tr key={cls.id}>
-                                        <td data-label="STT">{(currentPage - 1) * classesPerPage + index + 1}</td>
-                                        <td data-label="Tên lớp" className={styles.className}>
-                                            <Link to={`/teacher/classes/${cls.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                                                {cls.name}
-                                            </Link>
-                                        </td>
-                                        <td data-label="Mã lớp"><span className={styles.codeTag}>{cls.code}</span></td>
-                                        <td data-label="Mô tả">{cls.description}</td>
-                                        <td data-label="Ngày tạo">{formatDate(cls.created_at)}</td>
-                                        <td data-label="Hành động">
-                                            <div className={styles.actionButtons}>
-                                                <Link
-                                                    to={`/teacher/classes/${cls.id}`}
-                                                    className={styles.btnView}
-                                                >
-                                                    Chi tiết
-                                                </Link>
+                <>
+                    <div className={styles.classList}>
+                        {paginatedClasses.map((cls) => (
+                            <article
+                                className={styles.classCard}
+                                key={cls.id}
+                                onClick={() => openClassDetail(cls.id)}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        openClassDetail(cls.id);
+                                    }
+                                }}
+                            >
+                                <div className={styles.cardMain}>
+                                    <h3 className={styles.classTitle}>{cls.name}</h3>
+                                    <p className={styles.classDescription}>{cls.description || 'Chưa có mô tả'}</p>
+                                    <div className={styles.classMeta}>
+                                        <span>Mã lớp: {cls.code}</span>
+                                        <span>Ngày tạo: {formatDate(cls.created_at)}</span>
+                                    </div>
+                                </div>
 
+                                <div className={styles.cardActions} onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                        className={styles.btnView}
+                                        onClick={() => openClassDetail(cls.id)}
+                                    >
+                                        <i className="fa-solid fa-eye"></i>
+                                        Chi tiết
+                                    </button>
+                                    <button
+                                        className={styles.btnDelete}
+                                        onClick={() => handleDeleteClass(cls.id)}
+                                    >
+                                        <i className="fa-solid fa-trash"></i>
+                                        Xóa
+                                    </button>
+                                </div>
+                            </article>
+                        ))}
+                    </div>
 
-                                                <button
-                                                    className={styles.btnDelete}
-                                                    onClick={() => handleDeleteClass(cls.id)}
-                                                >
-                                                    Xóa
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                        </tbody>
-                    </table>
-
-                    {/* Pagination */}
                     {classes.length > classesPerPage && (
                         <Pagination
                             currentPage={currentPage}
@@ -170,7 +175,7 @@ const TeacherClassesPage = () => {
                             totalItems={classes.length}
                         />
                     )}
-                </div>
+                </>
             ) : (
                 <div className={styles.emptyState}>
                     <p>Bạn chưa có lớp học nào.</p>

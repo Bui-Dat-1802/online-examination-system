@@ -24,6 +24,7 @@ const TeacherTemplatesPage = () => {
 
     // State Modal & Form
     const [showModal, setShowModal] = useState(false);
+    const [detailTemplate, setDetailTemplate] = useState(null);
     const [editingTemplate, setEditingTemplate] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -81,6 +82,7 @@ const TeacherTemplatesPage = () => {
     };
 
     const openEditModal = (tpl) => {
+        setDetailTemplate(null);
         setEditingTemplate(tpl);
         setFormData({
             title: tpl.title,
@@ -92,6 +94,14 @@ const TeacherTemplatesPage = () => {
             shuffle_choices: !!tpl.shuffle_choices
         });
         setShowModal(true);
+    };
+
+    const openDetailModal = (tpl) => {
+        setDetailTemplate(tpl);
+    };
+
+    const closeDetailModal = () => {
+        setDetailTemplate(null);
     };
 
     // --- 4. SUBMIT FORM ---
@@ -164,6 +174,53 @@ const TeacherTemplatesPage = () => {
 
     const formatTime = (seconds) => `${Math.floor(seconds / 60)} phút`;
 
+    const formatPassingScore = (score) => score === null || score === undefined || score === ''
+        ? '-'
+        : `${score}%`;
+
+    const getTemplateClassLabel = (template) => {
+        const classSources = [
+            template?.Renamedclass,
+            template?.class,
+            template?.classroom
+        ].filter(Boolean);
+
+        if (Array.isArray(template?.classes)) {
+            classSources.push(...template.classes);
+        }
+
+        if (Array.isArray(template?.classrooms)) {
+            classSources.push(...template.classrooms);
+        }
+
+        const names = classSources
+            .map(item => item?.name || item?.className || item?.class_name || item?.classroomName || item?.classroom_name || item?.code)
+            .filter(Boolean);
+
+        const directName = template?.className
+            || template?.class_name
+            || template?.classroomName
+            || template?.classroom_name;
+
+        if (directName) {
+            names.unshift(directName);
+        }
+
+        if (!names.length && template?.class_id) {
+            const matchedClass = classList.find(cls => cls.id === template.class_id);
+            if (matchedClass?.name || matchedClass?.code) {
+                names.push(matchedClass.name || matchedClass.code);
+            }
+        }
+
+        return [...new Set(names)].join(', ') || 'Ch\u01b0a g\u00e1n l\u1edbp';
+    };
+
+    const paginatedTemplates = templates.slice(
+        (currentPage - 1) * templatesPerPage,
+        currentPage * templatesPerPage
+    );
+
     return (
         // CHỈ GIỮ LẠI CONTENT BODY
         <div className={styles.contentBody}>
@@ -183,12 +240,14 @@ const TeacherTemplatesPage = () => {
             </div>
 
             {loading ? <p style={{ textAlign: 'center', marginTop: '30px' }}>Đang tải dữ liệu...</p> : (
-                <div className={styles.tableContainer}>
+                <>
+                <div className={`${styles.tableContainer} ${styles.desktopOnly}`}>
                     <table className={styles.dataTable}>
                         <thead>
                             <tr>
                                 <th>Tiêu đề</th>
                                 <th>Mô tả</th>
+                                <th>Lớp</th>
                                 <th>Thời gian</th>
                                 <th>Ngưỡng qua bài kiểm tra (%)</th>
                                 <th>Đảo câu</th>
@@ -197,9 +256,7 @@ const TeacherTemplatesPage = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {templates.length > 0 ? templates
-                                .slice((currentPage - 1) * templatesPerPage, currentPage * templatesPerPage)
-                                .map(tpl => (
+                            {templates.length > 0 ? paginatedTemplates.map(tpl => (
                                     <tr key={tpl.id}>
                                         <td>
                                             <Link
@@ -210,6 +267,7 @@ const TeacherTemplatesPage = () => {
                                             </Link>
                                         </td>
                                         <td style={{ maxWidth: '250px' }}>{tpl.description}</td>
+                                        <td className={styles.classCell}>{getTemplateClassLabel(tpl)}</td>
                                         <td>{formatTime(tpl.duration_seconds)}</td>
                                         <td>{tpl.passing_score}</td>
                                         <td>
@@ -243,10 +301,55 @@ const TeacherTemplatesPage = () => {
                                         </td>
                                     </tr>
                                 )) : (
-                                <tr><td colSpan="7" style={{ textAlign: 'center' }}>Không tìm thấy mẫu đề thi nào.</td></tr>
+                                <tr><td colSpan="8" style={{ textAlign: 'center' }}>Không tìm thấy mẫu đề thi nào.</td></tr>
                             )}
                         </tbody>
                     </table>
+                </div>
+
+                <div className={styles.mobileList}>
+                    {templates.length > 0 ? paginatedTemplates.map(tpl => (
+                        <article
+                            className={styles.templateCard}
+                            key={tpl.id}
+                            onClick={() => openDetailModal(tpl)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    openDetailModal(tpl);
+                                }
+                            }}
+                        >
+                            <div className={styles.cardMain}>
+                                <div className={styles.cardTitle}>{tpl.title}</div>
+                                <p className={styles.cardDesc}>{tpl.description || 'Ch\u01b0a c\u00f3 m\u00f4 t\u1ea3'}</p>
+                                <div className={styles.cardClass}>{'L\u1edbp'}: {getTemplateClassLabel(tpl)}</div>
+
+                                <div className={styles.cardMeta}>
+                                    <span>{formatTime(tpl.duration_seconds)}</span>
+                                    <span>{'\u0110\u1ea1t'} {formatPassingScore(tpl.passing_score)}</span>
+                                    <span>{'\u0110\u1ea3o'}: {tpl.shuffle_questions ? 'C\u00f3' : 'Kh\u00f4ng'}</span>
+                                    <span>{'Tr\u1ed9n'}: {tpl.shuffle_choices ? 'C\u00f3' : 'Kh\u00f4ng'}</span>
+                                </div>
+                            </div>
+
+                            <div className={styles.cardActions} onClick={(e) => e.stopPropagation()}>
+                                <button className={styles.cardEditBtn} onClick={() => openEditModal(tpl)}>
+                                    <i className="fa-solid fa-pen"></i>
+                                    {'S\u1eeda'}
+                                </button>
+                                <button className={styles.cardDeleteBtn} onClick={() => handleDelete(tpl.id)}>
+                                    <i className="fa-solid fa-trash"></i>
+                                    {'X\u00f3a'}
+                                </button>
+                            </div>
+                        </article>
+                    )) : (
+                        <div className={styles.emptyState}>{'Kh\u00f4ng t\u00ecm th\u1ea5y m\u1eabu \u0111\u1ec1 thi n\u00e0o.'}</div>
+                    )}
+                </div>
 
                     {/* Pagination */}
                     {templates.length > templatesPerPage && (
@@ -258,6 +361,55 @@ const TeacherTemplatesPage = () => {
                             totalItems={templates.length}
                         />
                     )}
+                </>
+            )}
+
+            {detailTemplate && (
+                <div className={styles.modalOverlay} onClick={closeDetailModal}>
+                    <div className={`${styles.modalContent} ${styles.detailModal}`} onClick={(e) => e.stopPropagation()}>
+                        <div className={styles.modalHeader}>
+                            <h3>{'Chi ti\u1ebft Template'}</h3>
+                            <button onClick={closeDetailModal}>&times;</button>
+                        </div>
+
+                        <div className={styles.detailBody}>
+                            <div className={styles.detailGroup}>
+                                <span>{'Ti\u00eau \u0111\u1ec1'}</span>
+                                <strong>{detailTemplate.title || '-'}</strong>
+                            </div>
+                            <div className={styles.detailGroup}>
+                                <span>{'M\u00f4 t\u1ea3'}</span>
+                                <p>{detailTemplate.description || 'Ch\u01b0a c\u00f3 m\u00f4 t\u1ea3'}</p>
+                            </div>
+                            <div className={styles.detailGrid}>
+                                <div className={styles.detailGroup}>
+                                    <span>{'L\u1edbp'}</span>
+                                    <strong>{getTemplateClassLabel(detailTemplate)}</strong>
+                                </div>
+                                <div className={styles.detailGroup}>
+                                    <span>{'Th\u1eddi gian'}</span>
+                                    <strong>{formatTime(detailTemplate.duration_seconds)}</strong>
+                                </div>
+                                <div className={styles.detailGroup}>
+                                    <span>{'Ng\u01b0\u1ee1ng qua b\u00e0i'}</span>
+                                    <strong>{formatPassingScore(detailTemplate.passing_score)}</strong>
+                                </div>
+                                <div className={styles.detailGroup}>
+                                    <span>{'\u0110\u1ea3o c\u00e2u'}</span>
+                                    <strong>{detailTemplate.shuffle_questions ? 'C\u00f3' : 'Kh\u00f4ng'}</strong>
+                                </div>
+                                <div className={styles.detailGroup}>
+                                    <span>{'Tr\u1ed9n \u0111\u00e1p \u00e1n'}</span>
+                                    <strong>{detailTemplate.shuffle_choices ? 'C\u00f3' : 'Kh\u00f4ng'}</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className={styles.modalActions}>
+                            <button type="button" className={styles.btnCancel} onClick={closeDetailModal}>{'\u0110\u00f3ng'}</button>
+                            <button type="button" className={styles.btnSubmit} onClick={() => openEditModal(detailTemplate)}>{'S\u1eeda Template'}</button>
+                        </div>
+                    </div>
                 </div>
             )}
 

@@ -53,6 +53,25 @@ const TeacherQuestionImportPage = () => {
     setPreviewData(null);
   };
 
+  const autoResizeTextarea = (element) => {
+    if (!element) return;
+    const minHeight = 44;
+    element.style.height = "auto";
+    element.style.height = `${Math.max(element.scrollHeight + 2, minHeight)}px`;
+  };
+
+  useEffect(() => {
+    if (!previewData?.questions?.length) return;
+
+    const frameId = requestAnimationFrame(() => {
+      document
+        .querySelectorAll(`.${styles.choiceTextarea}`)
+        .forEach((textarea) => autoResizeTextarea(textarea));
+    });
+
+    return () => cancelAnimationFrame(frameId);
+  }, [previewData]);
+
   const handlePreview = async () => {
     if (!selectedFile) {
         showAlert("Vui lòng chọn file");
@@ -493,11 +512,15 @@ const TeacherQuestionImportPage = () => {
                                         />
 
                                         <div style={{ flex: 1 }}>
-                                          <input
+                                          <textarea
+                                            className={styles.choiceTextarea}
+                                            rows="1"
                                             value={choice.text}
-                                            onChange={(e) =>
-                                              handleChoiceChange(qIndex, cIndex, "text", e.target.value)
-                                            }
+                                            onChange={(e) => {
+                                              handleChoiceChange(qIndex, cIndex, "text", e.target.value);
+                                              autoResizeTextarea(e.target);
+                                            }}
+                                            onInput={(e) => autoResizeTextarea(e.target)}
                                           />
 
                                           {choice.text && hasRichPreview(choice.text) && (

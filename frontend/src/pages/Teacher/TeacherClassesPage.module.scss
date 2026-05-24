@@ -3,7 +3,9 @@
 .contentBody {
     padding: 30px;
     width: 100%;
+    max-width: 1200px;
     margin: 0 auto;
+    box-sizing: border-box;
 }
 
 .pageHeader {
@@ -30,6 +32,88 @@
     &:hover {
         background-color: $primary-color-dark;
     }
+}
+
+.classList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.classCard {
+    width: 100%;
+    background: #fff;
+    border: 1px solid #edf0f3;
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    box-sizing: border-box;
+    overflow: hidden;
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 132px;
+    gap: 16px;
+    align-items: stretch;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+
+    &:hover {
+        border-color: rgba(47, 128, 237, 0.25);
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
+        transform: translateY(-1px);
+    }
+
+    &:focus-visible {
+        outline: 3px solid rgba(47, 128, 237, 0.18);
+        outline-offset: 2px;
+    }
+}
+
+.cardMain {
+    min-width: 0;
+}
+
+.classTitle {
+    margin: 0 0 5px;
+    color: #2f80ed;
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.classDescription {
+    margin: 0 0 10px;
+    color: #444;
+    font-size: 0.94rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.classMeta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    span {
+        max-width: 100%;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: #f4f6f8;
+        color: #333;
+        font-size: 0.78rem;
+        font-weight: 700;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+}
+
+.cardActions {
+    display: grid;
+    grid-template-rows: repeat(2, minmax(42px, 1fr));
+    gap: 8px;
+    min-width: 0;
 }
 
 // --- TABLE STYLES ---
@@ -105,15 +189,20 @@
 /* Style chung cho nút */
 .btnView,
 .btnDelete {
-    padding: 6px 12px;
-    border-radius: 6px;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
     font-size: 0.85rem;
-    font-weight: 600;
+    font-weight: 700;
     text-decoration: none;
     border: none;
     cursor: pointer;
     transition: all 0.2s ease-in-out;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     text-align: center;
 }
 
@@ -298,7 +387,7 @@
 }
 
 /* Responsive tweaks */
-@media (max-width: 800px) {
+@media (max-width: 768px) {
   .pageHeader {
     flex-direction: column;
     align-items: flex-start;
@@ -307,44 +396,31 @@
 
   .createBtn {
     width: 100%;
-    max-width: 260px;
+    max-width: none;
   }
 
-  .classTable thead {
-    display: none;
-  }
-
-  .classTable, .classTable tbody, .classTable tr, .classTable td {
+  .classCard {
     display: block;
-    width: 100%;
-  }
-
-  .classTable tr {
-    margin-bottom: 12px;
-    border: none;
-    background: white;
     padding: 12px;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
 
-  .classTable td {
-    padding: 8px 12px;
-    border: none;
+  .classList {
+    gap: 10px;
   }
 
-  .classTable td:before {
-    content: attr(data-label);
-    display: block;
-    font-weight: 600;
-    color: #666;
-    margin-bottom: 6px;
+  .classMeta {
+    margin-bottom: 10px;
   }
 
-  .actionButtons {
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 6px;
+  .cardActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+    gap: 8px;
+  }
+
+  .btnView,
+  .btnDelete {
+    min-height: 36px;
   }
 
   .modalContent {
@@ -361,5 +437,37 @@
 
   .modalActions button {
     width: 100%;
+  }
+}
+
+@media (max-width: 430px) {
+  .contentBody {
+    padding: 14px 10px 22px;
+  }
+
+  .pageHeader h2 {
+    font-size: 1.25rem;
+  }
+
+  .classTitle {
+    font-size: 0.98rem;
+  }
+
+  .classDescription {
+    font-size: 0.88rem;
+  }
+
+  .classMeta {
+    gap: 5px;
+
+    span {
+      padding: 4px 8px;
+      font-size: 0.74rem;
+    }
+  }
+
+  .btnView,
+  .btnDelete {
+    min-height: 34px;
   }
 }

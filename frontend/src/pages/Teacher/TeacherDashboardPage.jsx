@@ -7,7 +7,7 @@ import { useModal } from '../../context/ModalContext';
 
 const TeacherDashboardPage = () => {
 
-    const { showConfirm, showAlert } = useModal();
+    const { showAlert } = useModal();
 
     // --- STATE DỮ LIỆU DASHBOARD ---
     const [stats, setStats] = useState({
@@ -52,11 +52,56 @@ const TeacherDashboardPage = () => {
     }, []);
 
     // --- HELPER: FORMAT NGÀY GIỜ ---
-    const formatDate = (isoString) => {
-        const date = new Date(isoString);
+    const getActivityRawTime = (activity) => (
+        activity.createdAt ||
+        activity.created_at ||
+        activity.timestamp ||
+        activity.date ||
+        activity.time ||
+        activity.createdDate
+    );
+
+    const getActivityTime = (activity) => {
+        const parsed = new Date(getActivityRawTime(activity)).getTime();
+        return Number.isNaN(parsed) ? 0 : parsed;
+    };
+
+    const getActivityIdValue = (activity) => {
+        const numericId = Number(activity.id);
+        return Number.isNaN(numericId) ? String(activity.id || '') : numericId;
+    };
+
+    const sortedActivities = [...activities].sort((a, b) => {
+        const timeA = getActivityTime(a);
+        const timeB = getActivityTime(b);
+
+        if (timeA !== timeB) {
+            return timeB - timeA;
+        }
+
+        const idA = getActivityIdValue(a);
+        const idB = getActivityIdValue(b);
+
+        if (typeof idA === 'number' && typeof idB === 'number') {
+            return idB - idA;
+        }
+
+        return String(idB).localeCompare(String(idA));
+    });
+
+    const formatDate = (activity) => {
+        const date = new Date(getActivityRawTime(activity));
+
+        if (Number.isNaN(date.getTime())) {
+            return 'Không rõ thời gian';
+        }
+
         return date.toLocaleString('vi-VN', {
-            hour: '2-digit', minute: '2-digit',
-            day: '2-digit', month: '2-digit', year: 'numeric'
+            hour: '2-digit',
+            minute: '2-digit',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
         });
     };
 
@@ -112,24 +157,24 @@ const TeacherDashboardPage = () => {
             </div>
 
             {/* --- 2. HIỂN THỊ THỐNG KÊ (STATS) --- */}
-            <div className={styles.statsRow}>
-                <div className={styles.statCard}>
+            <div className={styles.statsBar}>
+                <div className={styles.statItem}>
                     <h4>Lớp học</h4>
                     <p>{stats.totalClasses}</p>
                     <i className="fa-solid fa-chalkboard-user" style={{ color: '#e3f2fd' }}></i>
                 </div>
-                <div className={styles.statCard}>
+                <div className={styles.statItem}>
                     <h4>Học sinh</h4>
                     <p>{stats.totalStudents}</p>
                     <i className="fa-solid fa-users" style={{ color: '#e8f5e9' }}></i>
                 </div>
-                <div className={styles.statCard}>
+                <div className={styles.statItem}>
                     <h4>Đề thi</h4>
                     <p>{stats.totalExams}</p>
                     <i className="fa-solid fa-file-pen" style={{ color: '#fff3e0' }}></i>
                 </div>
                 {/* Thêm thẻ Câu hỏi nếu muốn */}
-                <div className={styles.statCard}>
+                <div className={styles.statItem}>
                     <h4>Câu hỏi</h4>
                     <p>{stats.totalQuestions}</p>
                     <i className="fa-solid fa-database" style={{ color: '#f3e5f5' }}></i>
@@ -148,8 +193,8 @@ const TeacherDashboardPage = () => {
                 <div className={styles.activityList}>
                     {loading ? (
                         <p className={styles.loadingText}>Đang tải dữ liệu...</p>
-                    ) : activities.length > 0 ? (
-                        activities
+                    ) : sortedActivities.length > 0 ? (
+                        sortedActivities
                             .slice((currentPage - 1) * activitiesPerPage, currentPage * activitiesPerPage)
                             .map((act) => {
                                 const config = getActivityConfig(act.type);
@@ -160,7 +205,7 @@ const TeacherDashboardPage = () => {
                                         </div>
                                         <div className={styles.actContent}>
                                             <p className={styles.actDesc}>{act.description}</p>
-                                            <span className={styles.actTime}>{formatDate(act.timestamp)}</span>
+                                            <span className={styles.actTime}>{formatDate(act)}</span>
                                         </div>
                                     </div>
                                 );
@@ -171,13 +216,13 @@ const TeacherDashboardPage = () => {
                 </div>
 
                 {/* Pagination for activities */}
-                {activities.length > activitiesPerPage && (
+                {sortedActivities.length > activitiesPerPage && (
                     <Pagination
                         currentPage={currentPage}
-                        totalPages={Math.ceil(activities.length / activitiesPerPage)}
+                        totalPages={Math.ceil(sortedActivities.length / activitiesPerPage)}
                         onPageChange={setCurrentPage}
                         itemsPerPage={activitiesPerPage}
-                        totalItems={activities.length}
+                        totalItems={sortedActivities.length}
                     />
                 )}
             </div>

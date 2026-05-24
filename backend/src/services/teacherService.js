@@ -901,7 +901,7 @@ module.exports = {
         if (status === "approved") {
         const request = await prisma.enrollment_request.updateMany({
             where: { id: requestId },
-            data: { status: status },
+            data: { status: status, reviewed_at: new Date() },
         });
         return request;
         } else {
@@ -2420,12 +2420,16 @@ module.exports = {
                 select: {
                     id: true,
                     requested_at: true,
+                    reviewed_at: true,
                     user_enrollment_request_student_idTouser: {
                         select: { name: true }
                     },
                     Renamedclass: { select: { name: true } }
                 },
-                orderBy: { requested_at: "desc" },
+                orderBy: [
+                    { reviewed_at: "desc" },
+                    { requested_at: "desc" }
+                ],
                 take: 10
             }),
             // Đề thi được tạo (không tính đã xóa)
@@ -2475,7 +2479,7 @@ module.exports = {
                 id: e.id,
                 type: "approve_enrollment",
                 description: `Duyệt học sinh "${e.user_enrollment_request_student_idTouser.name}" vào lớp "${e.Renamedclass.name}"`,
-                timestamp: e.updated_at
+                timestamp: e.reviewed_at || e.requested_at
             })),
             ...recentExams.map(ex => ({
                 id: ex.id,
@@ -2498,7 +2502,21 @@ module.exports = {
         ];
 
         // Sắp xếp theo thời gian mới nhất
-        activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const getActivityTime = (activity) => {
+            const parsed = new Date(activity.timestamp).getTime();
+            return Number.isNaN(parsed) ? 0 : parsed;
+        };
+
+        activities.sort((a, b) => {
+            const timeA = getActivityTime(a);
+            const timeB = getActivityTime(b);
+
+            if (timeA !== timeB) {
+                return timeB - timeA;
+            }
+
+            return String(b.id || "").localeCompare(String(a.id || ""));
+        });
 
         // Lấy 20 hoạt động gần nhất
         const recentActivities = activities.slice(0, 20);

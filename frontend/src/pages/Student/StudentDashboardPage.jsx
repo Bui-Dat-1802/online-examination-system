@@ -81,24 +81,24 @@ const StudentDashboardPage = () => {
                 <p>Chúc bạn một ngày học tập hiệu quả.</p>
             </div>
 
-            <div className={styles.statsGrid}>
-                <button className={`${styles.card} ${styles.clickableCard}`} onClick={() => navigate('/student/exams?tab=completed')}>
-                    <p>Bài thi đã làm</p>
+            <div className={styles.statsBar}>
+                <button className={`${styles.statItem} ${styles.clickableStat}`} onClick={() => navigate('/student/exams?tab=completed')}>
+                    <p data-short-label="Đã làm">Bài thi đã làm</p>
                     <h3>{dashboardData.completedCount}</h3>
                 </button>
 
-                <button className={`${styles.card} ${styles.clickableCard}`} onClick={() => navigate('/student/exams?tab=open')}>
-                    <p>Bài thi đã mở(chưa làm)</p>
+                <button className={`${styles.statItem} ${styles.clickableStat}`} onClick={() => navigate('/student/exams?tab=open')}>
+                    <p data-short-label="Chưa làm">Bài thi đã mở(chưa làm)</p>
                     <h3 style={{ color: '#dc3545' }}>{dashboardData.notAttemptedCount}</h3>
                 </button>
 
-                <button className={`${styles.card} ${styles.clickableCard}`} onClick={() => navigate('/student/exams?tab=upcoming')}>
-                    <p>Bài thi sắp tới</p>
+                <button className={`${styles.statItem} ${styles.clickableStat}`} onClick={() => navigate('/student/exams?tab=upcoming')}>
+                    <p data-short-label="Sắp tới">Bài thi sắp tới</p>
                     <h3>{dashboardData.upcomingCount}</h3>
                 </button>
 
-                <button className={`${styles.card} ${styles.clickableCard}`} onClick={() => navigate('/student/exams?tab=scores')}>
-                    <p>Điểm trung bình (Thang 10)</p>
+                <button className={`${styles.statItem} ${styles.clickableStat}`} onClick={() => navigate('/student/exams?tab=scores')}>
+                    <p data-short-label="Điểm TB">Điểm trung bình (Thang 10)</p>
                     <h3>{dashboardData.averageScore ? Number(dashboardData.averageScore).toFixed(1) : '--'}</h3>
                 </button>
             </div>

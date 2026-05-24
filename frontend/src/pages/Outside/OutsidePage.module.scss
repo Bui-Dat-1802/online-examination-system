@@ -30,7 +30,7 @@
     padding: 2rem 1rem; // Thêm padding để nội dung không sát mép màn hình
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.5rem;
 }
 
 // -- Header --
@@ -95,25 +95,25 @@
 
 // -- Stats Section --
 .statsSection {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
+    background-color: rgba($white-color, 0.9);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 1rem;
+    overflow-x: auto;
+    padding: 1rem 1.25rem;
+    white-space: nowrap;
 }
 
-.statCard {
-    background-color: rgba($white-color, 0.95);
-    padding: 1.5rem;
-    border-radius: 16px;
+.statItem {
+    min-width: 120px;
+    padding: 0.25rem 0.75rem;
     text-align: center;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-    transition: transform 0.3s ease;
-
-    &:hover {
-        transform: translateY(-5px); // Hiệu ứng bay lên khi hover
-    }
 
     h3 {
-        font-size: 2.5rem;
+        font-size: 1.75rem;
         color: $primary-color;
         margin: 0;
     }
@@ -125,16 +125,17 @@
     }
 }
 
-// -- CTA Section (Giáo viên / Học sinh) --
+// -- CTA Section --
 .ctaSection {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    width: 100%;
 }
 
 .ctaCard {
     background-color: rgba($white-color, 0.95);
-    padding: 2.5rem 2rem;
+    padding: 3rem 2.5rem;
     border-radius: 16px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
     display: flex;
@@ -142,6 +143,9 @@
     align-items: center;
     text-align: center;
     transition: transform 0.3s ease;
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
 
     &:hover {
         transform: translateY(-5px);
@@ -158,26 +162,28 @@
         font-size: 2.5rem;
         margin-bottom: 1.5rem;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    }
-
-    .iconTeacher {
-        background: linear-gradient(135deg, #f87bbe, #f8a881);
-    }
-
-    .iconStudent {
-        background: linear-gradient(135deg, #4481eb, #04befe);
+        background: linear-gradient(135deg, $primary-color, #04befe);
     }
 
     h2 {
+        font-size: 2rem;
         margin-bottom: 0.75rem;
         color: $text-color;
     }
 
     p {
+        font-size: 1.05rem;
         color: $secondary-text-color;
         margin-bottom: 2rem;
         flex-grow: 1;
         line-height: 1.6;
+    }
+
+    .ctaActions {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        flex-wrap: wrap;
     }
 
     .ctaButton {
@@ -185,9 +191,11 @@
         color: $white-color;
         padding: 12px 24px;
         border-radius: 50px; // Nút bo tròn
+        border: 2px solid transparent;
         text-decoration: none;
         font-weight: bold;
         font-size: 1.1rem;
+        min-width: 150px;
         transition: all 0.3s;
         box-shadow: 0 4px 6px rgba($primary-color, 0.3);
 
@@ -195,6 +203,17 @@
             background-color: $primary-color-dark;
             box-shadow: 0 6px 12px rgba($primary-color, 0.4);
             transform: scale(1.05);
+        }
+    }
+
+    .ctaButtonSecondary {
+        background-color: $white-color;
+        color: $primary-color;
+        border: 2px solid $primary-color;
+
+        &:hover {
+            background-color: rgba($primary-color, 0.08);
+            color: $primary-color-dark;
         }
     }
 }
@@ -280,10 +299,16 @@
 
 // -- Responsive --
 @media (max-width: 768px) {
+    .contentWrapper {
+        padding: 1rem;
+        gap: 1rem;
+    }
+
     .header {
         flex-direction: column;
         gap: 1rem;
         text-align: center;
+        padding: 1.25rem;
     }
 
     .navLinks {
@@ -292,7 +317,54 @@
         justify-content: center;
     }
 
-    .ctaSection {
-        grid-template-columns: 1fr;
+    .ctaCard {
+        padding: 2rem 1.25rem;
+
+        .icon {
+            width: 64px;
+            height: 64px;
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        h2 {
+            font-size: 1.45rem;
+        }
+
+        p {
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .ctaActions {
+            width: 100%;
+            gap: 0.75rem;
+        }
+
+        .ctaButton {
+            flex: 1 1 135px;
+            min-width: 0;
+            padding: 11px 18px;
+            font-size: 1rem;
+        }
+    }
+
+    .statsSection {
+        justify-content: flex-start;
+        gap: 0.75rem;
+        padding: 0.75rem;
+    }
+
+    .statItem {
+        min-width: 88px;
+        padding: 0.25rem;
+
+        h3 {
+            font-size: 1.2rem;
+        }
+
+        p {
+            font-size: 0.75rem;
+        }
     }
 }

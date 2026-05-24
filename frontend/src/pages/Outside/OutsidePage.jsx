@@ -24,19 +24,19 @@ const OutsidePage = () => {
 
                 {/* Stats Section */}
                 <section className={styles.statsSection}>
-                    <div className={styles.statCard}>
+                    <div className={styles.statItem}>
                         <h3>1,500+</h3>
                         <p>Học sinh</p>
                     </div>
-                    <div className={styles.statCard}>
+                    <div className={styles.statItem}>
                         <h3>150+</h3>
                         <p>Giáo viên</p>
                     </div>
-                    <div className={styles.statCard}>
+                    <div className={styles.statItem}>
                         <h3>5,000+</h3>
                         <p>Bài kiểm tra</p>
                     </div>
-                    <div className={styles.statCard}>
+                    <div className={styles.statItem}>
                         <h3>98%</h3>
                         <p>Hài lòng</p>
                     </div>
@@ -45,20 +45,15 @@ const OutsidePage = () => {
                 {/* Call to Action Section */}
                 <section className={styles.ctaSection}>
                     <div className={styles.ctaCard}>
-                        <div className={`${styles.icon} ${styles.iconTeacher}`}>
-                            <i className="fa-solid fa-chalkboard-user"></i>
+                        <div className={styles.icon}>
+                            <i className="fa-solid fa-right-to-bracket"></i>
                         </div>
-                        <h2>Dành cho Giáo viên</h2>
-                        <p>Tạo đề thi, quản lý câu hỏi, theo dõi kết quả học sinh một cách dễ dàng và hiệu quả.</p>
-                        <Link to="/login" className={styles.ctaButton}>Đăng nhập Giáo viên</Link>
-                    </div>
-                    <div className={styles.ctaCard}>
-                        <div className={`${styles.icon} ${styles.iconStudent}`}>
-                            <i className="fa-solid fa-user-graduate"></i>
+                        <h2>Bắt đầu sử dụng EduTest</h2>
+                        <p>Đăng nhập hoặc tạo tài khoản để tham gia hệ thống thi trực tuyến.</p>
+                        <div className={styles.ctaActions}>
+                            <Link to="/login" className={styles.ctaButton}>Đăng nhập</Link>
+                            <Link to="/register" className={`${styles.ctaButton} ${styles.ctaButtonSecondary}`}>Đăng ký</Link>
                         </div>
-                        <h2>Dành cho Học sinh</h2>
-                        <p>Tham gia bài kiểm tra trực tuyến, xem điểm và nhận phản hồi ngay lập tức.</p>
-                        <Link to="/login" className={styles.ctaButton}>Đăng nhập Học sinh</Link>
                     </div>
                 </section>
 

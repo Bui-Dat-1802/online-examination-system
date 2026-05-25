@@ -80,6 +80,29 @@ const teacherService = {
 
     },
 
+    addStudentToClass(classId, email) {
+        return axiosClient.post(`/teacher/classes/${classId}/students`, { email });
+    },
+
+    previewImportStudents(classId, formData) {
+        return axiosClient.post(
+            `/teacher/classes/${classId}/students/import/preview`,
+            formData,
+            {
+                headers: {
+                    "Content-Type": "multipart/form-data"
+                }
+            }
+        );
+    },
+
+    confirmImportStudents(classId, emails) {
+        return axiosClient.post(
+            `/teacher/classes/${classId}/students/import/confirm`,
+            { emails }
+        );
+    },
+
     // --- IMPORT CÂU HỎI TỪ FILE ---
     previewImportQuestions(formData) {
         return axiosClient.post(

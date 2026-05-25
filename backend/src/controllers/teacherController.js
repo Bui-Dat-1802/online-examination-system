@@ -113,13 +113,82 @@ module.exports = {
     async approveEnrollmentRequest(req, res, next) {
         try {
             const { status, requestId } = req.body; // 'approved' hoặc 'rejected'
-            // const teacherId = req.user.id;
-            const result = await teacherService.approveEnrollmentRequest(requestId, status);
+            const teacherId = req.user.id;
+            const result = await teacherService.approveEnrollmentRequest(requestId, status, teacherId);
             res.json({ message: "Cập nhật trạng thái yêu cầu thành công" });
         } catch (error) {
-            const err = new Error("Cập nhật trạng thái yêu cầu thất bại");
-            err.status = 400;
-            next(err);
+            next(error);
+        }
+    },
+
+    async addStudentToClass(req, res, next) {
+        try {
+            if (req.user.role_name !== "teacher") {
+                const err = new Error("Chỉ giáo viên mới được thêm sinh viên vào lớp");
+                err.status = 403;
+                throw err;
+            }
+
+            const teacherId = req.user.id;
+            const classId = req.params.classId;
+            const { email } = req.body || {};
+            const enrollment = await teacherService.addStudentToClass(teacherId, classId, email);
+            res.status(201).json({
+                enrollment,
+                message: "Thêm sinh viên vào lớp thành công"
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // Chức năng: quét file danh sách sinh viên và lấy email
+    async previewImportStudents(req, res, next) {
+        try {
+            if (req.user.role_name !== "teacher") {
+                const err = new Error("Chỉ giáo viên mới được import sinh viên vào lớp");
+                err.status = 403;
+                throw err;
+            }
+
+            if (!req.file) {
+                const err = new Error("Vui lòng chọn file danh sách sinh viên");
+                err.status = 400;
+                throw err;
+            }
+
+            const teacherId = req.user.id;
+            const classId = req.params.classId;
+            const preview = await teacherService.previewImportStudents(
+                teacherId,
+                classId,
+                req.file.buffer,
+                req.file.originalname
+            );
+
+            res.json(preview);
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // Chức năng: import hàng loạt sinh viên vào lớp
+    async confirmImportStudents(req, res, next) {
+        try {
+            if (req.user.role_name !== "teacher") {
+                const err = new Error("Chỉ giáo viên mới được import sinh viên vào lớp");
+                err.status = 403;
+                throw err;
+            }
+
+            const teacherId = req.user.id;
+            const classId = req.params.classId;
+            const { emails } = req.body || {};
+            const result = await teacherService.confirmImportStudents(teacherId, classId, emails);
+
+            res.json(result);
+        } catch (error) {
+            next(error);
         }
     },
 

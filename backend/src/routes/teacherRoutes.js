@@ -6,6 +6,7 @@ const {
 } = require("../controllers/examImportController");
 
 const uploadExamFile = require("../middleware/uploadExamFile");
+const uploadStudentListFile = require("../middleware/uploadStudentListFile");
 
 const express = require("express");
 const router = express.Router();
@@ -16,6 +17,9 @@ router.get("/classes/:id", teacherController.getClassById); // Lấy thông tin 
 router.put("/classes/:id", teacherController.updateClass); // Cập nhật thông tin lớp học
 
 router.delete("/classes/:id", teacherController.deleteClass); // Xóa lớp học
+router.post("/classes/:classId/students", teacherController.addStudentToClass); // Thêm sinh viên vào lớp bằng email
+router.post("/classes/:classId/students/import/preview", uploadStudentListFile.single("file"), teacherController.previewImportStudents); // Quét file danh sách sinh viên
+router.post("/classes/:classId/students/import/confirm", teacherController.confirmImportStudents); // Xác nhận import danh sách sinh viên
 router.delete("/classes/:classId/students/:studentId", teacherController.removeStudentFromClass); // Xóa học sinh khỏi lớp học
 
 

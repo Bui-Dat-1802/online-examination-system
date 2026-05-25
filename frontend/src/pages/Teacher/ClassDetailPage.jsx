@@ -39,6 +39,15 @@ const ClassDetailPage = () => {
 
     // open instance form modal
     const [showInstanceForm, setShowInstanceForm] = useState(false);
+    const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+    const [studentEmail, setStudentEmail] = useState('');
+    const [addingStudent, setAddingStudent] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importFile, setImportFile] = useState(null);
+    const [importPreview, setImportPreview] = useState(null);
+    const [importScanning, setImportScanning] = useState(false);
+    const [importConfirming, setImportConfirming] = useState(false);
+    const [importResult, setImportResult] = useState(null);
 
     const openTemplatesModal = async () => {
         try {
@@ -199,6 +208,97 @@ const ClassDetailPage = () => {
                 }
             }
         );
+    };
+
+    const handleAddStudentToClass = async (event) => {
+        event.preventDefault();
+        const email = studentEmail.trim();
+
+        if (!email) {
+            showAlert("Thiếu email", "Vui lòng nhập email sinh viên");
+            return;
+        }
+
+        try {
+            setAddingStudent(true);
+            const res = await teacherService.addStudentToClass(id, email);
+            showAlert("Thành công", res.data?.message || "Thêm sinh viên vào lớp thành công");
+            setStudentEmail('');
+            setShowAddStudentModal(false);
+            await fetchClassData();
+        } catch (error) {
+            showAlert("Thất bại", error.response?.data?.error || "Không thể thêm sinh viên vào lớp");
+        } finally {
+            setAddingStudent(false);
+        }
+    };
+
+    // Chức năng: reset trạng thái modal import danh sách sinh viên
+    const resetImportModal = () => {
+        setImportFile(null);
+        setImportPreview(null);
+        setImportResult(null);
+        setImportScanning(false);
+        setImportConfirming(false);
+    };
+
+    // Chức năng: mở modal import danh sách sinh viên
+    const openImportModal = () => {
+        resetImportModal();
+        setShowImportModal(true);
+    };
+
+    // Chức năng: đóng modal import danh sách sinh viên
+    const closeImportModal = () => {
+        if (importScanning || importConfirming) return;
+        resetImportModal();
+        setShowImportModal(false);
+    };
+
+    // Chức năng: quét file danh sách sinh viên và hiển thị preview
+    const handlePreviewImportStudents = async () => {
+        if (!importFile) {
+            showAlert("Thiếu file", "Vui lòng chọn file danh sách sinh viên");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', importFile);
+
+        try {
+            setImportScanning(true);
+            setImportResult(null);
+            const res = await teacherService.previewImportStudents(id, formData);
+            setImportPreview(res.data);
+        } catch (error) {
+            showAlert("Thất bại", error.response?.data?.error || "Không thể quét file danh sách sinh viên");
+        } finally {
+            setImportScanning(false);
+        }
+    };
+
+    // Chức năng: xác nhận import các email hợp lệ vào lớp
+    const handleConfirmImportStudents = async () => {
+        const emails = (importPreview?.items || [])
+            .filter(item => item.canImport)
+            .map(item => item.email);
+
+        if (emails.length === 0) {
+            showAlert("Không có sinh viên hợp lệ", "Không có email nào có thể thêm vào lớp");
+            return;
+        }
+
+        try {
+            setImportConfirming(true);
+            const res = await teacherService.confirmImportStudents(id, emails);
+            setImportResult(res.data);
+            showAlert("Thành công", res.data?.message || "Import danh sách sinh viên hoàn tất");
+            await fetchClassData();
+        } catch (error) {
+            showAlert("Thất bại", error.response?.data?.error || "Không thể import danh sách sinh viên");
+        } finally {
+            setImportConfirming(false);
+        }
     };
 
     if (loading) return <div style={{ padding: '30px', textAlign: 'center' }}>Đang tải dữ liệu...</div>;
@@ -374,7 +474,25 @@ const ClassDetailPage = () => {
 
             {/* DANH SÁCH SINH VIÊN (APPROVED) */}
             <div className={styles.studentSection}>
-                <h3>Danh sách sinh viên chính thức</h3>
+                <div className={styles.studentSectionHeader}>
+                    <h3>Danh sách sinh viên chính thức</h3>
+                    <div className={styles.studentHeaderActions}>
+                        <button
+                            type="button"
+                            className={styles.addStudentBtn}
+                            onClick={() => setShowAddStudentModal(true)}
+                        >
+                            + Thêm sinh viên
+                        </button>
+                        <button
+                            type="button"
+                            className={styles.importStudentBtn}
+                            onClick={openImportModal}
+                        >
+                            Import danh sách
+                        </button>
+                    </div>
+                </div>
                 {listStudent.length > 0 ? (
                     <>
                         <table className={styles.studentTable}>
@@ -451,6 +569,186 @@ const ClassDetailPage = () => {
                     <p className={styles.emptyText}>Chưa có sinh viên nào trong lớp này.</p>
                 )}
             </div>
+
+            {showAddStudentModal && (
+                <div
+                    className={styles.modalOverlay}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Thêm sinh viên vào lớp"
+                    onClick={() => !addingStudent && setShowAddStudentModal(false)}
+                >
+                    <form
+                        className={styles.addStudentModal}
+                        onSubmit={handleAddStudentToClass}
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className={styles.addStudentModalHeader}>
+                            <h3>Thêm sinh viên</h3>
+                            <button
+                                type="button"
+                                onClick={() => setShowAddStudentModal(false)}
+                                disabled={addingStudent}
+                                aria-label="Đóng"
+                            >
+                                &times;
+                            </button>
+                        </div>
+                        <input
+                            type="email"
+                            value={studentEmail}
+                            onChange={(event) => setStudentEmail(event.target.value)}
+                            placeholder="Nhập email sinh viên"
+                            disabled={addingStudent}
+                            autoFocus
+                        />
+                        <div className={styles.addStudentActions}>
+                            <button
+                                type="button"
+                                className={styles.cancelBtn}
+                                onClick={() => setShowAddStudentModal(false)}
+                                disabled={addingStudent}
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                type="submit"
+                                className={styles.submitBtn}
+                                disabled={addingStudent}
+                            >
+                                {addingStudent ? 'Đang thêm...' : 'Thêm'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {showImportModal && (
+                <div
+                    className={styles.modalOverlay}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Import danh sách sinh viên"
+                    onClick={closeImportModal}
+                >
+                    <div
+                        className={styles.importStudentModal}
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className={styles.addStudentModalHeader}>
+                            <h3>Import danh sách sinh viên</h3>
+                            <button
+                                type="button"
+                                onClick={closeImportModal}
+                                disabled={importScanning || importConfirming}
+                                aria-label="Đóng"
+                            >
+                                &times;
+                            </button>
+                        </div>
+
+                        <div className={styles.importControls}>
+                            <input
+                                type="file"
+                                accept=".csv,.txt,.xlsx,.xls,.docx"
+                                onChange={(event) => {
+                                    setImportFile(event.target.files?.[0] || null);
+                                    setImportPreview(null);
+                                    setImportResult(null);
+                                }}
+                                disabled={importScanning || importConfirming}
+                            />
+                            <button
+                                type="button"
+                                className={styles.submitBtn}
+                                onClick={handlePreviewImportStudents}
+                                disabled={importScanning || importConfirming}
+                            >
+                                {importScanning ? 'Đang quét...' : 'Quét file'}
+                            </button>
+                        </div>
+
+                        {importPreview && (
+                            <div className={styles.importPreview}>
+                                <div className={styles.importSummary}>
+                                    <span>File: <strong>{importPreview.sourceFile}</strong></span>
+                                    <span>Có thể thêm: <strong>{importPreview.addableCount}</strong></span>
+                                    <span>Bị chặn: <strong>{importPreview.blockedCount}</strong></span>
+                                </div>
+
+                                <div className={styles.previewTableWrap}>
+                                    <table className={styles.previewTable}>
+                                        <thead>
+                                            <tr>
+                                                <th>STT</th>
+                                                <th>Email</th>
+                                                <th>Trạng thái</th>
+                                                <th>Ghi chú</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(importPreview.items || []).map((item, index) => (
+                                                <tr key={`${item.email}-${index}`}>
+                                                    <td>{index + 1}</td>
+                                                    <td>{item.email}</td>
+                                                    <td>
+                                                        <span className={`${styles.importStatus} ${item.canImport ? styles.canImport : styles.cannotImport}`}>
+                                                            {item.canImport ? 'Có thể thêm' : 'Không thêm'}
+                                                        </span>
+                                                    </td>
+                                                    <td>{item.message}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {importResult && (
+                            <div className={styles.importResult}>
+                                <strong>
+                                    Đã thêm {importResult.summary?.addedCount || 0} sinh viên,
+                                    bỏ qua {importResult.summary?.skippedCount || 0}.
+                                </strong>
+                                {(importResult.skipped || []).length > 0 && (
+                                    <ul>
+                                        {importResult.skipped.map((item, index) => (
+                                            <li key={`${item.email}-${index}`}>
+                                                {item.email}: {item.reason}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        )}
+
+                        <div className={styles.addStudentActions}>
+                            <button
+                                type="button"
+                                className={styles.cancelBtn}
+                                onClick={closeImportModal}
+                                disabled={importScanning || importConfirming}
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.submitBtn}
+                                onClick={handleConfirmImportStudents}
+                                disabled={
+                                    importScanning ||
+                                    importConfirming ||
+                                    !importPreview ||
+                                    !(importPreview.items || []).some(item => item.canImport)
+                                }
+                            >
+                                {importConfirming ? 'Đang thêm...' : 'Xác nhận thêm'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

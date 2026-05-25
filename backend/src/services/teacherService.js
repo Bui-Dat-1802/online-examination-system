@@ -7,6 +7,10 @@ const JSZip = require("jszip");
 const puppeteer = require("puppeteer-core");
 const { deleteImageFromCloudinaryUrl } = require("./cloudinaryUploadService");
 const { buildExamVariant } = require("../utils/examShuffle");
+const {
+  normalizeEmail,
+  parseStudentEmailsFromFile,
+} = require("../utils/parseStudentEmailsFromFile");
 
 let katex = null;
 try {
@@ -527,6 +531,133 @@ function buildAnswerCsv(variants) {
   return "\uFEFF" + rows.map((row) => row.map(escapeCsv).join(",")).join("\r\n");
 }
 
+// Chức năng: kiểm tra quyền giáo viên với lớp học
+async function ensureTeacherOwnsClass(teacherId, classId, message = "Lớp học không tồn tại hoặc bạn không có quyền truy cập") {
+  const klass = await prisma.Renamedclass.findFirst({
+    where: {
+      id: classId,
+      teacher_id: teacherId,
+      is_deleted: false,
+    },
+    select: { id: true },
+  });
+
+  if (!klass) {
+    const err = new Error(message);
+    err.status = 404;
+    throw err;
+  }
+
+  return klass;
+}
+
+// Chức năng: kiểm tra một email sinh viên trước khi import vào lớp
+async function evaluateStudentImportEmail(classId, rawEmail) {
+  const email = normalizeEmail(rawEmail);
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!email || !emailPattern.test(email)) {
+    return {
+      email,
+      status: "invalid_email",
+      canImport: false,
+      message: "Email không hợp lệ",
+    };
+  }
+
+  const student = await prisma.user.findFirst({
+    where: {
+      email: {
+        equals: email,
+        mode: "insensitive",
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      is_active: true,
+      auth_role: { select: { name: true } },
+    },
+  });
+
+  if (!student) {
+    return {
+      email,
+      status: "not_found",
+      canImport: false,
+      message: "Không tìm thấy tài khoản",
+    };
+  }
+
+  if (!student.is_active) {
+    return {
+      email,
+      status: "inactive",
+      canImport: false,
+      message: "Tài khoản bị khóa/ngừng hoạt động",
+    };
+  }
+
+  if (student.auth_role?.name !== "student") {
+    return {
+      email,
+      status: "not_student",
+      canImport: false,
+      message: "Email này không thuộc tài khoản sinh viên",
+    };
+  }
+
+  const enrollment = await prisma.enrollment_request.findUnique({
+    where: {
+      class_id_student_id: {
+        class_id: classId,
+        student_id: student.id,
+      },
+    },
+  });
+
+  const studentPayload = {
+    id: student.id,
+    name: student.name,
+    email: student.email,
+  };
+
+  if (!enrollment) {
+    return {
+      email,
+      status: "addable",
+      canImport: true,
+      message: "Có thể thêm",
+      student: studentPayload,
+    };
+  }
+
+  if (enrollment.status === "approved") {
+    return {
+      email,
+      status: "already_in_class",
+      canImport: false,
+      message: "Sinh viên đã có trong lớp",
+      student: studentPayload,
+    };
+  }
+
+  const statusMessages = {
+    pending: "Đã có yêu cầu chờ duyệt, sẽ chuyển thành đã duyệt nếu xác nhận",
+    rejected: "Đã từng bị từ chối/hủy, sẽ thêm lại nếu xác nhận",
+    cancelled: "Đã từng bị từ chối/hủy, sẽ thêm lại nếu xác nhận",
+  };
+
+  return {
+    email,
+    status: enrollment.status === "pending" ? "pending_request" : `${enrollment.status}_before`,
+    canImport: true,
+    message: statusMessages[enrollment.status] || "Có thể thêm",
+    student: studentPayload,
+  };
+}
+
 const IMPORTED_MEDIA_URL_REGEX = /((?:https?:\/\/res\.cloudinary\.com\/[^)\s"']+\/image\/upload\/[^)\s"']+)|(?:https?:\/\/[^)\s"']+)?(?:\/uploads\/imported-media|\/api\/media\/imported)\/[^)\s"']+)/g;
 
 function extractImportedMediaUrlsFromText(value) {
@@ -891,17 +1022,264 @@ module.exports = {
         });
         return requests;
     },
+    async addStudentToClass(teacherId, classId, email) {
+        const normalizedEmail = String(email || "").trim().toLowerCase();
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!normalizedEmail || !emailPattern.test(normalizedEmail)) {
+            const err = new Error("Email sinh viên không hợp lệ");
+            err.status = 400;
+            throw err;
+        }
+
+        const klass = await prisma.Renamedclass.findFirst({
+            where: {
+                id: classId,
+                teacher_id: teacherId,
+                is_deleted: false,
+            },
+            select: { id: true },
+        });
+
+        if (!klass) {
+            const err = new Error("Lớp học không tồn tại hoặc bạn không có quyền thêm sinh viên");
+            err.status = 404;
+            throw err;
+        }
+
+        const student = await prisma.user.findFirst({
+            where: {
+                email: {
+                    equals: normalizedEmail,
+                    mode: "insensitive",
+                },
+                is_active: true,
+            },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                auth_role: {
+                    select: { name: true },
+                },
+            },
+        });
+
+        if (!student) {
+            const err = new Error("Không tìm thấy sinh viên với email này");
+            err.status = 404;
+            throw err;
+        }
+
+        if (student.auth_role?.name !== "student") {
+            const err = new Error("Email này không thuộc tài khoản sinh viên");
+            err.status = 400;
+            throw err;
+        }
+
+        const existingEnrollment = await prisma.enrollment_request.findUnique({
+            where: {
+                class_id_student_id: {
+                    class_id: classId,
+                    student_id: student.id,
+                },
+            },
+        });
+
+        if (existingEnrollment?.status === "approved") {
+            const err = new Error("Sinh viên đã có trong lớp");
+            err.status = 409;
+            throw err;
+        }
+
+        return prisma.enrollment_request.upsert({
+            where: {
+                class_id_student_id: {
+                    class_id: classId,
+                    student_id: student.id,
+                },
+            },
+            create: {
+                class_id: classId,
+                student_id: student.id,
+                status: "approved",
+                reviewed_at: new Date(),
+                reviewed_by: teacherId,
+                note: "Giáo viên thêm trực tiếp bằng email",
+            },
+            update: {
+                status: "approved",
+                reviewed_at: new Date(),
+                reviewed_by: teacherId,
+                note: "Giáo viên thêm trực tiếp bằng email",
+            },
+        });
+    },
+
+    // Chức năng: quét file danh sách sinh viên và lấy email
+    async previewImportStudents(teacherId, classId, fileBuffer, originalName) {
+        await ensureTeacherOwnsClass(
+            teacherId,
+            classId,
+            "Lớp học không tồn tại hoặc bạn không có quyền import sinh viên"
+        );
+
+        if (!fileBuffer) {
+            const err = new Error("Vui lòng chọn file danh sách sinh viên");
+            err.status = 400;
+            throw err;
+        }
+
+        const parsed = await parseStudentEmailsFromFile(fileBuffer, originalName);
+        const items = [];
+
+        for (const parsedItem of parsed.items) {
+            if (!parsedItem.isValid) {
+                items.push({
+                    email: parsedItem.email,
+                    status: "invalid_email",
+                    canImport: false,
+                    message: "Email không hợp lệ",
+                });
+                continue;
+            }
+
+            if (parsedItem.isDuplicate) {
+                items.push({
+                    email: parsedItem.email,
+                    status: "duplicate_in_file",
+                    canImport: false,
+                    message: "Trùng trong file",
+                });
+                continue;
+            }
+
+            items.push(await evaluateStudentImportEmail(classId, parsedItem.email));
+        }
+
+        const addableCount = items.filter((item) => item.canImport).length;
+
+        return {
+            sourceFile: parsed.sourceFile,
+            totalRows: parsed.totalRows,
+            totalEmails: items.length,
+            addableCount,
+            blockedCount: items.length - addableCount,
+            items,
+        };
+    },
+
+    // Chức năng: import hàng loạt sinh viên vào lớp
+    async confirmImportStudents(teacherId, classId, emails = []) {
+        await ensureTeacherOwnsClass(
+            teacherId,
+            classId,
+            "Lớp học không tồn tại hoặc bạn không có quyền import sinh viên"
+        );
+
+        if (!Array.isArray(emails) || emails.length === 0) {
+            const err = new Error("Danh sách email import không hợp lệ");
+            err.status = 400;
+            throw err;
+        }
+
+        const normalizedEmails = emails.map(normalizeEmail).filter(Boolean);
+        const seen = new Set();
+        const added = [];
+        const skipped = [];
+
+        for (const email of normalizedEmails) {
+            if (seen.has(email)) {
+                skipped.push({ email, reason: "Trùng trong danh sách xác nhận" });
+                continue;
+            }
+            seen.add(email);
+
+            const evaluation = await evaluateStudentImportEmail(classId, email);
+
+            if (!evaluation.canImport || !evaluation.student) {
+                skipped.push({
+                    email,
+                    reason: evaluation.message || "Không thể thêm sinh viên",
+                });
+                continue;
+            }
+
+            try {
+                await prisma.enrollment_request.upsert({
+                    where: {
+                        class_id_student_id: {
+                            class_id: classId,
+                            student_id: evaluation.student.id,
+                        },
+                    },
+                    create: {
+                        class_id: classId,
+                        student_id: evaluation.student.id,
+                        status: "approved",
+                        reviewed_at: new Date(),
+                        reviewed_by: teacherId,
+                        note: "Giáo viên import từ file",
+                    },
+                    update: {
+                        status: "approved",
+                        reviewed_at: new Date(),
+                        reviewed_by: teacherId,
+                        note: "Giáo viên import từ file",
+                    },
+                });
+
+                added.push({
+                    email: evaluation.student.email,
+                    name: evaluation.student.name,
+                });
+            } catch (error) {
+                skipped.push({
+                    email,
+                    reason: "Không thể thêm sinh viên vào lớp",
+                });
+            }
+        }
+
+        return {
+            message: "Import danh sách sinh viên hoàn tất",
+            summary: {
+                totalInput: normalizedEmails.length,
+                addedCount: added.length,
+                skippedCount: skipped.length,
+            },
+            added,
+            skipped,
+        };
+    },
     // Phê duyệt hoặc từ chối yêu cầu tham gia lớp học
-    async approveEnrollmentRequest(requestId, status) {
+    async approveEnrollmentRequest(requestId, status, teacherId) {
         if (status !== "approved" && status !== "rejected") {
             const err = new Error("Trạng thái không hợp lệ");
             err.status = 400;
             throw err;
         }
+        const enrollmentRequest = await prisma.enrollment_request.findFirst({
+            where: {
+                id: requestId,
+                Renamedclass: {
+                    teacher_id: teacherId,
+                    is_deleted: false,
+                },
+            },
+            select: { id: true },
+        });
+
+        if (!enrollmentRequest) {
+            const err = new Error("Yêu cầu tham gia không tồn tại hoặc bạn không có quyền xử lý");
+            err.status = 403;
+            throw err;
+        }
+
         if (status === "approved") {
         const request = await prisma.enrollment_request.updateMany({
             where: { id: requestId },
-            data: { status: status, reviewed_at: new Date() },
+            data: { status: status, reviewed_at: new Date(), reviewed_by: teacherId },
         });
         return request;
         } else {

@@ -530,7 +530,7 @@ const TeacherExamInstanceDetailPage = () => {
                     </label>
                 </div>
                 <div className={styles.exportActions}>
-                    <button type="button" onClick={() => handleExport('doc')} disabled={isExporting}>DOC</button>
+                    <button type="button" onClick={() => handleExport('docx')} disabled={isExporting}>DOCX</button>
                     <button type="button" onClick={() => handleExport('txt')} disabled={isExporting}>TXT</button>
                     <button type="button" onClick={() => handleExport('pdf')} disabled={isExporting}>PDF</button>
                 </div>

@@ -167,6 +167,10 @@ function plainTextForExport(value = "") {
     .trim();
 }
 
+function plainTextForDocxExport(value = "") {
+  return stripHtml(String(value || "")).trim();
+}
+
 const exportImageDataUrlCache = new Map();
 
 function getMimeTypeFromPath(filePath = "") {
@@ -176,6 +180,15 @@ function getMimeTypeFromPath(filePath = "") {
   if (ext === ".webp") return "image/webp";
   if (ext === ".svg") return "image/svg+xml";
   return "image/png";
+}
+
+function getExtensionFromMimeType(mimeType = "") {
+  const normalized = String(mimeType || "").toLowerCase().split(";")[0].trim();
+  if (normalized === "image/jpeg" || normalized === "image/jpg") return "jpg";
+  if (normalized === "image/gif") return "gif";
+  if (normalized === "image/webp") return "webp";
+  if (normalized === "image/svg+xml") return "svg";
+  return "png";
 }
 
 function resolveImportedMediaPath(src = "") {
@@ -437,6 +450,297 @@ function createSimplePdfBuffer(text) {
   return Buffer.from(pdf, "utf8");
 }
 
+function escapeXml(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function makeDocxRun(text = "", options = {}) {
+  if (!text) return "";
+  const runPr = [
+    options.bold ? "<w:b/>" : "",
+    options.size ? `<w:sz w:val="${Number(options.size)}"/>` : "",
+  ].join("");
+  return `<w:r>${runPr ? `<w:rPr>${runPr}</w:rPr>` : ""}<w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>`;
+}
+
+function makeDocxParagraphFromRuns(runs = [], options = {}) {
+  const paragraphProps = [
+    options.style ? `<w:pStyle w:val="${escapeXml(options.style)}"/>` : "",
+    options.align ? `<w:jc w:val="${escapeXml(options.align)}"/>` : "",
+    options.spacingAfter !== undefined ? `<w:spacing w:after="${Number(options.spacingAfter)}"/>` : "",
+    options.keepLines ? "<w:keepLines/>" : "",
+  ].join("");
+
+  return `<w:p>${paragraphProps ? `<w:pPr>${paragraphProps}</w:pPr>` : ""}${runs.join("")}</w:p>`;
+}
+
+function makeDocxParagraph(text = "", options = {}) {
+  return makeDocxParagraphFromRuns([makeDocxRun(text, options)], options);
+}
+
+function splitMarkdownImages(value = "") {
+  const text = String(value || "");
+  const parts = [];
+  const pattern = /!\[([^\]]*)\]\(([^)\s]+)\)/g;
+  let cursor = 0;
+  let match;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > cursor) {
+      parts.push({ type: "text", value: plainTextForDocxExport(text.slice(cursor, match.index)) });
+    }
+    parts.push({ type: "image", alt: match[1] || "image", src: match[2] });
+    cursor = match.index + match[0].length;
+  }
+
+  if (cursor < text.length) {
+    parts.push({ type: "text", value: plainTextForDocxExport(text.slice(cursor)) });
+  }
+
+  return parts.filter((part) => part.type === "image" || part.value);
+}
+
+function getImageDimensions(buffer, mimeType = "") {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 24) return null;
+  const normalized = String(mimeType || "").toLowerCase();
+
+  if (normalized.includes("png") && buffer.toString("ascii", 1, 4) === "PNG") {
+    return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+  }
+
+  if (normalized.includes("gif") && buffer.toString("ascii", 0, 3) === "GIF") {
+    return { width: buffer.readUInt16LE(6), height: buffer.readUInt16LE(8) };
+  }
+
+  if (normalized.includes("jpeg") || normalized.includes("jpg")) {
+    let offset = 2;
+    while (offset < buffer.length) {
+      if (buffer[offset] !== 0xFF) break;
+      const marker = buffer[offset + 1];
+      const length = buffer.readUInt16BE(offset + 2);
+      if (marker >= 0xC0 && marker <= 0xC3) {
+        return { width: buffer.readUInt16BE(offset + 7), height: buffer.readUInt16BE(offset + 5) };
+      }
+      offset += 2 + length;
+    }
+  }
+
+  return null;
+}
+
+async function getImageBufferForDocx(src = "") {
+  if (!src) return null;
+
+  if (src.startsWith("data:")) {
+    const match = src.match(/^data:([^;,]+)[^,]*,(.+)$/);
+    if (!match) return null;
+    return {
+      buffer: Buffer.from(match[2], src.includes(";base64,") ? "base64" : "utf8"),
+      mimeType: match[1] || "image/png",
+    };
+  }
+
+  try {
+    const localFilePath = resolveImportedMediaPath(src);
+    if (localFilePath && fsSync.existsSync(localFilePath)) {
+      return {
+        buffer: fsSync.readFileSync(localFilePath),
+        mimeType: getMimeTypeFromPath(localFilePath),
+      };
+    }
+
+    const response = await fetch(src);
+    if (!response.ok) throw new Error(`Cannot fetch image: ${src}`);
+
+    return {
+      buffer: Buffer.from(await response.arrayBuffer()),
+      mimeType: response.headers.get("content-type") || "image/png",
+    };
+  } catch (error) {
+    console.warn("Khong the nhung anh vao file DOCX:", error.message);
+    return null;
+  }
+}
+
+function makeDocxImageRun(image) {
+  const cx = Math.round(image.widthPx * 9525);
+  const cy = Math.round(image.heightPx * 9525);
+
+  return `<w:r><w:drawing>
+    <wp:inline distT="0" distB="0" distL="0" distR="0">
+      <wp:extent cx="${cx}" cy="${cy}"/>
+      <wp:docPr id="${image.docPrId}" name="Picture ${image.docPrId}" descr="${escapeXml(image.alt || "image")}"/>
+      <a:graphic>
+        <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+          <pic:pic>
+            <pic:nvPicPr><pic:cNvPr id="${image.docPrId}" name="${escapeXml(image.fileName)}"/><pic:cNvPicPr/></pic:nvPicPr>
+            <pic:blipFill><a:blip r:embed="${image.relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
+            <pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>
+          </pic:pic>
+        </a:graphicData>
+      </a:graphic>
+    </wp:inline>
+  </w:drawing></w:r>`;
+}
+
+async function makeDocxContentRuns(value = "", mediaState, prefix = "", options = {}) {
+  const runs = [];
+  if (prefix) runs.push(makeDocxRun(prefix, options));
+
+  for (const part of splitMarkdownImages(value)) {
+    if (part.type === "text") {
+      runs.push(makeDocxRun(part.value, options));
+      continue;
+    }
+
+    const imageData = await getImageBufferForDocx(part.src);
+    if (!imageData) {
+      runs.push(makeDocxRun(part.src, options));
+      continue;
+    }
+
+    const extension = getExtensionFromMimeType(imageData.mimeType);
+    const fileName = `image${mediaState.images.length + 1}.${extension}`;
+    const relationshipId = `rId${mediaState.nextRelationshipId++}`;
+    const dimensions = getImageDimensions(imageData.buffer, imageData.mimeType) || { width: 480, height: 300 };
+    const scale = Math.min(480 / dimensions.width, 300 / dimensions.height, 1);
+
+    const image = {
+      relId: relationshipId,
+      docPrId: mediaState.nextDocPrId++,
+      fileName,
+      alt: part.alt,
+      buffer: imageData.buffer,
+      mimeType: imageData.mimeType,
+      widthPx: Math.max(1, Math.round(dimensions.width * scale)),
+      heightPx: Math.max(1, Math.round(dimensions.height * scale)),
+    };
+
+    mediaState.images.push(image);
+    runs.push(makeDocxImageRun(image));
+  }
+
+  return runs.length ? runs : [makeDocxRun(prefix, options)];
+}
+
+async function buildDocxBodyXml(exam, variant, variantCode, mediaState) {
+  const paragraphs = [
+    makeDocxParagraph(getExamTitle(exam).toUpperCase(), { style: "Title", align: "center", bold: true, size: 32, spacingAfter: 180 }),
+    makeDocxParagraph(`Ma de: ${variantCode}`),
+    makeDocxParagraph(`Lop: ${exam.exam_template?.Renamedclass?.name || ""}`),
+    makeDocxParagraph(`So cau hoi: ${variant.questions.length}`),
+    makeDocxParagraph(""),
+    makeDocxParagraph("Ho va ten: ................................................        Ma sinh vien: ............................................"),
+    makeDocxParagraph(""),
+  ];
+
+  for (const item of variant.questions) {
+    const question = item.question || {};
+    paragraphs.push(makeDocxParagraph(`Cau ${item.displayIndex} (${Number(item.points ?? 1)} diem)`, {
+      style: "QuestionHeading",
+      bold: true,
+      size: 24,
+      spacingAfter: 80,
+      keepLines: true,
+    }));
+    paragraphs.push(makeDocxParagraphFromRuns(
+      await makeDocxContentRuns(question.text || "", mediaState),
+      { spacingAfter: 80, keepLines: true }
+    ));
+
+    if (isFillQuestion(question)) {
+      paragraphs.push(makeDocxParagraph("Tra loi: ........................................................................................................", { spacingAfter: 160 }));
+    } else {
+      for (const choice of item.orderedChoices || []) {
+        paragraphs.push(makeDocxParagraphFromRuns(
+          await makeDocxContentRuns(choice.text || "", mediaState, `${choice.displayLabel}. `),
+          { spacingAfter: 60, keepLines: true }
+        ));
+      }
+    }
+
+    paragraphs.push(makeDocxParagraph("", { spacingAfter: 180 }));
+  }
+
+  return paragraphs.join("");
+}
+
+async function createDocxBuffer(exam, variant, variantCode) {
+  const zip = new JSZip();
+  const mediaState = { images: [], nextRelationshipId: 2, nextDocPrId: 1 };
+  const bodyXml = await buildDocxBodyXml(exam, variant, variantCode, mediaState);
+
+  zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Default Extension="png" ContentType="image/png"/>
+  <Default Extension="jpg" ContentType="image/jpeg"/>
+  <Default Extension="jpeg" ContentType="image/jpeg"/>
+  <Default Extension="gif" ContentType="image/gif"/>
+  <Default Extension="webp" ContentType="image/webp"/>
+  <Default Extension="svg" ContentType="image/svg+xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>`);
+
+  zip.folder("_rels").file(".rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`);
+
+  zip.folder("word").folder("_rels").file("document.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  ${mediaState.images.map((image) => `<Relationship Id="${image.relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${escapeXml(image.fileName)}"/>`).join("\n  ")}
+</Relationships>`);
+
+  const mediaFolder = zip.folder("word").folder("media");
+  for (const image of mediaState.images) {
+    mediaFolder.file(image.fileName, image.buffer);
+  }
+
+  zip.folder("word").file("document.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+  xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+  xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+  <w:body>
+    ${bodyXml}
+    <w:sectPr>
+      <w:pgSz w:w="11906" w:h="16838"/>
+      <w:pgMar w:top="1440" w:right="1134" w:bottom="1440" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`);
+
+  zip.folder("word").file("styles.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="24"/></w:rPr></w:rPrDefault>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:styleId="Title">
+    <w:name w:val="Title"/><w:pPr><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:sz w:val="32"/></w:rPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="QuestionHeading">
+    <w:name w:val="Question Heading"/><w:rPr><w:b/><w:sz w:val="24"/></w:rPr>
+  </w:style>
+</w:styles>`);
+
+  return zip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+  });
+}
+
 // tìm executable của Chrome/Edge trên máy chạy backend, để puppeteer-core có thể sử dụng khi cần render PDF từ HTML. Nếu không tìm thấy, sẽ fallback sang tạo PDF đơn giản chỉ có text.
 function getBrowserExecutablePath() {
   const candidates = [
@@ -478,6 +782,10 @@ async function renderPdfFromHtml(html, browser) {
 async function renderVariantFile(exam, variant, variantCode, format, browser = null) {
   if (format === "txt") {
     return Buffer.from("\uFEFF" + formatExamVariantPlain(exam, variant, variantCode), "utf8");
+  }
+
+  if (format === "docx") {
+    return createDocxBuffer(exam, variant, variantCode);
   }
 
   const exportVariant = await embedVariantImagesForExport(variant);
@@ -2188,8 +2496,9 @@ module.exports = {
 
     // tìm kiếm sinh viên theo tên hoặc email trong lớp học
     async exportExamVariants(examInstanceId, teacherId, options = {}) {
-        const format = String(options.format || "doc").toLowerCase();
-        const allowedFormats = new Set(["doc", "txt", "pdf"]);
+        const requestedFormat = String(options.format || "docx").toLowerCase();
+        const format = requestedFormat === "doc" ? "docx" : requestedFormat;
+        const allowedFormats = new Set(["docx", "txt", "pdf"]);
         if (!allowedFormats.has(format)) {
             const err = new Error("Loại file xuất không hợp lệ");
             err.status = 400;
@@ -2243,7 +2552,7 @@ module.exports = {
 
         const safeTitle = getSafeTitle(getExamTitle(exam));
         const contentTypes = {
-            doc: "application/msword; charset=utf-8",
+            docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             txt: "text/plain; charset=utf-8",
             pdf: "application/pdf",
         };

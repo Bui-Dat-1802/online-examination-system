@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import teacherService from '../../services/teacherService';
 import MathRenderer from '../../components/MathRenderer';
@@ -14,6 +14,7 @@ const TeacherQuestionsPage = () => {
     // State data
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -41,6 +42,40 @@ const TeacherQuestionsPage = () => {
         ]
     };
     const [formData, setFormData] = useState(initialFormState);
+
+    const getQuestionContent = (q) => (
+        q?.text ||
+        q?.content ||
+        q?.question_text ||
+        q?.title ||
+        q?.description ||
+        ''
+    );
+
+    const filteredQuestions = useMemo(() => {
+        const keywords = searchTerm
+            .toLowerCase()
+            .split(/[,\s]+/)
+            .map(k => k.trim())
+            .filter(Boolean);
+
+        if (keywords.length === 0) return questions;
+
+        return questions.filter(q => {
+            const content = getQuestionContent(q).toLowerCase();
+            const tags = q.tags || [];
+
+            return keywords.every(keyword =>
+                content.includes(keyword) ||
+                tags.some(tag => String(tag).toLowerCase().includes(keyword))
+            );
+        });
+    }, [questions, searchTerm]);
+
+    const paginatedQuestions = filteredQuestions.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
 
     // 1. Load danh sách câu hỏi
     useEffect(() => {
@@ -71,6 +106,10 @@ const TeacherQuestionsPage = () => {
             }
         }
     }, []);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
 
     // Helper Reset Form
     const resetForm = () => {
@@ -281,10 +320,27 @@ const TeacherQuestionsPage = () => {
                 <p style={{ textAlign: 'center', marginTop: '30px' }}>Đang tải dữ liệu...</p>
             ) : (
                 <>
+                    <div className={styles.searchRow}>
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Tìm kiếm câu hỏi theo nội dung hoặc tags..."
+                            aria-label="Tìm kiếm câu hỏi theo nội dung hoặc tags"
+                        />
+                        {searchTerm && (
+                            <button type="button" onClick={() => setSearchTerm('')}>
+                                Xóa
+                            </button>
+                        )}
+                    </div>
+
                     <div className={styles.questionList}>
-                        {questions
-                            .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                            .map((q, i) => (
+                        {paginatedQuestions.length === 0 ? (
+                            <div className={styles.emptyState}>
+                                Không tìm thấy câu hỏi phù hợp.
+                            </div>
+                        ) : paginatedQuestions.map((q, i) => (
                                 <div
                                     key={q.id}
                                     className={styles.questionCard}
@@ -353,10 +409,10 @@ const TeacherQuestionsPage = () => {
                     {/* Pagination */}
                     <Pagination
                         currentPage={currentPage}
-                        totalPages={Math.ceil(questions.length / itemsPerPage)}
+                        totalPages={Math.ceil(filteredQuestions.length / itemsPerPage)}
                         onPageChange={setCurrentPage}
                         itemsPerPage={itemsPerPage}
-                        totalItems={questions.length}
+                        totalItems={filteredQuestions.length}
                     />
                 </>
             )}

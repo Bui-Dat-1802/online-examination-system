@@ -42,6 +42,49 @@
     }
 }
 
+.searchRow {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 18px;
+
+    input {
+        flex: 1;
+        min-width: 0;
+        height: 44px;
+        padding: 0 14px;
+        border: 1px solid #d8dde6;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        background: white;
+
+        &:focus {
+            outline: none;
+            border-color: $primary-color;
+            box-shadow: 0 0 0 3px rgba($primary-color, 0.12);
+        }
+    }
+
+    button {
+        min-width: 82px;
+        height: 44px;
+        border: none;
+        border-radius: 8px;
+        background: #eef0f3;
+        color: #333;
+        font-weight: 700;
+        cursor: pointer;
+    }
+}
+
+.emptyState {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 18px;
+    color: #666;
+    text-align: center;
+}
+
 /* Question List */
 .questionList {
     display: flex;
@@ -515,6 +558,16 @@
         padding: 10px 12px;
         white-space: normal;
         line-height: 1.2;
+    }
+
+    .searchRow {
+        flex-direction: column;
+        gap: 8px;
+
+        input,
+        button {
+            width: 100%;
+        }
     }
 
     .questionCard {

@@ -1,6 +1,6 @@
 // src/pages/Teacher/TeacherTemplatesPage.jsx
 import React, { useEffect, useState } from 'react'; // Xóa useContext, AuthContext
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import teacherService from '../../services/teacherService';
 import Pagination from '../../components/Pagination';
 import styles from './TeacherTemplatesPage.module.scss';
@@ -9,6 +9,7 @@ import { useModal } from '../../context/ModalContext';
 const TeacherTemplatesPage = () => {
 
     const { showConfirm, showAlert } = useModal();
+    const navigate = useNavigate();
 
     // State Data
     const [templates, setTemplates] = useState([]);
@@ -102,6 +103,10 @@ const TeacherTemplatesPage = () => {
 
     const closeDetailModal = () => {
         setDetailTemplate(null);
+    };
+
+    const goToTemplateInstances = (tpl) => {
+        navigate(`/teacher/exam-templates/${tpl.id}`);
     };
 
     // --- 4. SUBMIT FORM ---
@@ -312,13 +317,13 @@ const TeacherTemplatesPage = () => {
                         <article
                             className={styles.templateCard}
                             key={tpl.id}
-                            onClick={() => openDetailModal(tpl)}
+                            onClick={() => goToTemplateInstances(tpl)}
                             role="button"
                             tabIndex={0}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter' || e.key === ' ') {
                                     e.preventDefault();
-                                    openDetailModal(tpl);
+                                    goToTemplateInstances(tpl);
                                 }
                             }}
                         >

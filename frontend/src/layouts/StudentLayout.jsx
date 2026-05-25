@@ -59,7 +59,7 @@ const StudentLayout = () => {
 
             <div className={styles.mainWrapper}>
                 <TopHeader title={pageTitle} onMenuClick={toggleSidebar} />
-                <div className={styles.pageContent}>
+                <div className={`${styles.pageContent} ${isExamRoute ? styles.examPageContent : ''}`}>
                     <Outlet />
                 </div>
             </div>

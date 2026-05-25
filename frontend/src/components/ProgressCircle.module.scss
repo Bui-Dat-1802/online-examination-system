@@ -43,3 +43,55 @@
   margin-top: 10px;
   font-weight: 500;
 }
+
+@media (max-width: 768px) {
+  .circleCard {
+    min-width: 0;
+  }
+
+  .circle {
+    width: 86px;
+    height: 86px;
+  }
+
+  .inner {
+    width: 56px;
+    height: 56px;
+
+    strong {
+      font-size: 17px;
+    }
+
+    span {
+      font-size: 11px;
+    }
+  }
+
+  .circleTitle {
+    margin-top: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.25;
+  }
+}
+
+@media (max-width: 420px) {
+  .circle {
+    width: 78px;
+    height: 78px;
+  }
+
+  .inner {
+    width: 50px;
+    height: 50px;
+
+    strong {
+      font-size: 16px;
+    }
+  }
+
+  .circleTitle {
+    font-size: 12.5px;
+  }
+}

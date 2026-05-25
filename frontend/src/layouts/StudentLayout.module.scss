@@ -3,10 +3,10 @@
 .layout {
     display: flex;
     width: 100vw;
-    height: 100vh;
+    height: 100dvh;
     background-color: #f5f7fa;
     font-family: $primary-font;
-    overflow: visible;
+    overflow: hidden;
 }
 
 /* Sidebar Style */
@@ -103,13 +103,21 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-height: 0;
+    min-width: 0;
 }
 
 .pageContent {
     flex: 1;
+    min-height: 0;
+    min-width: 0;
     overflow-y: auto;
     padding: 0;
     position: relative;
+}
+
+.examPageContent {
+    overflow: hidden;
 }
 
 /* Mobile behavior */
@@ -117,7 +125,7 @@
 
 @media (max-width: 900px) {
     .layout {
-        overflow: visible;
+        overflow: hidden;
     }
 
     .sidebar {

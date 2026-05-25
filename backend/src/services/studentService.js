@@ -336,9 +336,9 @@ module.exports = {
         const upcoming = normalized.filter((exam) => exam.status === "upcoming");
         const scoreItems = completed
             .map((exam) => exam.submission?.normalized_score)
-            .filter((score) => score !== null);
+            .filter((score) => Number.isFinite(Number(score)));
         const averageScore = scoreItems.length > 0
-            ? Number((scoreItems.reduce((sum, score) => sum + score, 0) / scoreItems.length).toFixed(2))
+            ? Number((scoreItems.reduce((sum, score) => sum + Number(score), 0) / scoreItems.length).toFixed(2))
             : 0;
 
         return {

@@ -7,6 +7,9 @@ const formatDateTime = (value) => new Date(value).toLocaleString('vi-VN');
 const formatMinutes = (seconds) => `${Math.max(1, Math.ceil((seconds || 0) / 60))} phút`;
 const formatPercent = (value) => (value === null || value === undefined || value === '' ? '--' : `${Number(value)}%`);
 
+const hasValidScore = (score) => Number.isFinite(Number(score));
+const formatAverageScore = (score) => (hasValidScore(score) ? Number(score).toFixed(1) : '--');
+
 const getStatusLabel = (exam) => {
     if (exam.submitted) return 'Đã hoàn thành';
     if (exam.status === 'ongoing') return 'Đang mở';
@@ -95,6 +98,20 @@ const StudentExamsOverviewPage = () => {
     }, [data.exams]);
 
     const visibleExams = grouped[activeFilter] || grouped.all;
+    const averageScore = useMemo(() => {
+        if (hasValidScore(data.summary?.averageScore) && Number(data.summary.averageScore) > 0) {
+            return Number(data.summary.averageScore);
+        }
+
+        const scores = (data.exams || [])
+            .map((exam) => exam.submission?.normalized_score)
+            .filter(hasValidScore)
+            .map(Number);
+
+        if (scores.length === 0) return null;
+
+        return scores.reduce((sum, score) => sum + score, 0) / scores.length;
+    }, [data.exams, data.summary?.averageScore]);
 
     const setFilter = (filter) => {
         setSearchParams(filter === 'all' ? {} : { tab: filter });
@@ -170,7 +187,7 @@ const StudentExamsOverviewPage = () => {
                 </div>
                 <div className={styles.averageBox}>
                     <span>Điểm trung bình</span>
-                    <strong>{data.summary.averageScore ? Number(data.summary.averageScore).toFixed(1) : '--'}</strong>
+                    <strong>{formatAverageScore(averageScore)}</strong>
                 </div>
             </div>
 
@@ -182,7 +199,7 @@ const StudentExamsOverviewPage = () => {
                 {renderSummaryCard({
                     filter: 'scores',
                     label: 'Điểm trung bình',
-                    value: data.summary.averageScore ? Number(data.summary.averageScore).toFixed(1) : '--',
+                    value: formatAverageScore(averageScore),
                 })}
             </div>
 
@@ -190,7 +207,7 @@ const StudentExamsOverviewPage = () => {
                 <section className={styles.scoreSummary}>
                     <div>
                         <span>Điểm trung bình thang 10</span>
-                        <strong>{data.summary.averageScore ? Number(data.summary.averageScore).toFixed(1) : '--'}</strong>
+                        <strong>{formatAverageScore(averageScore)}</strong>
                     </div>
                     <p>Điểm được tính từ các bài thi đã có kết quả chấm.</p>
                 </section>

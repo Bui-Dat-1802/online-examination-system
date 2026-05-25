@@ -213,6 +213,61 @@ const ClassDetailPage = () => {
         <div className={styles.contentBody}>
             <div className={styles.backLink}>
                 <Link to="/teacher/classes"><i className="fa-solid fa-arrow-left"></i> Quay lại danh sách</Link>
+                <div className={styles.notificationWrapper} ref={notificationRef}>
+                    <div
+                        className={styles.bellIcon}
+                        onClick={() => setShowNotifications(!showNotifications)}
+                        title="Yêu cầu tham gia"
+                    >
+                        <i className="fa-solid fa-bell"></i>
+                        {requests.length > 0 && (
+                            <span className={styles.badge}>{requests.length}</span>
+                        )}
+                    </div>
+
+                    {showNotifications && (
+                        <div className={styles.dropdown}>
+                            <div className={styles.dropdownHeader}>
+                                <h4>Yêu cầu tham gia ({requests.length})</h4>
+                            </div>
+                            <div className={styles.dropdownBody}>
+                                {requests.length === 0 ? (
+                                    <p className={styles.emptyNoti}>Không có yêu cầu nào.</p>
+                                ) : (
+                                    requests.map(req => (
+                                        <div key={req.id} className={styles.requestItem}>
+                                            <div className={styles.reqInfo}>
+                                                <strong style={{ wordBreak: 'break-all' }}>
+                                                    Student-ID: {req.student_id}
+                                                </strong>
+                                                {req.note && <p className={styles.reqNote}>"{req.note}"</p>}
+                                                <span className={styles.reqTime}>
+                                                    {new Date(req.requested_at).toLocaleDateString('vi-VN')}
+                                                </span>
+                                            </div>
+                                            <div className={styles.reqActions}>
+                                                <button
+                                                    className={styles.btnApprove}
+                                                    title="Duyệt"
+                                                    onClick={() => handleProcessRequest(req.id, 'approved')}
+                                                >
+                                                    <i className="fa-solid fa-check"></i>
+                                                </button>
+                                                <button
+                                                    className={styles.btnReject}
+                                                    title="Từ chối"
+                                                    onClick={() => handleProcessRequest(req.id, 'rejected')}
+                                                >
+                                                    <i className="fa-solid fa-xmark"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* CARD THÔNG TIN LỚP */}
@@ -245,63 +300,6 @@ const ClassDetailPage = () => {
                         >
                             📚 Danh sách đề thi
                         </button>
-                    </div>
-                    {/* --- CHUÔNG THÔNG BÁO --- */}
-                    <div className={styles.notificationWrapper} ref={notificationRef}>
-                        <div
-                            className={styles.bellIcon}
-                            onClick={() => setShowNotifications(!showNotifications)}
-                            title="Yêu cầu tham gia"
-                        >
-                            <i className="fa-solid fa-bell"></i>
-                            {requests.length > 0 && (
-                                <span className={styles.badge}>{requests.length}</span>
-                            )}
-                        </div>
-
-                        {/* DROPDOWN DANH SÁCH CHỜ */}
-                        {showNotifications && (
-                            <div className={styles.dropdown}>
-                                <div className={styles.dropdownHeader}>
-                                    <h4>Yêu cầu tham gia ({requests.length})</h4>
-                                </div>
-                                <div className={styles.dropdownBody}>
-                                    {requests.length === 0 ? (
-                                        <p className={styles.emptyNoti}>Không có yêu cầu nào.</p>
-                                    ) : (
-                                        requests.map(req => (
-                                            <div key={req.id} className={styles.requestItem}>
-                                                <div className={styles.reqInfo}>
-                                                    <strong style={{ wordBreak: 'break-all' }}>
-                                                        Student-ID: {req.student_id}
-                                                    </strong>
-                                                    {req.note && <p className={styles.reqNote}>"{req.note}"</p>}
-                                                    <span className={styles.reqTime}>
-                                                        {new Date(req.requested_at).toLocaleDateString('vi-VN')}
-                                                    </span>
-                                                </div>
-                                                <div className={styles.reqActions}>
-                                                    <button
-                                                        className={styles.btnApprove}
-                                                        title="Duyệt"
-                                                        onClick={() => handleProcessRequest(req.id, 'approved')}
-                                                    >
-                                                        <i className="fa-solid fa-check"></i>
-                                                    </button>
-                                                    <button
-                                                        className={styles.btnReject}
-                                                        title="Từ chối"
-                                                        onClick={() => handleProcessRequest(req.id, 'rejected')}
-                                                    >
-                                                        <i className="fa-solid fa-xmark"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
 
@@ -378,46 +376,77 @@ const ClassDetailPage = () => {
             <div className={styles.studentSection}>
                 <h3>Danh sách sinh viên chính thức</h3>
                 {listStudent.length > 0 ? (
-                    <table className={styles.studentTable}>
-                        <thead>
-                            <tr>
-                                <th>STT</th>
-                                <th>Họ tên</th>
-                                <th>Email</th>
-                                <th>Trạng thái</th>
-                                <th>Ngày tham gia</th>
-                                <th>Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <>
+                        <table className={styles.studentTable}>
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Họ tên</th>
+                                    <th>Email</th>
+                                    <th>Trạng thái</th>
+                                    <th>Ngày tham gia</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {listStudent.map((item, index) => (
+                                    <tr key={item.id}>
+                                        <td>{index + 1}</td>
+                                        <td style={{ fontWeight: 'bold' }}>{item.studentInfo.name}</td>
+                                        <td>{item.studentInfo.email}</td>
+                                        <td>
+                                            <span className={`${styles.statusBadge} ${styles[item.status]}`}>
+                                                {item.status === 'approved' ? 'Đã duyệt' : item.status}
+                                            </span>
+                                        </td>
+                                        <td>{new Date(item.requested_at).toLocaleDateString('vi-VN')}</td>
+                                        <td>
+                                            <button
+                                                className={styles.removeBtn}
+                                                onClick={() => handleRemoveStudent(
+                                                    item.id,              // enrollmentId (id của bản ghi trong bảng)
+                                                    item.studentInfo.id,  // studentId (id của học sinh)
+                                                    item.studentInfo.name // Tên
+                                                )}
+                                                title="Xóa học sinh khỏi lớp"
+                                            >
+                                                Xóa
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+
+                        <div className={styles.studentMobileList}>
                             {listStudent.map((item, index) => (
-                                <tr key={item.id}>
-                                    <td>{index + 1}</td>
-                                    <td style={{ fontWeight: 'bold' }}>{item.studentInfo.name}</td>
-                                    <td>{item.studentInfo.email}</td>
-                                    <td>
+                                <article className={styles.studentMobileCard} key={item.id}>
+                                    <div className={styles.studentMobileTop}>
+                                        <span className={styles.studentIndex}>#{index + 1}</span>
                                         <span className={`${styles.statusBadge} ${styles[item.status]}`}>
                                             {item.status === 'approved' ? 'Đã duyệt' : item.status}
                                         </span>
-                                    </td>
-                                    <td>{new Date(item.requested_at).toLocaleDateString('vi-VN')}</td>
-                                    <td>
-                                        <button
-                                            className={styles.removeBtn}
-                                            onClick={() => handleRemoveStudent(
-                                                item.id,              // enrollmentId (id của bản ghi trong bảng)
-                                                item.studentInfo.id,  // studentId (id của học sinh)
-                                                item.studentInfo.name // Tên
-                                            )}
-                                            title="Xóa học sinh khỏi lớp"
-                                        >
-                                            Xóa
-                                        </button>
-                                    </td>
-                                </tr>
+                                    </div>
+                                    <div className={styles.studentName}>{item.studentInfo.name}</div>
+                                    <div className={styles.studentEmail}>{item.studentInfo.email}</div>
+                                    <div className={styles.studentJoined}>
+                                        Ngày tham gia: {new Date(item.requested_at).toLocaleDateString('vi-VN')}
+                                    </div>
+                                    <button
+                                        className={styles.removeBtn}
+                                        onClick={() => handleRemoveStudent(
+                                            item.id,
+                                            item.studentInfo.id,
+                                            item.studentInfo.name
+                                        )}
+                                        title="Xóa học sinh khỏi lớp"
+                                    >
+                                        Xóa
+                                    </button>
+                                </article>
                             ))}
-                        </tbody>
-                    </table>
+                        </div>
+                    </>
                 ) : (
                     <p className={styles.emptyText}>Chưa có sinh viên nào trong lớp này.</p>
                 )}

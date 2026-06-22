@@ -1,4 +1,4 @@
-const adminService = require("../services/adminService");
+﻿const adminService = require("../services/adminService");
 
 module.exports = {
   /**
@@ -270,7 +270,7 @@ module.exports = {
 
   /**
    * GET /admin/export/students
-   * Xuất danh sách học sinh ra CSV
+   * Xuất danh sách sinh viên ra CSV
    * Query: ?classId=xxx&status=active|locked
    */
   async exportStudents(req, res, next) {

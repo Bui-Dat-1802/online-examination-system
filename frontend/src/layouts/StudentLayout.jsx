@@ -1,4 +1,4 @@
-// src/layouts/StudentLayout.jsx
+﻿// src/layouts/StudentLayout.jsx
 import React, { useContext, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
@@ -23,7 +23,14 @@ const StudentLayout = () => {
         <div className={styles.layout}>
             {!isExamRoute && (
                 <aside className={`${styles.sidebar} ${sidebarOpen ? styles.open : ''}`}>
-                    <div className={styles.logo}>EduTest <span>HS</span></div>
+                    <div className={styles.logo}>
+                        <div className={styles.logoMark}>OE</div>
+                        <div className={styles.logoText}>
+                            <strong>Online Exam</strong>
+                            <small>Hệ thống thi trực tuyến</small>
+                        </div>
+                        <span>SV</span>
+                    </div>
                     <nav className={styles.nav}>
                         <Link
                             to="/student/dashboard"

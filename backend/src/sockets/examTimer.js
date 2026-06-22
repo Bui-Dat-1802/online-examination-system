@@ -1,4 +1,4 @@
-const jwt = require("jsonwebtoken");
+﻿const jwt = require("jsonwebtoken");
 const prisma = require("../prisma");
 const JWT_SECRET = process.env.JWT_SECRET || "Password123!!!";
 
@@ -243,7 +243,7 @@ function calculateRemainingTime(examSession) {
 }
 
 /**
- * Lấy thông tin exam session của học sinh
+ * Lấy thông tin exam session của sinh viên
  */
 async function getExamSession(userId, examInstanceId) {
   try {
@@ -264,7 +264,7 @@ async function getExamSession(userId, examInstanceId) {
     console.log(`[getExamSession] anySession:`, anySession);
 
   if (!anySession) {
-    // Kiểm tra xem exam_instance có tồn tại và học sinh có quyền tham gia không
+    // Kiểm tra xem exam_instance có tồn tại và sinh viên có quyền tham gia không
     const examInstance = await prisma.exam_instance.findUnique({
       where: { id: examInstanceId },
       include: {
@@ -338,7 +338,7 @@ async function getExamSession(userId, examInstanceId) {
 }
 
 /**
- * Lấy thông tin tất cả exam sessions đang hoạt động của học sinh
+ * Lấy thông tin tất cả exam sessions đang hoạt động của sinh viên
  */
 async function getActiveExamSessions(userId) {
   const examSessions = await prisma.exam_session.findMany({

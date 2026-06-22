@@ -1,4 +1,4 @@
-const teacherController = require("../controllers/teacherController");
+﻿const teacherController = require("../controllers/teacherController");
 const {
   previewExamImport,
   confirmExamImport,
@@ -20,7 +20,7 @@ router.delete("/classes/:id", teacherController.deleteClass); // Xóa lớp họ
 router.post("/classes/:classId/students", teacherController.addStudentToClass); // Thêm sinh viên vào lớp bằng email
 router.post("/classes/:classId/students/import/preview", uploadStudentListFile.single("file"), teacherController.previewImportStudents); // Quét file danh sách sinh viên
 router.post("/classes/:classId/students/import/confirm", teacherController.confirmImportStudents); // Xác nhận import danh sách sinh viên
-router.delete("/classes/:classId/students/:studentId", teacherController.removeStudentFromClass); // Xóa học sinh khỏi lớp học
+router.delete("/classes/:classId/students/:studentId", teacherController.removeStudentFromClass); // Xóa sinh viên khỏi lớp học
 
 
 router.get("/classes/:id/enrollment-requests", teacherController.getEnrollmentRequests); // Lấy danh sách yêu cầu tham gia lớp học
@@ -53,8 +53,8 @@ router.post("/exams/:id/export-variants", teacherController.exportExamVariants);
 router.get("/classes/:classId/students",teacherController.searchStudentsInClass); // Tìm kiếm sinh viên trong lớp học theo tên
 router.post("/exam-instances/:id/publish", teacherController.publishExamInstance); // Công bố đề thi
 router.post("/exam-instances/:id/unpublish", teacherController.unpublishExamInstance); // Hủy công bố đề thi
-router.post("/exam-instances/:id/accommodations", teacherController.upsertAccommodation); // Thêm thời gian cho học sinh
-router.get("/classes/:classId/active-students", teacherController.getActiveStudentsInClass); // Hiển thị học sinh đang thi trong lớp
+router.post("/exam-instances/:id/accommodations", teacherController.upsertAccommodation); // Thêm thời gian cho sinh viên
+router.get("/classes/:classId/active-students", teacherController.getActiveStudentsInClass); // Hiển thị sinh viên đang thi trong lớp
 router.get("/classes/:examInstanceId/flags", teacherController.getFlaggedStudentsInClass); // Danh sách vi phạm trong lớp
 router.post("/exam-sessions/:id/lock", teacherController.lockExamSession); // Khóa thủ công phiên thi
 router.post("/exam-sessions/:id/unlock", teacherController.unlockExamSession); // Mở khóa thủ công phiên thi
@@ -65,7 +65,7 @@ router.get("/classes/:classId/exam-instances/:examInstanceId/progress", teacherC
 router.get("/dashboard", teacherController.getDashboard); // Lấy thông tin dashboard của giáo viên
 
 // ==================== XUẤT BÁO CÁO ====================
-router.get("/export/students/:classId", teacherController.exportStudents); // Xuất danh sách học sinh trong lớp CSV
+router.get("/export/students/:classId", teacherController.exportStudents); // Xuất danh sách sinh viên trong lớp CSV
 router.get("/export/results/:examId", teacherController.exportResults); // Xuất kết quả thi CSV
 router.get("/export/logs/:examId", teacherController.exportLogs); // Xuất nhật ký thi CSV
 

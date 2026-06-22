@@ -1,4 +1,4 @@
-const prisma = require("../prisma");
+﻿const prisma = require("../prisma");
 const userService = require("../services/userService");
 const { buildExamVariant } = require("../utils/examShuffle");
 
@@ -468,7 +468,7 @@ module.exports = {
                 event_type: "EXAM_START",
                 exam_session_id: created.id,
                 user_id: studentId,
-                payload: `Học sinh bắt đầu làm bài thi ${examInstanceId}`,
+                payload: `Sinh viên bắt đầu làm bài thi ${examInstanceId}`,
                 source_ip: clientMeta.ip || null,
                 user_agent: clientMeta.userAgent || null,
             },
@@ -646,7 +646,7 @@ module.exports = {
                     event_type: "ANSWER_SUBMIT",
                     exam_session_id: sessionId,
                     user_id: studentId,
-                    payload: `Học sinh trả lời câu hỏi ${questionId} với đáp án "${text}"`,
+                    payload: `Sinh viên trả lời câu hỏi ${questionId} với đáp án "${text}"`,
                     source_ip: null,
                     user_agent: null,
                 },
@@ -707,7 +707,7 @@ module.exports = {
                 event_type: "ANSWER_SUBMIT",
                 exam_session_id: sessionId,
                 user_id: studentId,
-                payload: `Học sinh trả lời câu hỏi ${questionId} với lựa chọn ${JSON.stringify(uniqueIds)}`,
+                payload: `Sinh viên trả lời câu hỏi ${questionId} với lựa chọn ${JSON.stringify(uniqueIds)}`,
                 source_ip: null,
                 user_agent: null,
             },
@@ -963,7 +963,7 @@ module.exports = {
                 event_type: "EXAM_SUBMIT",
                 exam_session_id: sessionId,
                 user_id: studentId,
-                payload: `Học sinh nộp bài thi cho phiên ${sessionId}`,
+                payload: `Sinh viên nộp bài thi cho phiên ${sessionId}`,
                 source_ip: null,
                 user_agent: null,
                 },

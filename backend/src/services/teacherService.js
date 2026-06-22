@@ -1,4 +1,4 @@
-const prisma = require("../prisma");
+﻿const prisma = require("../prisma");
 const userService = require("../services/userService");
 const fsSync = require("node:fs");
 const fs = require("node:fs/promises");
@@ -2369,7 +2369,7 @@ module.exports = {
             );
 
             if (hasStartedSession && updateData.questions !== undefined) {
-            const err = new Error("Không thể sửa danh sách câu hỏi/điểm vì đã có học sinh bắt đầu hoặc nộp bài");
+            const err = new Error("Không thể sửa danh sách câu hỏi/điểm vì đã có sinh viên bắt đầu hoặc nộp bài");
             err.status = 400;
             throw err;
             }
@@ -2654,7 +2654,7 @@ module.exports = {
         return updatedInstance;
     },
 
-    // Danh sách flag của học sinh trong 1 kỳ thi
+    // Danh sách flag của sinh viên trong 1 kỳ thi
     async listFlaggedSessionsByClass(exam_instance_id) {
         const flags = await prisma.session_flag.findMany({
             where: {
@@ -2792,7 +2792,7 @@ module.exports = {
         return { sessionId, state: "started" };
     },
 
-    // Thêm thời gian cộng thêm cho một học sinh trong đề thi
+    // Thêm thời gian cộng thêm cho một sinh viên trong đề thi
     async upsertAccommodation({ teacherId, examInstanceId, studentId, extraSeconds, addSeconds, notes }) {
         // 1) Kiểm tra quyền sở hữu đề thi
         const instance = await prisma.exam_instance.findFirst({
@@ -2805,7 +2805,7 @@ module.exports = {
             throw err;
         }
 
-        // 2) Kiểm tra học sinh thuộc lớp (và đã được duyệt)
+        // 2) Kiểm tra sinh viên thuộc lớp (và đã được duyệt)
         const enrollment = await prisma.enrollment_request.findFirst({
             where: {
                 student_id: studentId,
@@ -2814,7 +2814,7 @@ module.exports = {
             },
         });
         if (!enrollment) {
-            const err = new Error("Học sinh không thuộc lớp của đề thi hoặc chưa được duyệt");
+            const err = new Error("Sinh viên không thuộc lớp của đề thi hoặc chưa được duyệt");
             err.status = 400;
             throw err;
         }
@@ -2847,7 +2847,7 @@ module.exports = {
             },
         });
 
-        // 4) Nếu học sinh đã có phiên thi đang diễn ra, kéo dài thời gian (không vượt quá ends_at của đề thi)
+        // 4) Nếu sinh viên đã có phiên thi đang diễn ra, kéo dài thời gian (không vượt quá ends_at của đề thi)
         const session = await prisma.exam_session.findFirst({
             where: {
                 exam_instance_id: examInstanceId,
@@ -2877,7 +2877,7 @@ module.exports = {
         return { accommodation, needsBroadcast: false };
     },
 
-    // Liệt kê học sinh đang thi (có exam_session state='started') trong một lớp
+    // Liệt kê sinh viên đang thi (có exam_session state='started') trong một lớp
     async listActiveStudentsInClass(teacherId, classId) {
         // 1) Kiểm tra lớp thuộc giáo viên (cho phép xem cả lớp đã xóa)
         const klass = await prisma.Renamedclass.findFirst({
@@ -3069,14 +3069,14 @@ module.exports = {
         return result;
     },
 
-    // Lấy thông tin dashboard của giáo viên (số lớp, học sinh, đề thi, hoạt động)
+    // Lấy thông tin dashboard của giáo viên (số lớp, sinh viên, đề thi, hoạt động)
     async getDashboardStats(teacherId) {
         //  Lấy số lớp học (không tính đã xóa mềm)
         const classCount = await prisma.Renamedclass.count({
             where: { teacher_id: teacherId, is_deleted: false }
         });
 
-        //  Lấy tổng số học sinh từ các lớp của giáo viên (không tính lớp đã xóa)
+        //  Lấy tổng số sinh viên từ các lớp của giáo viên (không tính lớp đã xóa)
         const totalStudents = await prisma.enrollment_request.count({
             where: {
                 status: "approved",
@@ -3098,7 +3098,7 @@ module.exports = {
                 orderBy: { created_at: "desc" },
                 take: 10
             }),
-            // Học sinh tham gia được duyệt (không tính lớp đã xóa)
+            // Sinh viên tham gia được duyệt (không tính lớp đã xóa)
             prisma.enrollment_request.findMany({
                 where: {
                     Renamedclass: { teacher_id: teacherId, is_deleted: false },
@@ -3165,7 +3165,7 @@ module.exports = {
             ...recentEnrollments.map(e => ({
                 id: e.id,
                 type: "approve_enrollment",
-                description: `Duyệt học sinh "${e.user_enrollment_request_student_idTouser.name}" vào lớp "${e.Renamedclass.name}"`,
+                description: `Duyệt sinh viên "${e.user_enrollment_request_student_idTouser.name}" vào lớp "${e.Renamedclass.name}"`,
                 timestamp: e.reviewed_at || e.requested_at
             })),
             ...recentExams.map(ex => ({
@@ -3235,7 +3235,7 @@ module.exports = {
     //         err.status = 403;
     //         throw err;
     //     }
-    //     // 2) Lấy danh sách học sinh đã được duyệt trong lớp
+    //     // 2) Lấy danh sách sinh viên đã được duyệt trong lớp
     //     const students = await prisma.enrollment_request.findMany({
     //         where: {
     //             class_id: classId,
@@ -3258,7 +3258,7 @@ module.exports = {
     // }
 
     /**
-     * Xuất danh sách học sinh trong lớp học ra CSV
+     * Xuất danh sách sinh viên trong lớp học ra CSV
      * @param {string} classId - ID lớp học
      * @param {string} teacherId - ID giáo viên (để kiểm tra quyền)
      * @returns {Promise<String>} CSV string
@@ -3279,7 +3279,7 @@ module.exports = {
             throw err;
         }
 
-        // Lấy danh sách học sinh
+        // Lấy danh sách sinh viên
         const enrollments = await prisma.enrollment_request.findMany({
             where: {
                 class_id: classId,
@@ -3611,7 +3611,7 @@ module.exports = {
             err.status = 400;
             throw err;
         }
-        // Xóa yêu cầu tham gia lớp học của học sinh
+        // Xóa yêu cầu tham gia lớp học của sinh viên
         const deleted = await prisma.enrollment_request.deleteMany({
             where: {
                 class_id: classId,

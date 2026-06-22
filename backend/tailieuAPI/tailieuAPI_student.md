@@ -1,4 +1,4 @@
-# TÀI LIỆU API
+﻿# TÀI LIỆU API
 
 # API: Đăng ký & Đăng nhập
 
@@ -28,7 +28,7 @@ Tài liệu này mô tả các endpoint cơ bản để **đăng ký (register)*
 
 **POST `/api/student/enroll`**
 
-- **Mô tả: Học sinh xin gia nhập lớp **
+- **Mô tả: Sinh viên xin gia nhập lớp **
 - **HTTP:** POST 
 - **URL:** `/api/student/enroll`
 - **Headers:** `Authorization: Bearer <access_token>`
@@ -69,7 +69,7 @@ Tài liệu này mô tả các endpoint cơ bản để **đăng ký (register)*
 
 **GET `/api/student/classes?status=approved`**
 
-- **Mô tả: Học sinh xem danh sách lớp đang có trạng thái là status**
+- **Mô tả: Sinh viên xem danh sách lớp đang có trạng thái là status**
 - **HTTP:** GET 
 - **URL:** `/api/student/classes?status=...`
 - **Headers:** `Authorization: Bearer <access_token>`
@@ -165,7 +165,7 @@ Tài liệu này mô tả các endpoint cơ bản để **đăng ký (register)*
 
 **POST `/api/student/exams/:id/start`**
 
-- **Mô tả:** Tạo phiên làm bài cho học sinh đối với đề thi có `id`. Yêu cầu học sinh đã được duyệt vào lớp chứa đề thi, đề thi đã được công bố, và nằm trong khung thời gian cho phép.
+- **Mô tả:** Tạo phiên làm bài cho sinh viên đối với đề thi có `id`. Yêu cầu sinh viên đã được duyệt vào lớp chứa đề thi, đề thi đã được công bố, và nằm trong khung thời gian cho phép.
 - **HTTP:** POST
 - **URL:** `/api/student/exams/:id/start`
 - **Headers:** `Authorization: Bearer <access_token>`
@@ -199,7 +199,7 @@ Tài liệu này mô tả các endpoint cơ bản để **đăng ký (register)*
 - **Các lỗi có thể gặp:**
 - `404` — Đề thi không tồn tại
 - `400` — Đề thi chưa công bố hoặc ngoài khung thời gian
-- `403` — Học sinh chưa được duyệt vào lớp chứa đề thi
+- `403` — Sinh viên chưa được duyệt vào lớp chứa đề thi
 - `400` — Phiên làm bài đã kết thúc hoặc bị khóa
 
 ## Endpoint 6 — Lấy câu hỏi theo phiên thi

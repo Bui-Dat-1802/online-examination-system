@@ -1,4 +1,4 @@
-// src/layouts/AdminLayout.jsx
+﻿// src/layouts/AdminLayout.jsx
 import React, { useContext } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
@@ -19,7 +19,14 @@ const AdminLayout = () => {
         <div className={styles.layout}>
             {/* SIDEBAR ADMIN */}
             <aside className={styles.sidebar}>
-                <div className={styles.logo}>EduTest <span>ADMIN</span></div>
+                <div className={styles.logo}>
+                    <div className={styles.logoMark}>OE</div>
+                    <div className={styles.logoText}>
+                        <strong>Online Exam</strong>
+                        <small>Hệ thống thi trực tuyến</small>
+                    </div>
+                    <span>ADMIN</span>
+                </div>
                 <nav className={styles.nav}>
                     <Link
                         to="/admin/dashboard"

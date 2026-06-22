@@ -1,4 +1,4 @@
-// src/App.jsx
+﻿// src/App.jsx
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ModalProvider } from './context/ModalContext';
@@ -63,7 +63,7 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
 
-            {/* Đường dẫn cho Học sinh */}
+            {/* Đường dẫn cho Sinh viên */}
             <Route path="/student" element={<StudentLayout />}>
               <Route path="dashboard" element={<StudentDashboardPage />} />
               <Route path="classes" element={<StudentClassesPage />} />

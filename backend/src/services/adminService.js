@@ -1,4 +1,4 @@
-const prisma = require("../prisma");
+﻿const prisma = require("../prisma");
 const { hashPassword } = require("../utils/hash");
 
 module.exports = {
@@ -1201,7 +1201,7 @@ module.exports = {
   },
 
   /**
-   * Xuất danh sách học sinh ra CSV
+   * Xuất danh sách sinh viên ra CSV
    * @param {Object} filters - Bộ lọc
    * @returns {Promise<String>} CSV string
    */

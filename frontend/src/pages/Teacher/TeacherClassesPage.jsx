@@ -1,4 +1,4 @@
-// src/pages/Teacher/TeacherClassesPage.jsx
+﻿// src/pages/Teacher/TeacherClassesPage.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import teacherService from '../../services/teacherService';
@@ -80,11 +80,11 @@ const TeacherClassesPage = () => {
                 } catch (error) {
                     const errorMsg = error.response?.data?.error || "Xóa lớp học thất bại";
 
-                    // Xử lý lỗi ràng buộc dữ liệu (Nếu lớp đã có học sinh hoặc bài thi)
+                    // Xử lý lỗi ràng buộc dữ liệu (Nếu lớp đã có sinh viên hoặc bài thi)
                     if (errorMsg.includes("Foreign key") || errorMsg.includes("constraint")) {
                         showAlert(
                             "Không thể xóa",
-                            "Lớp học này đang có học sinh hoặc bài kiểm tra liên quan. Vui lòng xóa dữ liệu liên quan trước!"
+                            "Lớp học này đang có sinh viên hoặc bài kiểm tra liên quan. Vui lòng xóa dữ liệu liên quan trước!"
                         );
                     } else {
                         showAlert("Lỗi", errorMsg);

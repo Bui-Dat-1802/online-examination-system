@@ -459,7 +459,14 @@ const TeacherExamInstanceFormPage = () => {
                     })}
                 </div>
 
-
+                <div className={styles.stickyActions}>
+                    <button type="button" className={styles.btnCancel} onClick={() => navigate(backPath)}>
+                        Hủy
+                    </button>
+                    <button type="submit" className={styles.btnSubmit} disabled={isSubmitting}>
+                        {isSubmitting ? 'Đang lưu...' : (isEditMode ? 'Cập nhật' : 'Tạo mới')}
+                    </button>
+                </div>
             </form>
         </div>
     );

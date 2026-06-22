@@ -1,4 +1,4 @@
-// src/pages/Admin/AdminUserPage.jsx
+﻿// src/pages/Admin/AdminUserPage.jsx
 import React, { useEffect, useState } from 'react';
 import adminService from '../../services/adminService';
 import styles from './AdminUserPage.module.scss';
@@ -193,7 +193,7 @@ const AdminUserPage = () => {
 
                     <select name="role" value={filters.role} onChange={handleFilterChange} className={styles.select}>
                         <option value="">-- Tất cả vai trò --</option>
-                        <option value="student">Học sinh</option>
+                        <option value="student">Sinh viên</option>
                         <option value="teacher">Giáo viên</option>
                         <option value="admin">Quản trị viên</option>
                     </select>
@@ -227,7 +227,7 @@ const AdminUserPage = () => {
                                             <td>{u.email}</td>
                                             <td>
                                                 <span className={`${styles.roleBadge} ${styles[u.role]}`}>
-                                                    {u.role === 'teacher' ? 'Giáo viên' : u.role === 'admin' ? 'Admin' : 'Học sinh'}
+                                                    {u.role === 'teacher' ? 'Giáo viên' : u.role === 'admin' ? 'Admin' : 'Sinh viên'}
                                                 </span>
                                             </td>
                                             <td>

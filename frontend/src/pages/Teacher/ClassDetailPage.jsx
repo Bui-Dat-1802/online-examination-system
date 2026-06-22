@@ -1,4 +1,4 @@
-// src/pages/Teacher/ClassDetailPage.jsx
+﻿// src/pages/Teacher/ClassDetailPage.jsx
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import teacherService from '../../services/teacherService';
@@ -187,14 +187,14 @@ const ClassDetailPage = () => {
     // ---  XÓA HỌC SINH (Endpoint 45) ---
     const handleRemoveStudent = (enrollmentId, studentId, studentName) => {
         showConfirm(
-            "Xóa học sinh",
-            `Bạn có chắc chắn muốn xóa học sinh "${studentName}" khỏi lớp không?`,
+            "Xóa sinh viên",
+            `Bạn có chắc chắn muốn xóa sinh viên "${studentName}" khỏi lớp không?`,
             async () => {
                 try {
                     // Gọi API mới: truyền classId (id) và studentId
                     await teacherService.removeStudentFromClass(id, studentId);
 
-                    showAlert("Thành công", "Xóa học sinh khỏi lớp thành công!");
+                    showAlert("Thành công", "Xóa sinh viên khỏi lớp thành công!");
 
                     // Cập nhật UI: Dùng enrollmentId để lọc bỏ dòng tương ứng trong bảng
                     setClassData(prev => ({
@@ -204,7 +204,7 @@ const ClassDetailPage = () => {
 
                 } catch (error) {
                     console.error(error);
-                    showAlert("Thất bại", error.response?.data?.error || "Xóa học sinh thất bại");
+                    showAlert("Thất bại", error.response?.data?.error || "Xóa sinh viên thất bại");
                 }
             }
         );
@@ -523,10 +523,10 @@ const ClassDetailPage = () => {
                                                 className={styles.removeBtn}
                                                 onClick={() => handleRemoveStudent(
                                                     item.id,              // enrollmentId (id của bản ghi trong bảng)
-                                                    item.studentInfo.id,  // studentId (id của học sinh)
+                                                    item.studentInfo.id,  // studentId (id của sinh viên)
                                                     item.studentInfo.name // Tên
                                                 )}
-                                                title="Xóa học sinh khỏi lớp"
+                                                title="Xóa sinh viên khỏi lớp"
                                             >
                                                 Xóa
                                             </button>
@@ -557,7 +557,7 @@ const ClassDetailPage = () => {
                                             item.studentInfo.id,
                                             item.studentInfo.name
                                         )}
-                                        title="Xóa học sinh khỏi lớp"
+                                        title="Xóa sinh viên khỏi lớp"
                                     >
                                         Xóa
                                     </button>

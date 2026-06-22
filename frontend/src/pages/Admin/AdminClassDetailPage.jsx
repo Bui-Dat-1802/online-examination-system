@@ -1,4 +1,4 @@
-// src/pages/Admin/AdminClassDetailPage.jsx
+﻿// src/pages/Admin/AdminClassDetailPage.jsx
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import adminService from '../../services/adminService';
@@ -67,7 +67,7 @@ const AdminClassDetailPage = () => {
                     </div>
                     <div className={styles.metaItem}>
                         <label>Sĩ số:</label>
-                        <span>{classData.students?.length || 0} học sinh</span>
+                        <span>{classData.students?.length || 0} sinh viên</span>
                     </div>
                     <div className={styles.metaItem}>
                         <label>Số bài thi:</label>
@@ -83,7 +83,7 @@ const AdminClassDetailPage = () => {
                         className={activeTab === 'students' ? styles.active : ''}
                         onClick={() => setActiveTab('students')}
                     >
-                        Danh sách Học sinh ({classData.students?.length})
+                        Danh sách Sinh viên ({classData.students?.length})
                     </button>
                     <button
                         className={activeTab === 'exams' ? styles.active : ''}
@@ -113,7 +113,7 @@ const AdminClassDetailPage = () => {
                                         <td>{formatDate(st.enrolled_at)}</td>
                                     </tr>
                                 )) : (
-                                    <tr><td colSpan="4" align="center">Chưa có học sinh nào.</td></tr>
+                                    <tr><td colSpan="4" align="center">Chưa có sinh viên nào.</td></tr>
                                 )}
                             </tbody>
                         </table>

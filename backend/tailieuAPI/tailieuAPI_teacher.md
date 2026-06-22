@@ -1,4 +1,4 @@
-# TÀI LIỆU API
+﻿# TÀI LIỆU API
 
 # API: Đăng ký & Đăng nhập
 
@@ -1177,11 +1177,11 @@ Tài liệu này mô tả các endpoint cơ bản để **đăng ký (register)*
 
 ---
 
-## Endpoint 33 — Hiển thị học sinh đang thi trong lớp (Dành cho giáo viên)
+## Endpoint 33 — Hiển thị sinh viên đang thi trong lớp (Dành cho giáo viên)
 
 **GET `/api/teacher/classes/:classId/active-students`**
 
-- **Mô tả:** Trả về danh sách học sinh đang có phiên thi ở trạng thái `started` trong lớp chỉ định.
+- **Mô tả:** Trả về danh sách sinh viên đang có phiên thi ở trạng thái `started` trong lớp chỉ định.
 - **HTTP:** GET
 - **URL:** `/api/teacher/classes/:classId/active-students`
 - **Headers:** `Authorization: Bearer <access_token>`
@@ -1210,12 +1210,12 @@ Tài liệu này mô tả các endpoint cơ bản để **đăng ký (register)*
 ```
 ---
 
-## Endpoint 34 — Thêm thời gian thi cho học sinh  (Dành cho giáo viên)
+## Endpoint 34 — Thêm thời gian thi cho sinh viên  (Dành cho giáo viên)
 
 **POST `/api/teacher/exam-instances/:idKythi/accommodations`**
 
-- **Mô tả:** Giáo viên cộng thêm thời gian làm bài cho một học sinh cụ thể trong đề thi.
-- Nếu học sinh đã có phiên thi đang diễn ra, thời gian kết thúc phiên sẽ được kéo dài (không vượt quá `ends_at` của đề thi).
+- **Mô tả:** Giáo viên cộng thêm thời gian làm bài cho một sinh viên cụ thể trong đề thi.
+- Nếu sinh viên đã có phiên thi đang diễn ra, thời gian kết thúc phiên sẽ được kéo dài (không vượt quá `ends_at` của đề thi).
 - **Headers:** `Authorization: Bearer <access_token>`
 
 - **Request body:**
@@ -1257,15 +1257,15 @@ Tài liệu này mô tả các endpoint cơ bản để **đăng ký (register)*
 { "error": "Đề thi không tồn tại hoặc bạn không có quyền" }
 ```
 
-- **400 Bad Request** (học sinh không thuộc lớp/không được duyệt)
+- **400 Bad Request** (sinh viên không thuộc lớp/không được duyệt)
 
 ```json
-{ "error": "Học sinh không thuộc lớp của đề thi hoặc chưa được duyệt" }
+{ "error": "Sinh viên không thuộc lớp của đề thi hoặc chưa được duyệt" }
 ```
 
 ---
 
-## Endpoint 35 — Danh sách vi phạm của học sinh trong lớp (Dành cho giáo viên)
+## Endpoint 35 — Danh sách vi phạm của sinh viên trong lớp (Dành cho giáo viên)
 
 **GET `/api/teacher/classes/:examID/flags`**
 
@@ -1536,11 +1536,11 @@ Tài liệu này mô tả các endpoint cơ bản để **đăng ký (register)*
 
 ---
 
-## Endpoint 40 - Xuất danh sách học sinh trong lớp (CSV)
+## Endpoint 40 - Xuất danh sách sinh viên trong lớp (CSV)
 
 **GET `/api/teacher/export/students/:classId`**
 
-- **Mô tả: Xuất danh sách học sinh trong lớp học ra file CSV**
+- **Mô tả: Xuất danh sách sinh viên trong lớp học ra file CSV**
 - **HTTP:** GET 
 - **URL:** `/api/teacher/export/students/:classId`
 - **Headers:** `Authorization: Bearer <access_token>`
@@ -1763,7 +1763,7 @@ Thời gian,Loại sự kiện,Người dùng,Email,Session ID,IP,User Agent,Chi
 }
 ```
 
-## Endpoint 45 - Xóa học sinh ra khỏi lớp 
+## Endpoint 45 - Xóa sinh viên ra khỏi lớp 
 
 
 **DELETE`/api/teacher/classes/:classId/students/:studentId`**
@@ -1777,13 +1777,13 @@ Thời gian,Loại sự kiện,Người dùng,Email,Session ID,IP,User Agent,Chi
     **200 OK (thành công)**
     ```js
     {
-        "message": "Xóa học sinh khỏi lớp học thành công"
+        "message": "Xóa sinh viên khỏi lớp học thành công"
     }
     ```
     **400Bad Request**
     
     ```jsx
     {
-        "error": "Xóa học sinh khỏi lớp học thất bại"
+        "error": "Xóa sinh viên khỏi lớp học thất bại"
     }
     ```

@@ -1,4 +1,4 @@
-# TÀI LIỆU API - ADMIN
+﻿# TÀI LIỆU API - ADMIN
 
 # API: Quản lý người dùng, Quản lý lớp học & Giám sát kỳ thi
 
@@ -640,11 +640,11 @@ Nếu không truyền `password`, mật khẩu mặc định sẽ là `Password1
 
 ---
 
-## Endpoint 10 - Xuất danh sách học sinh (CSV)
+## Endpoint 10 - Xuất danh sách sinh viên (CSV)
 
 **GET `/api/admin/export/students?classId=xxx&status=active`**
 
-- **Mô tả: Xuất danh sách học sinh ra file CSV**
+- **Mô tả: Xuất danh sách sinh viên ra file CSV**
 - **HTTP:** GET 
 - **URL:** `/api/admin/export/students`
 - **Headers:** `Authorization: Bearer <access_token>`
@@ -659,7 +659,7 @@ Nếu không truyền `password`, mật khẩu mặc định sẽ là `Password1
 **Cấu trúc CSV:**
 ```
 ID,Email,Họ tên,Trạng thái,Lớp học,Ngày tạo,Đăng nhập gần nhất
-"uuid","student@example.com","Nguyễn Văn A","Hoạt động","Tin học (IT4409)","2025-01-01T00:00:00Z","2025-12-27T10:30:00Z"
+"uuid","student@example.com","Nguyễn Văn A","Hoạt động","Tin học đại cương","2025-01-01T00:00:00Z","2025-12-27T10:30:00Z"
 ```
 
 - **401 Unauthorized** (missing/invalid token)
@@ -726,11 +726,11 @@ ID,Email,Họ tên,Trạng thái,Điểm,Điểm tối đa,Phần trăm,Kết qu
 **Cấu trúc CSV:**
 ```
 Thời gian,Loại sự kiện,Người dùng,Email,Session ID,IP,User Agent,Chi tiết
-"2025-12-27T05:51:15.111Z","EXAM_START","student11","student1@gmail.com","086ada2f-6640-433a-91e5-408172e8ffc8","::ffff:172.31.80.1","Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36","""Học sinh bắt đầu làm bài thi 154a437d-8d11-4c23-b1bf-8b42e55f344d"""
+"2025-12-27T05:51:15.111Z","EXAM_START","student11","student1@gmail.com","086ada2f-6640-433a-91e5-408172e8ffc8","::ffff:172.31.80.1","Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36","""Sinh viên bắt đầu làm bài thi 154a437d-8d11-4c23-b1bf-8b42e55f344d"""
 "2025-12-27T05:51:26.713Z","TAB_SWITCH","student11","student1@gmail.com","086ada2f-6640-433a-91e5-408172e8ffc8","::ffff:172.31.80.1","Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36","""Người dùng đã chuyển tab hoặc mất focus cửa sổ lần thứ 1"""
 "2025-12-27T05:51:45.142Z","TAB_SWITCH","student11","student1@gmail.com","086ada2f-6640-433a-91e5-408172e8ffc8","::ffff:172.31.80.1","Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36","""Người dùng đã chuyển tab hoặc mất focus cửa sổ lần thứ 0"""
 "2025-12-27T05:51:45.527Z","TAB_SWITCH","student11","student1@gmail.com","086ada2f-6640-433a-91e5-408172e8ffc8","::ffff:172.31.80.1","Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36","""Người dùng đã chuyển tab hoặc mất focus cửa sổ lần thứ 2"""
-"2025-12-27T05:52:00.762Z","ANSWER_SUBMIT","student11","student1@gmail.com","086ada2f-6640-433a-91e5-408172e8ffc8","N/A","","""Học sinh trả lời câu hỏi 5dceff08-479a-45f4-b4e7-b9a22450d1d8 với lựa chọn [\""d25da15f-06fc-48b5-a39b-6eef61d3e965\""]"""
+"2025-12-27T05:52:00.762Z","ANSWER_SUBMIT","student11","student1@gmail.com","086ada2f-6640-433a-91e5-408172e8ffc8","N/A","","""Sinh viên trả lời câu hỏi 5dceff08-479a-45f4-b4e7-b9a22450d1d8 với lựa chọn [\""d25da15f-06fc-48b5-a39b-6eef61d3e965\""]"""
 ```
 
 **Loại sự kiện thường gặp:**

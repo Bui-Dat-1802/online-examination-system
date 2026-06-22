@@ -1,4 +1,4 @@
-// src/pages/Admin/AdminClassPage.jsx
+﻿// src/pages/Admin/AdminClassPage.jsx
 import React, { useEffect, useState } from 'react';
 import adminService from '../../services/adminService';
 import styles from './AdminClassPage.module.scss'; // Tạo file css ở bước 3
@@ -69,7 +69,7 @@ const AdminClassPage = () => {
     const handleExport = async (classId, className) => {
         // 1. Dùng prompt để lấy tham số lọc (Vì GlobalModal chưa hỗ trợ input)
         const status = window.prompt(
-            `Xuất danh sách học sinh lớp "${className}".\n\nNhập trạng thái muốn lọc (active / locked) hoặc để trống để lấy tất cả:`,
+            `Xuất danh sách sinh viên lớp "${className}".\n\nNhập trạng thái muốn lọc (active / locked) hoặc để trống để lấy tất cả:`,
             "active"
         );
 
@@ -97,7 +97,7 @@ const AdminClassPage = () => {
             window.URL.revokeObjectURL(url);
 
             // 4. Thông báo thành công bằng showAlert (Thay vì im lặng)
-            showAlert("Thành công", "Đã xuất file danh sách học sinh thành công!");
+            showAlert("Thành công", "Đã xuất file danh sách sinh viên thành công!");
 
         } catch (error) {
             console.error("Export error:", error);
@@ -190,7 +190,7 @@ const AdminClassPage = () => {
                                                     <button
                                                         className={`${styles.btnAction} ${styles.export}`}
                                                         onClick={() => handleExport(cls.id, cls.name)}
-                                                        title="Xuất danh sách học sinh (CSV)"
+                                                        title="Xuất danh sách sinh viên (CSV)"
                                                     >
                                                         <i className="fa-solid fa-file-csv"></i>
                                                     </button>

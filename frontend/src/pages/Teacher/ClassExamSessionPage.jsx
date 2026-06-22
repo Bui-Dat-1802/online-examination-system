@@ -1,4 +1,4 @@
-// src/pages/Teacher/ClassExamSessionPage.jsx
+﻿// src/pages/Teacher/ClassExamSessionPage.jsx
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import teacherService from '../../services/teacherService';
@@ -94,7 +94,7 @@ const ClassExamSessionPage = () => {
         // 1. Thay window.confirm bằng showConfirm
         showConfirm(
             "Khóa phiên thi", // Tiêu đề
-            "Bạn có chắc chắn muốn khóa phiên thi này không? Hành động này sẽ ngăn học sinh tiếp tục làm bài.", // Nội dung
+            "Bạn có chắc chắn muốn khóa phiên thi này không? Hành động này sẽ ngăn sinh viên tiếp tục làm bài.", // Nội dung
             async () => {
                 // Callback này chỉ chạy khi người dùng bấm "Đồng ý"
                 try {
@@ -122,7 +122,7 @@ const ClassExamSessionPage = () => {
     const handleUnlockSession = (sessionId) => {
         showConfirm(
             "Mở khóa phiên thi", // Tiêu đề
-            "Bạn có chắc chắn muốn mở khóa phiên thi này? Học sinh sẽ có thể tiếp tục làm bài.", // Nội dung
+            "Bạn có chắc chắn muốn mở khóa phiên thi này? Sinh viên sẽ có thể tiếp tục làm bài.", // Nội dung
             async () => {
                 // Callback này chỉ chạy khi bấm "Đồng ý"
                 try {
@@ -238,10 +238,10 @@ const ClassExamSessionPage = () => {
                     </section>
 
                     <section className={styles.section}>
-                        <h3>👨‍🎓 Học sinh đang thi</h3>
+                        <h3>👨‍🎓 Sinh viên đang thi</h3>
 
                         {activeStudents.length === 0 ? (
-                            <p>Không có học sinh nào đang thi</p>
+                            <p>Không có sinh viên nào đang thi</p>
                         ) : (
                             <div className={styles.studentList}>
                                 {activeStudents.map((s) => {
@@ -328,7 +328,7 @@ const ClassExamSessionPage = () => {
                                 <table>
                                     <thead>
                                         <tr>
-                                            <th>Học sinh</th>
+                                            <th>Sinh viên</th>
                                             <th>Loại</th>
                                             <th>Thời gian</th>
                                             <th></th>

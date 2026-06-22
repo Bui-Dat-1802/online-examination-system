@@ -1,4 +1,4 @@
-const teacherService = require('../services/teacherService');
+﻿const teacherService = require('../services/teacherService');
 const crypto = require('crypto');
 
 function generateRandomCode(len = 8) {
@@ -844,7 +844,7 @@ module.exports = {
         }
     },
 
-    // Thêm/ghi đè thời gian cộng thêm cho học sinh trong một đề thi
+    // Thêm/ghi đè thời gian cộng thêm cho sinh viên trong một đề thi
     async upsertAccommodation(req, res, next) {
         try {
             const teacherId = req.user.id;
@@ -892,7 +892,7 @@ module.exports = {
                 const io = req.app.get('io');
                 if (io) {
                     const { broadcastTimeUpdate } = require('../sockets/examTimer');
-                    // Broadcast update cho học sinh cụ thể
+                    // Broadcast update cho sinh viên cụ thể
                     broadcastTimeUpdate(io, result.examInstanceId, result.studentId);
                 }
             }
@@ -906,7 +906,7 @@ module.exports = {
         }
     },
 
-    // Hiển thị các học sinh đang có phiên thi 'started' trong một lớp
+    // Hiển thị các sinh viên đang có phiên thi 'started' trong một lớp
     async getActiveStudentsInClass(req, res, next) {
         try {
             const teacherId = req.user.id;
@@ -918,7 +918,7 @@ module.exports = {
         }
     },
 
-    // Hiển thị danh sách flag vi phạm của học sinh trong lớp
+    // Hiển thị danh sách flag vi phạm của sinh viên trong lớp
     async getFlaggedStudentsInClass(req, res, next) {
         try {
             // const teacherId = req.user.id;
@@ -1010,7 +1010,7 @@ module.exports = {
 
     /**
      * GET /teacher/export/students/:classId
-     * Xuất danh sách học sinh trong lớp ra CSV
+     * Xuất danh sách sinh viên trong lớp ra CSV
      */
     async exportStudents(req, res, next) {
         try {
@@ -1102,9 +1102,9 @@ module.exports = {
             const teacherId = req.user.id;
             console.log("Removing student:", studentId, "from class:", classId, "by teacher:", teacherId);
             await teacherService.removeStudentFromClass(teacherId, classId, studentId);
-            res.status(200).json({ message: "Xóa học sinh khỏi lớp học thành công" });
+            res.status(200).json({ message: "Xóa sinh viên khỏi lớp học thành công" });
         } catch (error) {
-            const err = new Error("Xóa học sinh khỏi lớp học thất bại");
+            const err = new Error("Xóa sinh viên khỏi lớp học thất bại");
             err.status = 400;
             next(error);
         }

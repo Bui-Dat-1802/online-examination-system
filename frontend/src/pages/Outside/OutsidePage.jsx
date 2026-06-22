@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link } from 'react-router-dom';
 import styles from './OutsidePage.module.scss';
 
@@ -11,7 +11,7 @@ const OutsidePage = () => {
                     <div className={styles.logo}>
                         <i className={`fa-solid fa-feather-pointed ${styles.logoIcon}`}></i>
                         <div>
-                            <span className={styles.logoText}>EduTest</span>
+                            <span className={styles.logoText}>Online Examination System</span>
                             <span className={styles.logoTagline}>Hệ thống thi trực tuyến</span>
                         </div>
                     </div>
@@ -26,7 +26,7 @@ const OutsidePage = () => {
                 <section className={styles.statsSection}>
                     <div className={styles.statItem}>
                         <h3>1,500+</h3>
-                        <p>Học sinh</p>
+                        <p>Sinh viên</p>
                     </div>
                     <div className={styles.statItem}>
                         <h3>150+</h3>
@@ -48,7 +48,7 @@ const OutsidePage = () => {
                         <div className={styles.icon}>
                             <i className="fa-solid fa-right-to-bracket"></i>
                         </div>
-                        <h2>Bắt đầu sử dụng EduTest</h2>
+                        <h2>Bắt đầu sử dụng Online Examination System</h2>
                         <p>Đăng nhập hoặc tạo tài khoản để tham gia hệ thống thi trực tuyến.</p>
                         <div className={styles.ctaActions}>
                             <Link to="/login" className={styles.ctaButton}>Đăng nhập</Link>
@@ -98,9 +98,9 @@ const OutsidePage = () => {
 
                 {/* Footer */}
                 <footer id="contact" className={styles.footer}>
-                    <h4>EduTest - Hệ thống thi trực tuyến</h4>
+                    <h4>Online Examination System - Hệ thống thi trực tuyến</h4>
                     <p>Email: contact@edutest.vn | Hotline: 1900 xxxx</p>
-                    <p>© 2025 EduTest. Đổi mới giáo dục - Nâng cao chất lượng học tập</p>
+                    <p>© 2025 Online Examination System. Đổi mới giáo dục - Nâng cao chất lượng học tập</p>
                 </footer>
             </div>
         </div>

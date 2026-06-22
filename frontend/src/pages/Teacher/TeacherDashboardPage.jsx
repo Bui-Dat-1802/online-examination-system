@@ -1,4 +1,4 @@
-// src/pages/Teacher/TeacherDashboardPage.jsx
+﻿// src/pages/Teacher/TeacherDashboardPage.jsx
 import React, { useState, useEffect } from 'react';
 import teacherService from '../../services/teacherService';
 import Pagination from '../../components/Pagination';
@@ -148,7 +148,7 @@ const TeacherDashboardPage = () => {
             {/* Banner chào mừng */}
             <div className={styles.welcomeHero}>
                 <div className={styles.heroContent}>
-                    <h2>Chào mừng giáo viên đến với trang quản lý học sinh! 👋</h2>
+                    <h2>Chào mừng giáo viên đến với trang quản lý sinh viên! 👋</h2>
                     <p>Chúc thầy cô một ngày làm việc hiệu quả và tràn đầy năng lượng.</p>
                 </div>
                 <div className={styles.heroIcon}>
@@ -164,7 +164,7 @@ const TeacherDashboardPage = () => {
                     <i className="fa-solid fa-chalkboard-user" style={{ color: '#e3f2fd' }}></i>
                 </div>
                 <div className={styles.statItem}>
-                    <h4>Học sinh</h4>
+                    <h4>Sinh viên</h4>
                     <p>{stats.totalStudents}</p>
                     <i className="fa-solid fa-users" style={{ color: '#e8f5e9' }}></i>
                 </div>

@@ -1,4 +1,4 @@
-// src/pages/RegisterPage.jsx
+﻿// src/pages/RegisterPage.jsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
@@ -13,7 +13,7 @@ const RegisterPage = () => {
         email: '',
         password: '',
         confirmPassword: '',
-        role: 'student',   // Mặc định là học sinh
+        role: 'student',   // Mặc định là sinh viên
     });
 
     const [error, setError] = useState('');
@@ -219,7 +219,7 @@ const RegisterPage = () => {
                         <div className={styles.formGroup}>
                             <label>Vai trò</label>
                             <select name="role" value={formData.role} onChange={handleChange} className={styles.selectInput}>
-                                <option value="student">Học sinh (Student)</option>
+                                <option value="student">Sinh viên (Student)</option>
                                 <option value="teacher">Giáo viên (Teacher)</option>
                             </select>
                         </div>

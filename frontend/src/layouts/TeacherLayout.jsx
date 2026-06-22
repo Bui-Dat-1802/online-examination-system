@@ -1,4 +1,4 @@
-// src/layouts/TeacherLayout.jsx
+﻿// src/layouts/TeacherLayout.jsx
 import React, { useContext, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
@@ -20,7 +20,14 @@ const TeacherLayout = () => {
     return (
         <div className={styles.layout}>
             <aside className={`${styles.sidebar} ${sidebarOpen ? styles.open : ''}`}>
-                <div className={styles.logo}>EduTest <span>GV</span></div>
+                <div className={styles.logo}>
+                    <div className={styles.logoMark}>OE</div>
+                    <div className={styles.logoText}>
+                        <strong>Online Exam</strong>
+                        <small>Hệ thống thi trực tuyến</small>
+                    </div>
+                    <span>GV</span>
+                </div>
                 <nav className={styles.nav}>
                     <Link
                         to="/teacher/dashboard"

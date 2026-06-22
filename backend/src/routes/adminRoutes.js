@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const router = express.Router();
 const adminController = require("../controllers/adminController");
 
@@ -28,7 +28,7 @@ router.get("/dashboard", adminController.getDashboard); // Lấy thống kê das
 router.get("/activities", adminController.getActivities); // Lấy lịch sử hoạt động của admin
 
 // ==================== XUẤT BÁO CÁO ====================
-router.get("/export/students", adminController.exportStudents); // Xuất danh sách học sinh CSV
+router.get("/export/students", adminController.exportStudents); // Xuất danh sách sinh viên CSV
 router.get("/export/results/:examId", adminController.exportResults); // Xuất kết quả thi CSV
 router.get("/export/logs/:examId", adminController.exportLogs); // Xuất nhật ký thi CSV
 

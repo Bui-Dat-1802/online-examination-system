@@ -1,7 +1,8 @@
 {
-  "name": "my-classroom-app",
+  "name": "online-examination-system-frontend",
   "private": true,
   "version": "0.0.0",
+  "description": "Frontend application for the Online Examination System graduation project.",
   "type": "module",
   "scripts": {
     "dev": "vite",

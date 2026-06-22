@@ -26,17 +26,59 @@
     height: 70px;
     display: flex;
     align-items: center;
-    padding: 0 25px;
-    font-size: 1.5rem;
-    font-weight: 800;
+    gap: 12px;
+    padding: 0 18px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 
     span {
+        flex-shrink: 0;
         color: #e74c3c;
-        margin-left: 5px;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        padding: 4px 7px;
+        border-radius: 6px;
+        background: rgba(231, 76, 60, 0.14);
     }
 
     /* Màu đỏ cho Admin */
+}
+
+.logoMark {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #e74c3c;
+    color: #1a202c;
+    font-size: 0.85rem;
+    font-weight: 900;
+}
+
+.logoText {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+
+    strong {
+        color: #fff;
+        font-size: 1.03rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    small {
+        margin-top: 4px;
+        color: rgba(255, 255, 255, 0.66);
+        font-size: 0.73rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
 }
 
 .nav {

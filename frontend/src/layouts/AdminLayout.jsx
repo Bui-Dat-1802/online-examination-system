@@ -1,5 +1,5 @@
 ﻿// src/layouts/AdminLayout.jsx
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
 import { AuthContext } from '../context/AuthContext';
@@ -8,6 +8,8 @@ import styles from './AdminLayout.module.scss'; // Tạo file css bên dưới
 const AdminLayout = () => {
     const { logout } = useContext(AuthContext);
     const location = useLocation();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const toggleSidebar = () => setSidebarOpen(s => !s);
 
     // Logic tiêu đề
     let pageTitle = "Dashboard Quản trị";
@@ -18,7 +20,7 @@ const AdminLayout = () => {
     return (
         <div className={styles.layout}>
             {/* SIDEBAR ADMIN */}
-            <aside className={styles.sidebar}>
+            <aside className={`${styles.sidebar} ${sidebarOpen ? styles.open : ''}`}>
                 <div className={styles.logo}>
                     <div className={styles.logoMark}>OE</div>
                     <div className={styles.logoText}>
@@ -31,24 +33,28 @@ const AdminLayout = () => {
                     <Link
                         to="/admin/dashboard"
                         className={location.pathname === '/admin/dashboard' ? styles.active : ''}
+                        onClick={() => setSidebarOpen(false)}
                     >
                         <i className="fa-solid fa-gauge-high"></i> Dashboard
                     </Link>
                     <Link
                         to="/admin/users"
                         className={location.pathname.includes('/users') ? styles.active : ''}
+                        onClick={() => setSidebarOpen(false)}
                     >
                         <i className="fa-solid fa-users-gear"></i> Quản lý Người dùng
                     </Link>
                     <Link
                         to="/admin/classes"
                         className={location.pathname.includes('/classes') ? styles.active : ''}
+                        onClick={() => setSidebarOpen(false)}
                     >
                         <i className="fa-solid fa-school"></i> Quản lý Lớp học
                     </Link>
                     <Link
                         to="/admin/exams"
                         className={location.pathname.includes('/exams') ? styles.active : ''}
+                        onClick={() => setSidebarOpen(false)}
                     >
                         <i className="fa-solid fa-file-signature"></i> Quản lý Kỳ thi
                     </Link>
@@ -60,9 +66,11 @@ const AdminLayout = () => {
                 </div>
             </aside>
 
+            {sidebarOpen && <div className={styles.mobileOverlay} onClick={() => setSidebarOpen(false)} />}
+
             {/* MAIN CONTENT */}
             <div className={styles.mainWrapper}>
-                <TopHeader title={pageTitle} />
+                <TopHeader title={pageTitle} onMenuClick={toggleSidebar} />
                 <div className={styles.pageContent}>
                     <Outlet />
                 </div>

@@ -3,6 +3,9 @@
 .container {
     padding: 30px;
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 /* --- STATS CARDS --- */
@@ -56,6 +59,8 @@
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     padding: 20px;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .toolbar {
@@ -63,6 +68,7 @@
     gap: 15px;
     margin-bottom: 20px;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .searchBox {
@@ -102,10 +108,13 @@
 /* --- TABLE --- */
 .tableContainer {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
 }
 
 .userTable {
     width: 100%;
+    min-width: 760px;
     border-collapse: collapse;
 
     th {
@@ -299,12 +308,15 @@
     justify-content: center;
     align-items: center;
     animation: fadeIn 0.2s ease-out;
+    padding: 12px;
+    box-sizing: border-box;
 }
 
 .modalContent {
     background: white;
     width: 90%;
     max-width: 500px;
+    max-height: calc(100vh - 40px);
     border-radius: 8px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
     display: flex;
@@ -341,6 +353,7 @@
 
 .modalBody {
     padding: 20px;
+    overflow-y: auto;
 }
 
 .infoRow {
@@ -363,6 +376,7 @@
         flex: 1;
         color: #333;
         word-break: break-all;
+        min-width: 0;
     }
 }
 
@@ -395,5 +409,68 @@
     to {
         opacity: 1;
         transform: scale(1);
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 16px;
+    }
+
+    .statsGrid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .contentSection {
+        padding: 16px;
+    }
+
+    .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .searchBox {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    .select {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .pagination {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .modalContent {
+        width: calc(100vw - 24px);
+        max-width: none;
+    }
+
+    .infoRow {
+        flex-direction: column;
+        gap: 4px;
+
+        label {
+            flex-basis: auto;
+        }
+    }
+}
+
+@media (max-width: 430px) {
+    .container {
+        padding: 12px;
+    }
+
+    .contentSection,
+    .statCard {
+        padding: 14px;
     }
 }

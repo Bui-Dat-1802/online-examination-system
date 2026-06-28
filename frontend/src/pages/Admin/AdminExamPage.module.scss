@@ -3,6 +3,9 @@
 .container {
     padding: 30px;
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 .contentSection {
@@ -11,6 +14,8 @@
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     padding: 20px;
     margin-top: 20px;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 /* Toolbar */
@@ -25,6 +30,7 @@
 .searchBox {
     flex: 1;
     min-width: 250px;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     border: 1px solid #ddd;
@@ -54,6 +60,7 @@
     border-radius: 6px;
     outline: none;
     cursor: pointer;
+    box-sizing: border-box;
 }
 
 .totalLabel {
@@ -65,10 +72,12 @@
 /* Table */
 .tableContainer {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .dataTable {
     width: 100%;
+    min-width: 860px;
     border-collapse: collapse;
 
     th {
@@ -97,6 +106,15 @@
     color: $primary-color;
     display: block;
     margin-bottom: 3px;
+    word-break: break-word;
+}
+
+.templateTitle {
+    color: #777;
+    display: block;
+    font-size: 0.78rem;
+    margin-bottom: 4px;
+    word-break: break-word;
 }
 
 .duration {
@@ -155,7 +173,8 @@
         color: #6c757d;
     }
 
-    &.suspended {
+    &.suspended,
+    &.unpublished {
         background: #fff3cd;
         color: #856404;
     }
@@ -233,6 +252,13 @@
     padding: 40px;
 }
 
+.actionGroup {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+
 .btnAction {
     width: 32px;
     height: 32px;
@@ -262,5 +288,55 @@
             transform: translateY(-1px);
             /* Hiệu ứng nảy lên nhẹ */
         }
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 14px;
+    }
+
+    .contentSection {
+        padding: 14px;
+    }
+
+    .toolbar {
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .searchBox {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .select {
+        flex: 1 1 180px;
+        min-width: 0;
+    }
+
+    .totalLabel {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .pagination {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 420px) {
+    .container {
+        padding: 12px 10px;
+    }
+
+    .contentSection {
+        padding: 12px;
+    }
+
+    .select {
+        width: 100%;
+        flex-basis: 100%;
     }
 }

@@ -16,7 +16,7 @@ const AdminExamPage = () => {
     // Filter State
     const [filters, setFilters] = useState({
         search: '',
-        status: '', // upcoming, ongoing, ended, suspended
+        status: '', // upcoming, ongoing, ended, unpublished
         page: 1,
         limit: 10
     });
@@ -101,14 +101,31 @@ const AdminExamPage = () => {
 
     // Helpers
     const formatDate = (str) => new Date(str).toLocaleString('vi-VN');
-    const formatDuration = (sec) => `${Math.floor(sec / 60)} phút`;
+    const formatDuration = (sec) => `${Math.floor((sec || 0) / 60)} phút`;
+
+    const getExamDisplay = (exam) => {
+        const instanceTitle = exam.instance_title || exam.title || 'Chưa có tên kỳ thi';
+        const templateTitle = exam.template_title;
+        const shouldShowTemplate = templateTitle && templateTitle !== instanceTitle;
+
+        return { instanceTitle, templateTitle, shouldShowTemplate };
+    };
+
+    const getProgress = (exam) => {
+        const submitted = exam.submitted_students ?? exam.submitted_sessions ?? 0;
+        const total = exam.total_students ?? exam.total_sessions ?? 0;
+        const percent = total > 0 ? Math.min((submitted / total) * 100, 100) : 0;
+
+        return { submitted, total, percent };
+    };
 
     const getStatusLabel = (status) => {
         switch (status) {
             case 'ongoing': return <span className={`${styles.badge} ${styles.ongoing}`}>Đang diễn ra</span>;
             case 'upcoming': return <span className={`${styles.badge} ${styles.upcoming}`}>Sắp tới</span>;
             case 'ended': return <span className={`${styles.badge} ${styles.ended}`}>Đã kết thúc</span>;
-            case 'suspended': return <span className={`${styles.badge} ${styles.suspended}`}>Tạm dừng</span>;
+            case 'unpublished':
+            case 'suspended': return <span className={`${styles.badge} ${styles.unpublished}`}>Tạm dừng</span>;
             default: return <span className={styles.badge}>{status}</span>;
         }
     };
@@ -124,7 +141,7 @@ const AdminExamPage = () => {
                         <i className="fa-solid fa-search"></i>
                         <input
                             name="search"
-                            placeholder="Tìm kiếm tên đề thi..."
+                            placeholder="Tìm theo tên lần thi, mẫu đề, lớp..."
                             value={filters.search}
                             onChange={handleFilterChange}
                         />
@@ -134,7 +151,7 @@ const AdminExamPage = () => {
                         <option value="ongoing">Đang diễn ra</option>
                         <option value="upcoming">Sắp tới</option>
                         <option value="ended">Đã kết thúc</option>
-                        <option value="suspended">Tạm dừng</option>
+                        <option value="unpublished">Tạm dừng</option>
                     </select>
                     <div className={styles.totalLabel}>Tổng: <strong>{pagination.total}</strong> kỳ thi</div>
                 </div>
@@ -156,62 +173,65 @@ const AdminExamPage = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {exams.length > 0 ? exams.map((exam, index) => (
-                                        <tr key={exam.id}>
-                                            <td>{(filters.page - 1) * filters.limit + index + 1}</td>
-                                            <td>
-                                                <strong className={styles.examTitle}>{exam.title}</strong>
-                                                <small className={styles.duration}>
-                                                    <i className="fa-regular fa-clock"></i> {formatDuration(exam.duration_seconds)}
-                                                </small>
-                                            </td>
-                                            <td>
-                                                <div className={styles.classInfo}>
-                                                    <span>{exam.class?.name}</span>
-                                                    <small>{exam.teacher?.name}</small>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div className={styles.timeInfo}>
-                                                    <span className={styles.start}>BĐ: {formatDate(exam.starts_at)}</span>
-                                                    <span className={styles.end}>KT: {formatDate(exam.ends_at)}</span>
-                                                </div>
-                                            </td>
-                                            <td>{getStatusLabel(exam.status)}</td>
-                                            <td>
-                                                <div className={styles.progress}>
-                                                    <strong>{exam.submitted_sessions}</strong> / {exam.total_sessions}
-                                                    <div className={styles.progressBar}>
-                                                        <div
-                                                            style={{ width: `${(exam.submitted_sessions / Math.max(exam.total_sessions, 1)) * 100}%` }}
-                                                        ></div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                {/* Cột Hành động */}
-                                                <div style={{ display: 'flex', gap: '8px' }}>
-                                                    {/* Nút Xem chi tiết (Cũ) */}
-                                                    <button
-                                                        className={styles.btnAction}
-                                                        onClick={() => navigate(`/admin/exams/${exam.id}`)}
-                                                        title="Xem chi tiết"
-                                                    >
-                                                        <i className="fa-solid fa-eye"></i>
-                                                    </button>
+                                    {exams.length > 0 ? exams.map((exam, index) => {
+                                        const { instanceTitle, templateTitle, shouldShowTemplate } = getExamDisplay(exam);
+                                        const progress = getProgress(exam);
 
-                                                    {/* --- NÚT XUẤT CSV (MỚI) --- */}
-                                                    <button
-                                                        className={`${styles.btnAction} ${styles.export}`}
-                                                        onClick={() => handleExportResults(exam.id, exam.title)}
-                                                        title="Xuất kết quả thi (CSV)"
-                                                    >
-                                                        <i className="fa-solid fa-file-csv"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    )) : (
+                                        return (
+                                            <tr key={exam.id}>
+                                                <td>{(filters.page - 1) * filters.limit + index + 1}</td>
+                                                <td>
+                                                    <strong className={styles.examTitle}>{instanceTitle}</strong>
+                                                    {shouldShowTemplate && (
+                                                        <small className={styles.templateTitle}>Mẫu đề: {templateTitle}</small>
+                                                    )}
+                                                    <small className={styles.duration}>
+                                                        <i className="fa-regular fa-clock"></i> {formatDuration(exam.duration_seconds)}
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    <div className={styles.classInfo}>
+                                                        <span>{exam.class?.name || exam.class_name}</span>
+                                                        <small>{exam.teacher?.name || exam.teacher_name}</small>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div className={styles.timeInfo}>
+                                                        <span className={styles.start}>BĐ: {formatDate(exam.starts_at)}</span>
+                                                        <span className={styles.end}>KT: {formatDate(exam.ends_at)}</span>
+                                                    </div>
+                                                </td>
+                                                <td>{getStatusLabel(exam.status)}</td>
+                                                <td>
+                                                    <div className={styles.progress}>
+                                                        <strong>{progress.submitted}</strong> / {progress.total}
+                                                        <div className={styles.progressBar}>
+                                                            <div style={{ width: `${progress.percent}%` }}></div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div className={styles.actionGroup}>
+                                                        <button
+                                                            className={styles.btnAction}
+                                                            onClick={() => navigate(`/admin/exams/${exam.id}`)}
+                                                            title="Xem chi tiết"
+                                                        >
+                                                            <i className="fa-solid fa-eye"></i>
+                                                        </button>
+
+                                                        <button
+                                                            className={`${styles.btnAction} ${styles.export}`}
+                                                            onClick={() => handleExportResults(exam.id, instanceTitle)}
+                                                            title="Xuất kết quả thi (CSV)"
+                                                        >
+                                                            <i className="fa-solid fa-file-csv"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    }) : (
                                         <tr><td colSpan="7" align="center">Không tìm thấy kỳ thi nào.</td></tr>
                                     )}
                                 </tbody>

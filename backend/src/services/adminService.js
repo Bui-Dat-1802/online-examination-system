@@ -1,6 +1,49 @@
 ﻿const prisma = require("../prisma");
 const { hashPassword } = require("../utils/hash");
 
+const IN_PROGRESS_SESSION_STATES = new Set(["started"]);
+
+function getExamStatus(exam, now = new Date()) {
+  if (!exam.published) return "unpublished";
+  if (now >= exam.starts_at && now <= exam.ends_at) return "ongoing";
+  if (now > exam.ends_at) return "ended";
+  return "upcoming";
+}
+
+function getSessionStatusLabel(state) {
+  switch (state) {
+    case "submitted":
+      return "Đã nộp";
+    case "locked":
+      return "Bị khóa";
+    case "started":
+      return "Đang thi";
+    case "expired":
+      return "Hết giờ";
+    case "pending":
+    case "not_started":
+    case undefined:
+    case null:
+      return "Chưa bắt đầu";
+    default:
+      return "Không xác định";
+  }
+}
+
+function decimalToNumber(value) {
+  if (value === null || value === undefined) return null;
+  const numberValue = Number(value);
+  return Number.isNaN(numberValue) ? null : numberValue;
+}
+
+function getSubmittedSessionCount(sessions = []) {
+  return sessions.filter((session) => session.state === "submitted" || session.submission?.length > 0).length;
+}
+
+function getInProgressSessionCount(sessions = []) {
+  return sessions.filter((session) => IN_PROGRESS_SESSION_STATES.has(session.state)).length;
+}
+
 module.exports = {
   /**
    * Ghi nhận một hành động của admin
@@ -852,25 +895,41 @@ module.exports = {
    */
   async getAllExams(filters = {}) {
     const { status, search, page = 1, limit = 50 } = filters;
+    const normalizedStatus = status === "suspended" ? "unpublished" : status;
     
     const where = {
-      is_deleted: false
+      is_deleted: false,
+      exam_template: {
+        is_deleted: false
+      }
     };
     
-    // Tìm kiếm theo tên đề thi
+    const now = new Date();
+
     if (search) {
-      where.exam_template = {
-        title: { contains: search, mode: 'insensitive' },
-        is_deleted: false
-      };
-    } else {
-      where.exam_template = {
-        is_deleted: false
-      };
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { exam_template: { title: { contains: search, mode: 'insensitive' } } },
+        { exam_template: { Renamedclass: { name: { contains: search, mode: 'insensitive' } } } },
+        { exam_template: { Renamedclass: { code: { contains: search, mode: 'insensitive' } } } },
+      ];
+    }
+
+    if (normalizedStatus === "unpublished") {
+      where.published = false;
+    } else if (normalizedStatus === "ongoing") {
+      where.published = true;
+      where.starts_at = { lte: now };
+      where.ends_at = { gte: now };
+    } else if (normalizedStatus === "ended") {
+      where.published = true;
+      where.ends_at = { lt: now };
+    } else if (normalizedStatus === "upcoming") {
+      where.published = true;
+      where.starts_at = { gt: now };
     }
     
     const skip = (page - 1) * limit;
-    const now = new Date();
     
     const [exams, total] = await Promise.all([
       prisma.exam_instance.findMany({
@@ -880,6 +939,7 @@ module.exports = {
         orderBy: { starts_at: 'desc' },
         select: {
           id: true,
+          title: true,
           starts_at: true,
           ends_at: true,
           published: true,
@@ -895,6 +955,13 @@ module.exports = {
                   id: true,
                   name: true,
                   code: true,
+                  enrollment_request: {
+                    where: { status: 'approved' },
+                    select: {
+                      id: true,
+                      student_id: true
+                    }
+                  },
                   user: {
                     select: {
                       id: true,
@@ -909,7 +976,13 @@ module.exports = {
           exam_session: {
             select: {
               id: true,
-              state: true
+              user_id: true,
+              state: true,
+              submission: {
+                select: {
+                  id: true
+                }
+              }
             }
           }
         }
@@ -919,58 +992,59 @@ module.exports = {
     
     // Xác định trạng thái và format response
     const formatted = exams.map(exam => {
-      let examStatus = 'upcoming'; // Chưa mở
-      
-      if (!exam.published) {
-        examStatus = 'unpublished'; // Tạm dừng (unpublished)
-      } else if (now >= exam.starts_at && now <= exam.ends_at) {
-        examStatus = 'ongoing'; // Đang thi
-      } else if (now > exam.ends_at) {
-        examStatus = 'ended'; // Đã kết thúc
-      }
-      
-      // Lọc theo status nếu có
-      if (status && examStatus !== status) {
-        return null;
-      }
+      const examStatus = getExamStatus(exam, now);
+      const classInfo = exam.exam_template?.Renamedclass;
+      const totalStudents = classInfo?.enrollment_request?.length || 0;
+      const submittedStudents = getSubmittedSessionCount(exam.exam_session);
+      const startedStudents = new Set(exam.exam_session.map(s => s.user_id).filter(Boolean)).size;
+      const inProgressStudents = getInProgressSessionCount(exam.exam_session);
+      const lockedStudents = exam.exam_session.filter(s => s.state === 'locked').length;
+      const instanceTitle = exam.title || null;
+      const templateTitle = exam.exam_template?.title || null;
       
       return {
         id: exam.id,
-        title: exam.exam_template?.title,
+        title: instanceTitle || templateTitle,
+        instance_title: instanceTitle,
+        template_title: templateTitle,
+        class_name: classInfo?.name,
+        class_code: classInfo?.code,
+        teacher_name: classInfo?.user?.name,
         class: {
-          id: exam.exam_template?.Renamedclass?.id,
-          name: exam.exam_template?.Renamedclass?.name,
-          code: exam.exam_template?.Renamedclass?.code
+          id: classInfo?.id,
+          name: classInfo?.name,
+          code: classInfo?.code
         },
         teacher: {
-          id: exam.exam_template?.Renamedclass?.user?.id,
-          name: exam.exam_template?.Renamedclass?.user?.name,
-          email: exam.exam_template?.Renamedclass?.user?.email
+          id: classInfo?.user?.id,
+          name: classInfo?.user?.name,
+          email: classInfo?.user?.email
         },
         starts_at: exam.starts_at,
         ends_at: exam.ends_at,
+        duration: exam.exam_template?.duration_seconds,
         duration_seconds: exam.exam_template?.duration_seconds,
         published: exam.published,
+        show_answers: exam.show_answers,
         status: examStatus,
-        total_sessions: exam.exam_session.length,
-        submitted_sessions: exam.exam_session.filter(s => s.state === 'submitted').length,
+        total_students: totalStudents,
+        submitted_students: submittedStudents,
+        started_students: startedStudents,
+        in_progress_students: inProgressStudents,
+        locked_students: lockedStudents,
+        total_sessions: totalStudents,
+        submitted_sessions: submittedStudents,
         created_at: exam.created_at
       };
-    }).filter(Boolean); // Loại bỏ null
-    
-    // Nếu filter theo status, cần tính lại total
-    let finalTotal = total;
-    if (status) {
-      finalTotal = formatted.length;
-    }
+    });
     
     return {
       exams: formatted,
       pagination: {
         page,
         limit,
-        total: finalTotal,
-        totalPages: Math.ceil(finalTotal / limit)
+        total,
+        totalPages: Math.ceil(total / limit)
       }
     };
   },
@@ -987,6 +1061,7 @@ module.exports = {
       where: { id: examId },
       select: {
         id: true,
+        title: true,
         starts_at: true,
         ends_at: true,
         published: true,
@@ -1004,6 +1079,22 @@ module.exports = {
                 id: true,
                 name: true,
                 code: true,
+                enrollment_request: {
+                  where: { status: 'approved' },
+                  select: {
+                    id: true,
+                    student_id: true,
+                    requested_at: true,
+                    user_enrollment_request_student_idTouser: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true
+                      }
+                    }
+                  },
+                  orderBy: { requested_at: 'asc' }
+                },
                 user: {
                   select: {
                     id: true,
@@ -1030,7 +1121,8 @@ module.exports = {
             submission: {
               select: {
                 score: true,
-                max_score: true
+                max_score: true,
+                created_at: true
               }
             }
           }
@@ -1050,38 +1142,70 @@ module.exports = {
       throw err;
     }
     
-    // Xác định trạng thái
-    let examStatus = 'upcoming';
-    if (!exam.published) {
-      examStatus = 'suspended';
-    } else if (now >= exam.starts_at && now <= exam.ends_at) {
-      examStatus = 'ongoing';
-    } else if (now > exam.ends_at) {
-      examStatus = 'ended';
-    }
+    const examStatus = getExamStatus(exam, now);
+    const classInfo = exam.exam_template?.Renamedclass;
+    const approvedEnrollments = classInfo?.enrollment_request || [];
+    const sessionByUserId = new Map(exam.exam_session.map((session) => [session.user?.id, session]));
+    const totalStudents = approvedEnrollments.length;
+    const submittedStudents = getSubmittedSessionCount(exam.exam_session);
+    const startedStudents = new Set(exam.exam_session.map(s => s.user?.id).filter(Boolean)).size;
+    const inProgressStudents = getInProgressSessionCount(exam.exam_session);
+    const lockedStudents = exam.exam_session.filter(s => s.state === 'locked').length;
+    const instanceTitle = exam.title || null;
+    const templateTitle = exam.exam_template?.title || null;
+    const participants = approvedEnrollments.map((enrollment) => {
+      const student = enrollment.user_enrollment_request_student_idTouser;
+      const session = sessionByUserId.get(student?.id);
+      const submission = session?.submission?.[0];
+      const state = session?.state || "not_started";
+
+      return {
+        student_id: student?.id,
+        student_name: student?.name,
+        email: student?.email,
+        session_id: session?.id || null,
+        started_at: session?.started_at || null,
+        submitted_at: submission?.created_at || null,
+        state,
+        status_label: getSessionStatusLabel(state),
+        score: decimalToNumber(submission?.score),
+        max_score: decimalToNumber(submission?.max_score),
+      };
+    });
     
     return {
       id: exam.id,
-      title: exam.exam_template?.title,
+      title: instanceTitle || templateTitle,
+      instance_title: instanceTitle,
+      template_title: templateTitle,
       description: exam.exam_template?.description,
       class: {
-        id: exam.exam_template?.Renamedclass?.id,
-        name: exam.exam_template?.Renamedclass?.name,
-        code: exam.exam_template?.Renamedclass?.code
+        id: classInfo?.id,
+        name: classInfo?.name,
+        code: classInfo?.code
       },
       teacher: {
-        id: exam.exam_template?.Renamedclass?.user?.id,
-        name: exam.exam_template?.Renamedclass?.user?.name,
-        email: exam.exam_template?.Renamedclass?.user?.email
+        id: classInfo?.user?.id,
+        name: classInfo?.user?.name,
+        email: classInfo?.user?.email
       },
       starts_at: exam.starts_at,
       ends_at: exam.ends_at,
+      duration: exam.exam_template?.duration_seconds,
       duration_seconds: exam.exam_template?.duration_seconds,
       passing_score: exam.exam_template?.passing_score,
       published: exam.published,
       show_answers: exam.show_answers,
       status: examStatus,
       question_count: exam.exam_question.length,
+      total_students: totalStudents,
+      submitted_students: submittedStudents,
+      started_students: startedStudents,
+      in_progress_students: inProgressStudents,
+      locked_students: lockedStudents,
+      total_sessions: totalStudents,
+      submitted_sessions: submittedStudents,
+      participants,
       sessions: exam.exam_session.map(s => ({
         id: s.id,
         state: s.state,
@@ -1091,8 +1215,10 @@ module.exports = {
           name: s.user.name,
           email: s.user.email
         },
-        score: s.submission[0]?.score || null,
-        max_score: s.submission[0]?.max_score || null
+        score: decimalToNumber(s.submission[0]?.score),
+        max_score: decimalToNumber(s.submission[0]?.max_score),
+        submitted_at: s.submission[0]?.created_at || null,
+        status_label: getSessionStatusLabel(s.state)
       })),
       created_at: exam.created_at
     };

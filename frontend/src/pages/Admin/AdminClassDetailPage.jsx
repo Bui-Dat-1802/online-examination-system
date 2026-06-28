@@ -26,7 +26,7 @@ const AdminClassDetailPage = () => {
         fetchData();
         // Cứ mỗi 5 giây gọi API một lần (Chạy ngầm - Không Loading)
         const intervalId = setInterval(() => {
-            fetch(true);
+            fetchData();
         }, 5000);
 
         // Dọn dẹp khi thoát trang hoặc khi filters thay đổi (để tạo interval mới với filter mới)
@@ -95,53 +95,57 @@ const AdminClassDetailPage = () => {
 
                 <div className={styles.tabContent}>
                     {activeTab === 'students' && (
-                        <table className={styles.dataTable}>
-                            <thead>
-                                <tr>
-                                    <th>STT</th>
-                                    <th>Họ tên</th>
-                                    <th>Email</th>
-                                    <th>Ngày tham gia</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {classData.students?.length > 0 ? classData.students.map((st, i) => (
-                                    <tr key={st.id}>
-                                        <td>{i + 1}</td>
-                                        <td><strong>{st.name}</strong></td>
-                                        <td>{st.email}</td>
-                                        <td>{formatDate(st.enrolled_at)}</td>
+                        <div className={styles.tableContainer}>
+                            <table className={styles.dataTable}>
+                                <thead>
+                                    <tr>
+                                        <th>STT</th>
+                                        <th>Họ tên</th>
+                                        <th>Email</th>
+                                        <th>Ngày tham gia</th>
                                     </tr>
-                                )) : (
-                                    <tr><td colSpan="4" align="center">Chưa có sinh viên nào.</td></tr>
-                                )}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {classData.students?.length > 0 ? classData.students.map((st, i) => (
+                                        <tr key={st.id}>
+                                            <td>{i + 1}</td>
+                                            <td><strong>{st.name}</strong></td>
+                                            <td>{st.email}</td>
+                                            <td>{formatDate(st.enrolled_at)}</td>
+                                        </tr>
+                                    )) : (
+                                        <tr><td colSpan="4" align="center">Chưa có sinh viên nào.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
 
                     {activeTab === 'exams' && (
-                        <table className={styles.dataTable}>
-                            <thead>
-                                <tr>
-                                    <th>STT</th>
-                                    <th>Tiêu đề bài thi</th>
-                                    <th>Thời lượng</th>
-                                    <th>Ngày tạo</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {classData.exams?.length > 0 ? classData.exams.map((ex, i) => (
-                                    <tr key={ex.id}>
-                                        <td>{i + 1}</td>
-                                        <td style={{ color: '#007bff' }}>{ex.title}</td>
-                                        <td>{ex.duration_seconds / 60} phút</td>
-                                        <td>{formatDate(ex.created_at)}</td>
+                        <div className={styles.tableContainer}>
+                            <table className={styles.dataTable}>
+                                <thead>
+                                    <tr>
+                                        <th>STT</th>
+                                        <th>Tiêu đề bài thi</th>
+                                        <th>Thời lượng</th>
+                                        <th>Ngày tạo</th>
                                     </tr>
-                                )) : (
-                                    <tr><td colSpan="4" align="center">Chưa có đề thi nào.</td></tr>
-                                )}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {classData.exams?.length > 0 ? classData.exams.map((ex, i) => (
+                                        <tr key={ex.id}>
+                                            <td>{i + 1}</td>
+                                            <td style={{ color: '#007bff' }}>{ex.title}</td>
+                                            <td>{ex.duration_seconds / 60} phút</td>
+                                            <td>{formatDate(ex.created_at)}</td>
+                                        </tr>
+                                    )) : (
+                                        <tr><td colSpan="4" align="center">Chưa có đề thi nào.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
                 </div>
             </div>

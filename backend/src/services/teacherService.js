@@ -107,6 +107,27 @@ function normalizeAscii(value = "") {
     .replace(/[^\x20-\x7E\r\n]/g, "");
 }
 
+async function createSessionFlagOnce({ sessionId, flagType, details = null, flaggedBy = null }, tx = prisma) {
+  const existing = await tx.session_flag.findFirst({
+    where: {
+      exam_session_id: sessionId,
+      flag_type: flagType,
+    },
+    select: { id: true },
+  });
+
+  if (existing) return existing;
+
+  return tx.session_flag.create({
+    data: {
+      exam_session_id: sessionId,
+      flag_type: flagType,
+      details,
+      flagged_by: flaggedBy,
+    },
+  });
+}
+
 function getKatexCss() {
   const candidates = [
     path.resolve(__dirname, "../../node_modules/katex/dist/katex.min.css"),
@@ -2708,6 +2729,229 @@ module.exports = {
         }));
     },
 
+    // Dữ liệu tổng hợp cho màn hình giáo viên giám sát từng sinh viên trong một phiên thi
+    async getExamMonitorByClass(teacherId, classId, examInstanceId) {
+        const exam = await prisma.exam_instance.findFirst({
+            where: {
+                id: examInstanceId,
+                is_deleted: false,
+                exam_template: {
+                    class_id: classId,
+                    is_deleted: false,
+                    Renamedclass: {
+                        teacher_id: teacherId,
+                        is_deleted: false,
+                    },
+                },
+            },
+            select: {
+                id: true,
+                title: true,
+                starts_at: true,
+                ends_at: true,
+                published: true,
+                exam_template: {
+                    select: {
+                        title: true,
+                        duration_seconds: true,
+                        Renamedclass: {
+                            select: { id: true, name: true, code: true },
+                        },
+                    },
+                },
+                exam_question: {
+                    select: { question_id: true },
+                },
+            },
+        });
+
+        if (!exam) {
+            const err = new Error("Kỳ thi không tồn tại hoặc bạn không có quyền truy cập");
+            err.status = 404;
+            throw err;
+        }
+
+        const [enrollments, sessions, accommodations] = await Promise.all([
+            prisma.enrollment_request.findMany({
+                where: { class_id: classId, status: "approved" },
+                select: {
+                    requested_at: true,
+                    user_enrollment_request_student_idTouser: {
+                        select: { id: true, name: true, email: true },
+                    },
+                },
+                orderBy: { requested_at: "asc" },
+            }),
+            prisma.exam_session.findMany({
+                where: { exam_instance_id: examInstanceId },
+                select: {
+                    id: true,
+                    user_id: true,
+                    state: true,
+                    started_at: true,
+                    ends_at: true,
+                    ip_binding: true,
+                    focus_lost_count: true,
+                    last_heartbeat_at: true,
+                    answer: { select: { question_id: true } },
+                    session_flag: {
+                        select: {
+                            id: true,
+                            flag_type: true,
+                            details: true,
+                            created_at: true,
+                        },
+                        orderBy: { created_at: "desc" },
+                    },
+                    submission: {
+                        select: { id: true, created_at: true, graded_at: true },
+                        orderBy: { created_at: "desc" },
+                        take: 1,
+                    },
+                },
+            }),
+            prisma.accommodation.findMany({
+                where: { exam_instance_id: examInstanceId },
+                select: { user_id: true, extra_seconds: true, notes: true },
+            }),
+        ]);
+
+        const students = enrollments
+            .map((item) => item.user_enrollment_request_student_idTouser)
+            .filter(Boolean);
+        const studentIds = students.map((student) => student.id);
+        const sessionsByUserId = new Map(sessions.map((session) => [session.user_id, session]));
+        const accommodationsByUserId = new Map(accommodations.map((item) => [item.user_id, item]));
+        const sessionIds = sessions.map((session) => session.id);
+
+        const auditLogs = sessionIds.length
+            ? await prisma.audit_log.findMany({
+                where: {
+                    exam_session_id: { in: sessionIds },
+                    OR: [
+                        { source_ip: { not: null } },
+                        { user_agent: { not: null } },
+                    ],
+                },
+                select: {
+                    exam_session_id: true,
+                    source_ip: true,
+                    user_agent: true,
+                    created_at: true,
+                },
+                orderBy: { created_at: "desc" },
+            })
+            : [];
+
+        const latestAuditBySessionId = new Map();
+        for (const log of auditLogs) {
+            const current = latestAuditBySessionId.get(log.exam_session_id) || {};
+            latestAuditBySessionId.set(log.exam_session_id, {
+                source_ip: current.source_ip || log.source_ip || null,
+                user_agent: current.user_agent || log.user_agent || null,
+            });
+        }
+
+        const now = new Date();
+        const totalQuestions = exam.exam_question.length;
+        const isOnlineFromHeartbeat = (lastHeartbeatAt) => {
+            if (!lastHeartbeatAt) return false;
+            return now.getTime() - new Date(lastHeartbeatAt).getTime() <= 60 * 1000;
+        };
+
+        const normalizeStatus = (session) => {
+            if (!session || session.state === "pending") return "not_started";
+            if (session.state === "locked") return "locked";
+            if (session.state === "submitted") return "submitted";
+            if (session.state === "expired") return "expired";
+            if (session.state === "started" && session.ends_at && now > session.ends_at) return "expired";
+            if (session.state === "started") return "in_progress";
+            return session.state || "not_started";
+        };
+
+        const monitorStudents = students.map((student) => {
+            const session = sessionsByUserId.get(student.id) || null;
+            const accommodation = accommodationsByUserId.get(student.id) || null;
+            const status = normalizeStatus(session);
+            const answeredCount = session?.answer?.length || 0;
+            const progressPercent = totalQuestions > 0
+                ? Math.round((answeredCount / totalQuestions) * 100)
+                : 0;
+            const flags = (session?.session_flag || []).map((flag) => ({
+                id: flag.id,
+                type: flag.flag_type,
+                flagType: flag.flag_type,
+                details: flag.details,
+                createdAt: flag.created_at,
+            }));
+            const audit = session ? latestAuditBySessionId.get(session.id) : null;
+            const isOnline = status === "in_progress" && isOnlineFromHeartbeat(session?.last_heartbeat_at);
+
+            return {
+                userId: student.id,
+                sessionId: session?.id || null,
+                fullName: student.name,
+                email: student.email,
+                status,
+                startedAt: session?.started_at || null,
+                submittedAt: session?.submission?.[0]?.created_at || null,
+                endsAt: session?.ends_at || null,
+                extraTime: accommodation?.extra_seconds || 0,
+                answeredCount,
+                totalQuestions,
+                progressPercent,
+                focusLostCount: session?.focus_lost_count || 0,
+                lastHeartbeatAt: session?.last_heartbeat_at || null,
+                isOnline,
+                ipBinding: session?.ip_binding || null,
+                lastIp: audit?.source_ip || null,
+                userAgent: audit?.user_agent || null,
+                flags,
+            };
+        });
+
+        const recentFlags = monitorStudents
+            .flatMap((student) => student.flags.map((flag) => ({
+                ...flag,
+                student: {
+                    userId: student.userId,
+                    fullName: student.fullName,
+                    email: student.email,
+                },
+                sessionId: student.sessionId,
+                status: student.status,
+            })))
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 20);
+
+        const summary = {
+            total: studentIds.length,
+            notStarted: monitorStudents.filter((student) => student.status === "not_started").length,
+            inProgress: monitorStudents.filter((student) => student.status === "in_progress").length,
+            submitted: monitorStudents.filter((student) => student.status === "submitted").length,
+            locked: monitorStudents.filter((student) => student.status === "locked").length,
+            flagged: monitorStudents.filter((student) => student.flags.length > 0).length,
+            offline: monitorStudents.filter((student) => student.status === "in_progress" && !student.isOnline).length,
+        };
+
+        return {
+            exam: {
+                id: exam.id,
+                title: exam.title || exam.exam_template.title,
+                templateTitle: exam.exam_template.title,
+                startsAt: exam.starts_at,
+                endsAt: exam.ends_at,
+                published: exam.published,
+                durationSeconds: exam.exam_template.duration_seconds,
+                class: exam.exam_template.Renamedclass,
+            },
+            summary,
+            students: monitorStudents,
+            recentFlags,
+            generatedAt: now,
+        };
+    },
+
     // Khóa thủ công một phiên thi
     async lockExamSession(sessionId, teacherId, reason) {
         const session = await prisma.exam_session.findFirst({
@@ -2741,13 +2985,11 @@ module.exports = {
             data: { state: "locked", updated_at: new Date() },
         });
 
-        await prisma.session_flag.create({
-            data: {
-                exam_session_id: sessionId,
-                flag_type: "manual_lock",
-                details: { reason: reason || "Giáo viên khóa thủ công" },
-                flagged_by: teacherId,
-            },
+        await createSessionFlagOnce({
+            sessionId,
+            flagType: "manual_lock",
+            details: { reason: reason || "Giáo viên khóa thủ công" },
+            flaggedBy: teacherId,
         });
 
         return { sessionId, state: "locked" };
@@ -2790,16 +3032,18 @@ module.exports = {
 
         await prisma.exam_session.update({
             where: { id: sessionId },
-            data: { state: "started", updated_at: new Date() },
+            data: {
+                state: "started",
+                focus_lost_count: 0,
+                updated_at: new Date(),
+            },
         });
 
-        await prisma.session_flag.create({
-            data: {
-                exam_session_id: sessionId,
-                flag_type: "manual_unlock",
-                details: { reason: reason || "Giáo viên mở khóa thủ công" },
-                flagged_by: teacherId,
-            },
+        await createSessionFlagOnce({
+            sessionId,
+            flagType: "manual_unlock",
+            details: { reason: reason || "Giáo viên mở khóa thủ công" },
+            flaggedBy: teacherId,
         });
 
         return { sessionId, state: "started" };

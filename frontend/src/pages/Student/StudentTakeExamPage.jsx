@@ -43,6 +43,14 @@ const StudentTakeExamPage = () => {
     
     const [savingAnswers, setSavingAnswers] = useState({});
 
+    const handleLockedSession = () => {
+        clearInterval(timerRef.current);
+        clearInterval(heartbeatRef.current);
+        localStorage.removeItem(`exam_session_${examId}`);
+        showAlert("Phiên thi đã bị khóa", "Bạn không thể tiếp tục làm bài. Vui lòng liên hệ giáo viên.");
+        navigate(backPath);
+    };
+
     // --- 1. KHỞI TẠO BÀI THI ---
     useEffect(() => {
         if (isInitRef.current) return;
@@ -252,7 +260,13 @@ const StudentTakeExamPage = () => {
         heartbeatRef.current = setInterval(() => {
             studentService.sendHeartbeat(sessionData.session_id, sessionData.token, false)
                 .then(handleHeartbeatResponse)
-                .catch(err => console.error("Heartbeat error", err));
+                .catch(err => {
+                    if (err.response?.status === 423 || err.response?.data?.locked) {
+                        handleLockedSession();
+                        return;
+                    }
+                    console.error("Heartbeat error", err);
+                });
         }, 30000);
 
         // 2. Bắt sự kiện rời tab (Focus lost)
@@ -261,7 +275,13 @@ const StudentTakeExamPage = () => {
                 console.warn("Cảnh báo: Phát hiện rời tab!");
                 studentService.sendHeartbeat(sessionData.session_id, sessionData.token, true)
                     .then(handleHeartbeatResponse) // <-- Xử lý nếu bị khóa ngay lập tức
-                    .catch(err => console.error("Focus lost error", err));
+                    .catch(err => {
+                        if (err.response?.status === 423 || err.response?.data?.locked) {
+                            handleLockedSession();
+                            return;
+                        }
+                        console.error("Focus lost error", err);
+                    });
             }
         };
 

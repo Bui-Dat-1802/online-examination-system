@@ -33,6 +33,13 @@ const teacherService = {
         );
     },
 
+    // Dữ liệu tổng hợp cho trang giám sát phiên thi
+    getExamMonitor(classId, examInstanceId) {
+        return axiosClient.get(
+            `/teacher/classes/${classId}/exam-instances/${examInstanceId}/monitor`
+        );
+    },
+
     // Vi phạm
     getClassFlags(examInstanceId) {
         return axiosClient.get(`/teacher/classes/${examInstanceId}/flags`);

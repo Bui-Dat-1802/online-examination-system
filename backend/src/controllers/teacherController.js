@@ -983,6 +983,19 @@ module.exports = {
         }
     },
 
+    // Lấy dữ liệu tổng hợp cho trang giám sát phiên thi
+    async getExamMonitorByClass(req, res, next) {
+        try {
+            const teacherId = req.user.id;
+            const classId = req.params.classId;
+            const examInstanceId = req.params.examInstanceId;
+            const monitor = await teacherService.getExamMonitorByClass(teacherId, classId, examInstanceId);
+            res.json(monitor);
+        } catch (error) {
+            next(error);
+        }
+    },
+
     // Lấy thông tin dashboard của giáo viên
     async getDashboard(req, res, next) {
         try {

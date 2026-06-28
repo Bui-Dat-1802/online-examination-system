@@ -37,6 +37,7 @@ import TeacherExamInstanceFormPage from './pages/Teacher/TeacherExamInstanceForm
 import TeacherExamInstanceDetailPage from './pages/Teacher/TeacherExamInstanceDetailPage';
 // Quan ly phien thi
 import ClassExamSessionPage from './pages/Teacher/ClassExamSessionPage';
+import ExamStudentMonitorPage from './pages/Teacher/ExamStudentMonitorPage';
 // trang cho student
 import StudentClassesPage from './pages/Student/StudentClassesPage';
 import StudentClassExamsPage from './pages/Student/StudentClassExamsPage';
@@ -87,6 +88,7 @@ function App() {
               <Route path="exam-templates/:templateId/exams/:examId/edit" element={<TeacherExamInstanceFormPage />} />
               <Route path="exam-templates/:templateId" element={<TeacherExamInstancesPage />} />
               <Route path="classes/:classId/exams/:examInstanceId" element={<ClassExamSessionPage />} />
+              <Route path="classes/:classId/exams/:examInstanceId/students" element={<ExamStudentMonitorPage />} />
             </Route>
 
             {/* --- NHÓM ROUTE ADMIN --- */}

@@ -43,6 +43,27 @@ function formatSessionQuestions(examQuestions, answerMap = new Map()) {
     });
 }
 
+async function createSessionFlagOnce({ sessionId, flagType, details = null, flaggedBy = null }, tx = prisma) {
+    const existing = await tx.session_flag.findFirst({
+        where: {
+            exam_session_id: sessionId,
+            flag_type: flagType,
+        },
+        select: { id: true },
+    });
+
+    if (existing) return existing;
+
+    return tx.session_flag.create({
+        data: {
+            exam_session_id: sessionId,
+            flag_type: flagType,
+            details,
+            flagged_by: flaggedBy,
+        },
+    });
+}
+
 async function ensureSessionOrder(session, examInstance, tx = prisma) {
     const hasQuestionOrder = Array.isArray(session.question_order) && session.question_order.length > 0;
     const hasChoiceOrder = session.choice_order && typeof session.choice_order === "object";
@@ -747,35 +768,32 @@ module.exports = {
 
         // đếm mất focus
         const focusLost = !!payload.focusLost;
-        const threshold = Number(process.env.EXAM_FOCUS_LOST_THRESHOLD || 100000);
+        const threshold = Number(process.env.EXAM_FOCUS_LOST_THRESHOLD || 5);
         let locked = false;
         if (focusLost) {
             updates.focus_lost_count = session.focus_lost_count + 1;
             if (updates.focus_lost_count >= threshold) {
                 updates.state = "locked";
                 locked = true;
-                await prisma.session_flag.create({
-                    data: {
-                        exam_session_id: sessionId,
-                        flag_type: "focus_lost_threshold",
-                        details: { count: updates.focus_lost_count, threshold },
-                        flagged_by: null,
-                    },
+                await createSessionFlagOnce({
+                    sessionId,
+                    flagType: "focus_lost_threshold",
+                    details: { count: updates.focus_lost_count, threshold },
+                    flaggedBy: null,
                 });
             }
-        }
 
-        // audit log
-        await prisma.audit_log.create({
-            data: {
-                event_type: "TAB_SWITCH",
-                exam_session_id: sessionId,
-                user_id: studentId,
-                payload: "Người dùng đã chuyển tab hoặc mất focus cửa sổ lần thứ " + (focusLost ? updates.focus_lost_count : 0),
-                source_ip: payload.ip || null,
-                user_agent: payload.userAgent || null,
-            },
-        });
+            await prisma.audit_log.create({
+                data: {
+                    event_type: "TAB_SWITCH",
+                    exam_session_id: sessionId,
+                    user_id: studentId,
+                    payload: "Người dùng đã chuyển tab hoặc mất focus cửa sổ lần thứ " + updates.focus_lost_count,
+                    source_ip: payload.ip || null,
+                    user_agent: payload.userAgent || null,
+                },
+            });
+        }
 
         const updated = await prisma.exam_session.update({
             where: { id: sessionId },

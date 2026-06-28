@@ -22,6 +22,39 @@ async function createSessionFlagOnce({ sessionId, flagType, details = null, flag
   });
 }
 
+function normalizeClientIp(value) {
+  if (!value) return null;
+
+  let ip = String(value).trim();
+
+  if (ip.includes(",")) {
+    ip = ip.split(",")[0].trim();
+  }
+
+  if (ip.startsWith("::ffff:")) {
+    ip = ip.replace("::ffff:", "");
+  }
+
+  if (ip === "::1") {
+    return "127.0.0.1";
+  }
+
+  return ip || null;
+}
+
+function getClientIp(req) {
+  return normalizeClientIp(
+    req.headers["x-client-ip"] ||
+      req.headers["x-original-client-ip"] ||
+      req.headers["cf-connecting-ip"] ||
+      req.headers["x-real-ip"] ||
+      req.headers["x-forwarded-for"] ||
+      req.ip ||
+      req.socket?.remoteAddress ||
+      req.connection?.remoteAddress
+  );
+}
+
 // Middleware: validate X-Exam-Token for session routes.
 module.exports = async function examSessionMiddleware(req, res, next) {
   try {
@@ -71,7 +104,7 @@ module.exports = async function examSessionMiddleware(req, res, next) {
       throw err;
     }
 
-    const reqIp = req.ip;
+    const reqIp = getClientIp(req);
     const reqUA = req.headers["user-agent"] || "";
     const reqUAHash = crypto.createHash("sha256").update(reqUA).digest("hex");
 

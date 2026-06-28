@@ -3035,6 +3035,9 @@ module.exports = {
             data: {
                 state: "started",
                 focus_lost_count: 0,
+                ip_binding: null,
+                ua_hash: null,
+                allowed_tab_id: null,
                 updated_at: new Date(),
             },
         });

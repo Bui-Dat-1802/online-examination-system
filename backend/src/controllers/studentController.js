@@ -1,6 +1,39 @@
 const studentService = require("../services/studentService");
 const examSessionMiddleware = require("../middleware/examSession");
 
+function normalizeClientIp(value) {
+  if (!value) return null;
+
+  let ip = String(value).trim();
+
+  if (ip.includes(",")) {
+    ip = ip.split(",")[0].trim();
+  }
+
+  if (ip.startsWith("::ffff:")) {
+    ip = ip.replace("::ffff:", "");
+  }
+
+  if (ip === "::1") {
+    return "127.0.0.1";
+  }
+
+  return ip || null;
+}
+
+function getClientIp(req) {
+  return normalizeClientIp(
+    req.headers["x-client-ip"] ||
+      req.headers["x-original-client-ip"] ||
+      req.headers["cf-connecting-ip"] ||
+      req.headers["x-real-ip"] ||
+      req.headers["x-forwarded-for"] ||
+      req.ip ||
+      req.socket?.remoteAddress ||
+      req.connection?.remoteAddress
+  );
+}
+
 module.exports = {
     // Tham gia lớp học bằng mã lớp
     async joinClass(req, res, next) {
@@ -72,7 +105,7 @@ module.exports = {
             const studentId = req.user.id;
             const examId = req.params.id;
             const clientMeta = {
-                ip: req.ip,
+                ip: getClientIp(req),
                 userAgent: req.headers["user-agent"],
             };
             const sessionInfo = await studentService.startExam(studentId, examId, clientMeta);
@@ -105,7 +138,7 @@ module.exports = {
             const sessionId = req.params.id;
             const payload = {
                 focusLost: !!req.body?.focusLost,
-                ip: req.ip,
+                ip: getClientIp(req),
                 userAgent: req.headers["user-agent"],
             };
             const result = await studentService.heartbeatSession(sessionId, studentId, payload);

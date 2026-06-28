@@ -67,7 +67,7 @@ module.exports = async function examSessionMiddleware(req, res, next) {
       throw err;
     }
 
-    const session = await prisma.exam_session.findUnique({ where: { id: sessionId } });
+    let session = await prisma.exam_session.findUnique({ where: { id: sessionId } });
     if (!session) {
       const err = new Error("Phien lam bai khong ton tai");
       err.status = 404;
@@ -108,7 +108,33 @@ module.exports = async function examSessionMiddleware(req, res, next) {
     const reqUA = req.headers["user-agent"] || "";
     const reqUAHash = crypto.createHash("sha256").update(reqUA).digest("hex");
 
-    if (session.ip_binding && session.ip_binding !== reqIp) {
+    const rebindData = {};
+    if (!session.ip_binding && reqIp) {
+      rebindData.ip_binding = reqIp;
+    }
+    if (!session.ua_hash && reqUA) {
+      rebindData.ua_hash = reqUAHash;
+    }
+
+    if (Object.keys(rebindData).length > 0) {
+      session = await prisma.exam_session.update({
+        where: { id: sessionId },
+        data: { ...rebindData, updated_at: new Date() },
+      });
+
+      await prisma.audit_log.create({
+        data: {
+          event_type: "SESSION_REBIND",
+          exam_session_id: sessionId,
+          user_id: req.user.id,
+          payload: "Session IP/User-Agent binding refreshed",
+          source_ip: reqIp,
+          user_agent: reqUA,
+        },
+      });
+    }
+
+    if (reqIp && session.ip_binding && session.ip_binding !== reqIp) {
       await createSessionFlagOnce({
         sessionId,
         flagType: "multi_ip",

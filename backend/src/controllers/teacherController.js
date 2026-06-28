@@ -606,6 +606,7 @@ module.exports = {
             published,
             show_answers,
             scoring_mode,
+            title,
             questions,
             } = req.body || {};
 
@@ -675,6 +676,7 @@ module.exports = {
             published,
             show_answers,
             scoring_mode,
+            title,
             questions,
             };
 

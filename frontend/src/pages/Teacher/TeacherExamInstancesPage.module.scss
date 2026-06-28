@@ -64,9 +64,25 @@
     }
 }
 
-.examCode {
+.examIdentity {
+    min-width: 220px;
+}
+
+.examTitle,
+.examCardTitle {
+    color: #2f80ed;
+    font-weight: 800;
+    text-decoration: none;
+    word-break: break-word;
+}
+
+.examCode,
+.examCardCode {
+    display: block;
+    margin-top: 4px;
     font-family: monospace;
-    color: #007bff;
+    color: #667085;
+    font-size: 0.84rem;
     font-weight: 600;
     word-break: break-word;
 }
@@ -518,12 +534,12 @@
 .examCardTitle {
   display: inline-block;
   max-width: 100%;
-  color: #2f80ed;
   font-size: 1.08rem;
-  font-weight: 800;
-  font-family: monospace;
-  text-decoration: none;
   word-break: break-word;
+  margin-bottom: 4px;
+}
+
+.examCardCode {
   margin-bottom: 10px;
 }
 

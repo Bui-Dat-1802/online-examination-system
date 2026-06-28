@@ -147,6 +147,7 @@ module.exports = {
             },
             select: {
                 id: true,
+                title: true,
                 starts_at: true,
                 ends_at: true,
                 exam_template: {
@@ -194,7 +195,8 @@ module.exports = {
 
             return {
                 id: exam.id,
-                title: exam.exam_template.title,
+                title: exam.title || exam.exam_template.title,
+                template_title: exam.exam_template.title,
                 starts_at: exam.starts_at,
                 ends_at: exam.ends_at,
                 duration: exam.exam_template.duration_seconds,
@@ -250,6 +252,7 @@ module.exports = {
             },
             select: {
                 id: true,
+                title: true,
                 starts_at: true,
                 ends_at: true,
                 exam_template: {
@@ -311,7 +314,8 @@ module.exports = {
 
             return {
                 id: exam.id,
-                title: exam.exam_template.title,
+                title: exam.title || exam.exam_template.title,
+                template_title: exam.exam_template.title,
                 starts_at: exam.starts_at,
                 ends_at: exam.ends_at,
                 duration: exam.exam_template.duration_seconds,
@@ -1115,6 +1119,7 @@ module.exports = {
             },
             select: {
                 id: true,
+                title: true,
                 starts_at: true,
                 ends_at: true,
                 exam_template: {
@@ -1129,7 +1134,8 @@ module.exports = {
 
         const notAttempted = notAttemptedExams.map(e => ({
             examInstanceId: e.id,
-            title: e.exam_template.title,
+            title: e.title || e.exam_template.title,
+            template_title: e.exam_template.title,
             durationMinutes: Math.ceil(e.exam_template.duration_seconds / 60),
             starts_at: e.starts_at,
             ends_at: e.ends_at,

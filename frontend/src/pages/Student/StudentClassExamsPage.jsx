@@ -55,6 +55,8 @@ const StudentClassExamsPage = () => {
     const formatDate = (value) => new Date(value).toLocaleString('vi-VN');
     const formatMinutes = (seconds) => `${Math.max(1, Math.ceil((seconds || 0) / 60))} phút`;
 
+    const shouldShowTemplateTitle = (exam) => exam.template_title && exam.template_title !== exam.title;
+
     const getExamPriority = (exam) => {
         if (exam.status === 'ongoing' && !exam.submitted) return 0;
         if (exam.status === 'upcoming') return 1;
@@ -118,6 +120,9 @@ const StudentClassExamsPage = () => {
                                     <div className={styles.cardMain}>
                                         <div className={styles.titleRow}>
                                             <h3>{exam.title}</h3>
+                                            {shouldShowTemplateTitle(exam) && (
+                                                <p className={styles.templateTitle}>Mẫu đề: {exam.template_title}</p>
+                                            )}
                                         </div>
 
                                         <div className={styles.metaRow}>

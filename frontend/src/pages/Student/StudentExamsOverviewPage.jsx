@@ -30,6 +30,8 @@ const getActionLabel = (exam, canTakeExam) => {
     return 'Đã kết thúc';
 };
 
+const shouldShowTemplateTitle = (exam) => exam.template_title && exam.template_title !== exam.title;
+
 const getPriority = (exam) => {
     if (exam.status === 'ongoing' && !exam.submitted && !exam.session_state) return 0;
     if (exam.status === 'upcoming') return 1;
@@ -141,6 +143,9 @@ const StudentExamsOverviewPage = () => {
                 <div className={styles.cardMain}>
                     <div className={styles.cardTitleRow}>
                         <h3>{exam.title}</h3>
+                        {shouldShowTemplateTitle(exam) && (
+                            <p className={styles.templateTitle}>Mẫu đề: {exam.template_title}</p>
+                        )}
                     </div>
 
                     <div className={styles.metaGrid}>

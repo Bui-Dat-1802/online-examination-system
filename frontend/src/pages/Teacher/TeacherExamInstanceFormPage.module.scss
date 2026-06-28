@@ -44,6 +44,10 @@
 .settingsCard {
     padding: 24px;
     margin-bottom: 18px;
+
+    > .formGroup {
+        margin-bottom: 18px;
+    }
 }
 
 .row {

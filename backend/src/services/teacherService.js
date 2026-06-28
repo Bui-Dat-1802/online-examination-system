@@ -74,6 +74,14 @@ function normalizeInstanceQuestions(questions) {
   });
 }
 
+function normalizeOptionalText(value) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+
+  const text = String(value).trim();
+  return text || null;
+}
+
 function stripHtml(value = "") {
   return String(value).replace(/<[^>]+>/g, "").trim();
 }
@@ -2221,6 +2229,7 @@ module.exports = {
             const newExamInstance = await tx.exam_instance.create({
             data: {
                 template_id: instanceFields.templateId,
+                title: normalizeOptionalText(instanceFields.title),
                 starts_at: startDate,
                 ends_at: endDate,
                 show_answers: instanceFields.show_answers ?? false,
@@ -2421,6 +2430,10 @@ module.exports = {
 
             if (updateData.scoring_mode !== undefined) {
             iUpdate.scoring_mode = updateData.scoring_mode;
+            }
+
+            if (updateData.title !== undefined) {
+            iUpdate.title = normalizeOptionalText(updateData.title);
             }
 
             await tx.exam_instance.update({

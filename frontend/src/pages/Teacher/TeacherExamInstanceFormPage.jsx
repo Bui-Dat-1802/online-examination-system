@@ -6,6 +6,7 @@ import { useModal } from '../../context/ModalContext';
 import styles from './TeacherExamInstanceFormPage.module.scss';
 
 const initialForm = {
+    title: '',
     starts_at: '',
     ends_at: '',
     published: false,
@@ -50,6 +51,7 @@ const TeacherExamInstanceFormPage = () => {
                 if (examRes?.data) {
                     const exam = examRes.data;
                     setFormData({
+                        title: exam.title || '',
                         starts_at: toInputDateTime(exam.starts_at),
                         ends_at: toInputDateTime(exam.ends_at),
                         published: !!exam.published,
@@ -230,6 +232,7 @@ const TeacherExamInstanceFormPage = () => {
 
         const payload = {
             ...(isEditMode ? {} : { templateId }),
+            title: formData.title.trim() || null,
             starts_at: formatWithTimezone(new Date(formData.starts_at)),
             ends_at: formatWithTimezone(new Date(formData.ends_at)),
             published: formData.published,
@@ -300,6 +303,19 @@ const TeacherExamInstanceFormPage = () => {
 
             <form onSubmit={handleSubmit}>
                 <div className={styles.settingsCard}>
+                    <div className={styles.formGroup}>
+                        <label>Tên đề thi / Tên đợt thi</label>
+                        <input
+                            type="text"
+                            name="title"
+                            value={formData.title}
+                            onChange={handleInputChange}
+                            placeholder={templateInfo?.title ? `Ví dụ: ${templateInfo.title} - Chương 1` : 'Ví dụ: Chương 1 - Tổng quan'}
+                            maxLength="255"
+                        />
+                        <small className={styles.helpText}>Nên đặt tên để dễ phân biệt các đề thi được tạo từ cùng một mẫu.</small>
+                    </div>
+
                     <div className={styles.row}>
                         <div className={styles.formGroup}>
                             <label>Bắt đầu *</label>

@@ -39,7 +39,8 @@ const TeacherExamInstancesPage = () => {
     }, [templateId]);
 
     const formatDate = (str) => new Date(str).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-    const getExamLabel = (exam) => exam.title || exam.id.substring(0, 8);
+    const getShortCode = (exam) => exam.id.substring(0, 8);
+    const getExamLabel = (exam) => exam.title || templateInfo?.title || getShortCode(exam);
 
     const renderStatusBadge = (exam) => (
         <span className={`${styles.badge} ${exam.published ? styles.pub : styles.draft}`}>
@@ -117,7 +118,7 @@ const TeacherExamInstancesPage = () => {
                         <table className={styles.dataTable}>
                             <thead>
                                 <tr>
-                                    <th>ID Đề thi</th>
+                                    <th>Tên đề thi</th>
                                     <th>Bắt đầu</th>
                                     <th>Kết thúc</th>
                                     <th>Trạng thái</th>
@@ -128,8 +129,14 @@ const TeacherExamInstancesPage = () => {
                             <tbody>
                                 {exams.length > 0 ? pagedExams.map((exam) => (
                                     <tr key={exam.id}>
-                                        <td data-label="ID Đề thi" className={styles.examCode}>
-                                            {getExamLabel(exam)}
+                                        <td data-label="Tên đề thi" className={styles.examIdentity}>
+                                            <Link
+                                                className={styles.examTitle}
+                                                to={`/teacher/exam-templates/${templateId}/exams/${exam.id}/detail`}
+                                            >
+                                                {getExamLabel(exam)}
+                                            </Link>
+                                            <span className={styles.examCode}>Mã: {getShortCode(exam)}</span>
                                         </td>
                                         <td data-label="Bắt đầu">{formatDate(exam.starts_at)}</td>
                                         <td data-label="Kết thúc">{formatDate(exam.ends_at)}</td>
@@ -155,6 +162,7 @@ const TeacherExamInstancesPage = () => {
                                         >
                                             {getExamLabel(exam)}
                                         </Link>
+                                        <span className={styles.examCardCode}>Mã: {getShortCode(exam)}</span>
                                         <div className={styles.examCardMeta}>
                                             <span>Bắt đầu: {formatDate(exam.starts_at)}</span>
                                             <span>Kết thúc: {formatDate(exam.ends_at)}</span>

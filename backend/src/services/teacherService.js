@@ -1356,8 +1356,28 @@ module.exports = {
     async getEnrollmentRequests(classId, teacherId) {
         const requests = await prisma.enrollment_request.findMany({
             where: { class_id: classId, status: "pending", Renamedclass: { teacher_id: teacherId } },
+            orderBy: { requested_at: "desc" },
+            select: {
+                id: true,
+                class_id: true,
+                student_id: true,
+                status: true,
+                note: true,
+                requested_at: true,
+                user_enrollment_request_student_idTouser: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+            },
         });
-        return requests;
+        return requests.map((request) => ({
+            ...request,
+            studentInfo: request.user_enrollment_request_student_idTouser,
+            user_enrollment_request_student_idTouser: undefined,
+        }));
     },
     async addStudentToClass(teacherId, classId, email) {
         const normalizedEmail = String(email || "").trim().toLowerCase();

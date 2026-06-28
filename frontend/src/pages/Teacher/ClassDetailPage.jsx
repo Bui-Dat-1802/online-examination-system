@@ -306,6 +306,17 @@ const ClassDetailPage = () => {
     if (!classData) return null;
 
     const { classInfo, listStudent } = classData;
+    const getRequestStudent = (request) => {
+        const student = request.studentInfo || request.user_enrollment_request_student_idTouser || {};
+        const name = student.name || request.student_name || 'Sinh viên chưa cập nhật tên';
+        const email = student.email || request.student_email || '';
+
+        return {
+            name,
+            email,
+            initial: (name || email || 'S').trim().charAt(0).toUpperCase(),
+        };
+    };
 
     return (
         // XÓA: .layout, .sidebar, .mainContent, <TopHeader>
@@ -334,35 +345,49 @@ const ClassDetailPage = () => {
                                 {requests.length === 0 ? (
                                     <p className={styles.emptyNoti}>Không có yêu cầu nào.</p>
                                 ) : (
-                                    requests.map(req => (
-                                        <div key={req.id} className={styles.requestItem}>
-                                            <div className={styles.reqInfo}>
-                                                <strong style={{ wordBreak: 'break-all' }}>
-                                                    Student-ID: {req.student_id}
-                                                </strong>
-                                                {req.note && <p className={styles.reqNote}>"{req.note}"</p>}
-                                                <span className={styles.reqTime}>
-                                                    {new Date(req.requested_at).toLocaleDateString('vi-VN')}
-                                                </span>
+                                    requests.map(req => {
+                                        const student = getRequestStudent(req);
+
+                                        return (
+                                            <div key={req.id} className={styles.requestItem}>
+                                                <div className={styles.reqAvatar} aria-hidden="true">
+                                                    {student.initial}
+                                                </div>
+                                                <div className={styles.reqInfo}>
+                                                    <strong title={student.name}>{student.name}</strong>
+                                                    {student.email ? (
+                                                        <span className={styles.reqEmail} title={student.email}>
+                                                            {student.email}
+                                                        </span>
+                                                    ) : (
+                                                        <span className={styles.reqEmail}>
+                                                            ID: {req.student_id}
+                                                        </span>
+                                                    )}
+                                                    {req.note && <p className={styles.reqNote}>"{req.note}"</p>}
+                                                    <span className={styles.reqTime}>
+                                                        Gửi ngày {new Date(req.requested_at).toLocaleDateString('vi-VN')}
+                                                    </span>
+                                                </div>
+                                                <div className={styles.reqActions}>
+                                                    <button
+                                                        className={styles.btnApprove}
+                                                        title="Duyệt"
+                                                        onClick={() => handleProcessRequest(req.id, 'approved')}
+                                                    >
+                                                        <i className="fa-solid fa-check"></i>
+                                                    </button>
+                                                    <button
+                                                        className={styles.btnReject}
+                                                        title="Từ chối"
+                                                        onClick={() => handleProcessRequest(req.id, 'rejected')}
+                                                    >
+                                                        <i className="fa-solid fa-xmark"></i>
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div className={styles.reqActions}>
-                                                <button
-                                                    className={styles.btnApprove}
-                                                    title="Duyệt"
-                                                    onClick={() => handleProcessRequest(req.id, 'approved')}
-                                                >
-                                                    <i className="fa-solid fa-check"></i>
-                                                </button>
-                                                <button
-                                                    className={styles.btnReject}
-                                                    title="Từ chối"
-                                                    onClick={() => handleProcessRequest(req.id, 'rejected')}
-                                                >
-                                                    <i className="fa-solid fa-xmark"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </div>
                         </div>

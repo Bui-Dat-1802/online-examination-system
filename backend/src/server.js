@@ -1,4 +1,8 @@
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({
+  path: path.resolve(__dirname, "../.env"),
+  override: true,
+});
 const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
@@ -22,6 +26,8 @@ const io = new Server(server, {
 });
 
 const PORT = process.env.PORT || 3000;
+console.log("EMAIL_USER loaded:", Boolean(process.env.EMAIL_USER));
+console.log("EMAIL_PASS loaded:", Boolean(process.env.EMAIL_PASS));
 
 // Middlewares
 app.use(cors());

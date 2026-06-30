@@ -1,1410 +1,2642 @@
-# TÀI LIỆU API
+# TÀI LIỆU API BACKEND - ONLINE EXAMINATION SYSTEM
 
-# API: Đăng ký & Đăng nhập
+Tài liệu này được cập nhật theo code backend hiện tại trong `backend/src` và `backend/prisma/schema.prisma`.
 
-Tài liệu này mô tả các endpoint cơ bản để **đăng ký (register)**, **đăng nhập (login)**, **lấy thông tin user hiện tại**, và **refresh token**. 
+- Local Base URL: `http://localhost:3000/api`
+- Production Base URL: chưa thấy cấu hình domain thật trong repo, dùng placeholder khi triển khai: `https://<your-production-domain>/api`
+- Xác thực REST: gửi header `Authorization: Bearer <accessToken>` cho API cần đăng nhập.
+- API phiên thi của sinh viên còn cần header `X-Exam-Token: <session token>` sau khi gọi API bắt đầu thi.
+- Response lỗi chung từ error handler:
 
----
-
-## Tổng quan
-
-- **Base URL (prod):** `https://api.example.com/`
-- **Authentication:** Access token (Bearer JWT) cho các endpoint bảo vệ. Refresh token dùng để lấy access token mới.
-- **Response format:** JSON
-- **Time format:** ISO 8601 UTC (`2025-11-13T14:22:00Z`)
-
----
-
-## Quy ước chung
-
-- Header bắt buộc cho các request bảo vệ: `Authorization: Bearer <access_token>`
-- Content-Type cho request body: `application/json`
-- Mã lỗi chung: HTTP status + body dạng `{”error” :”MÔ TẢ LỖI“}`
-- Mã thành công chung: HTTP status + body dang {”message”:”MÔ TẢ THÀNH CÔNG”}
-
----
-
-## Endpoint 1 — Đăng ký user
-
-**POST** `/api/auth/register`
-
-- **Mô tả:** Tạo tài khoản mới.
-- **HTTP:** `POST`
-- **URL:** `/api/auth/register`
-- **Request body:**
-
-```php
+```json
 {
-    "email": "student1@gmail.com",
-    "name": "student11",
-    "password": "P@ss",
+  "error": "Mô tả lỗi"
+}
+```
+
+## Thuật ngữ
+
+- Quản trị viên: tài khoản role `admin`.
+- Giáo viên: tài khoản role `teacher`.
+- Sinh viên: tài khoản role `student`.
+- Mẫu đề thi: `exam_template`, chứa thông tin khuôn đề như lớp, tiêu đề, thời lượng, cấu hình trộn.
+- Ca thi/đề thi cụ thể: `exam_instance`, được tạo từ mẫu đề thi, có thời gian bắt đầu/kết thúc, trạng thái công bố, danh sách câu hỏi và điểm từng câu.
+- Phiên thi: `exam_session`, phiên làm bài của một sinh viên trong một ca thi.
+- Bài làm: `submission`, kết quả nộp bài và điểm của một phiên thi.
+- Giám sát: dữ liệu heartbeat, trạng thái phiên thi, cờ vi phạm trong `session_flag` và nhật ký trong `audit_log`.
+
+## Danh sách endpoint active
+
+### Auth / Đăng ký đăng nhập
+
+### Gửi OTP đăng ký
+
+- Method: POST
+- Endpoint: `/api/auth/register-request`
+- Quyền truy cập: Public
+- Mô tả: Tạo bản ghi đăng ký chờ xác nhận và gửi OTP qua email.
+- Params: Không có.
+- Query: Không có.
+- Body:
+```json
+{
+  "email": "student@example.com",
+  "password": "Password123",
+  "name": "Nguyễn Văn A",
+  "role_name": "student"
+}
+```
+- Response thành công:
+```json
+{
+  "message": "OTP has been sent to your email"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Missing required fields"
+}
+```
+- Ghi chú: Có thể gửi `role_id` thay cho `role_name`; nếu không gửi role thì mặc định là `student`.
+
+### Xác nhận OTP đăng ký
+
+- Method: POST
+- Endpoint: `/api/auth/register-confirm`
+- Quyền truy cập: Public
+- Mô tả: Xác nhận OTP và tạo tài khoản thật.
+- Params: Không có.
+- Query: Không có.
+- Body:
+```json
+{
+  "email": "student@example.com",
+  "otp": "123456"
+}
+```
+- Response thành công:
+```json
+{
+  "message": "User registered successfully",
+  "user_id": "uuid"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "OTP invalid"
+}
+```
+- Ghi chú: OTP hết hạn sau 5 phút, giới hạn 5 lần nhập sai.
+
+### Đăng nhập
+
+- Method: POST
+- Endpoint: `/api/auth/login`
+- Quyền truy cập: Public
+- Mô tả: Đăng nhập bằng email/mật khẩu, trả access token và refresh token.
+- Params: Không có.
+- Query: Không có.
+- Body:
+```json
+{
+  "email": "student@example.com",
+  "password": "Password123"
+}
+```
+- Response thành công:
+```json
+{
+  "message": "Login successful",
+  "user": {
+    "id": "uuid",
+    "email": "student@example.com",
+    "name": "Nguyễn Văn A",
     "role_name": "student"
+  },
+  "token": "jwt",
+  "refreshToken": "refresh-token"
 }
 ```
-
-- **Validations:**
-    - `email`: required, phải là email hợp lệ
-    - `password`: required, tối thiểu 8 ký tự, khuyến nghị có chữ hoa, chữ thường, số và ký tự đặc biệt
-    - `role_name` : gồm [student, teacher]
-- **Responses:**
-    - **201 Created**
-
+- Response lỗi:
 ```json
 {
-    "message": "User registered successfully"
+  "error": "Thông tin đăng nhập không hợp lệ"
 }
 ```
+- Ghi chú: Tài khoản bị khóa (`is_active=false`) sẽ trả lỗi 403.
 
-- **400 Bad Request** (ví dụ email đã tồn tại / validation failed)
+### Làm mới token
 
+- Method: POST
+- Endpoint: `/api/auth/refresh`
+- Quyền truy cập: Public
+- Mô tả: Kiểm tra refresh token, revoke token cũ và cấp cặp token mới.
+- Params: Không có.
+- Query: Không có.
+- Body:
 ```json
 {
-    "error": "Role not found for provided role_name: stucdent"
+  "refreshToken": "refresh-token"
 }
 ```
-
-Notes:
-
-- Hiển thị ra lỗi
-
----
-
-## Endpoint 2 — Đăng nhập
-
-**POST** `/api/auth/login`
-
-- **Mô tả:** Xác thực user, trả về access token (JWT) và refresh token.
-- **HTTP:** `POST`
-- **URL:** `/api/auth/login`
-- **Request body:**
-
+- Response thành công:
 ```json
 {
-
-"email": "user@example.com",
-
-"password": "P@ssw0rd!"
-
+  "user": {
+    "id": "uuid",
+    "email": "student@example.com"
+  },
+  "token": "new-jwt",
+  "refreshToken": "new-refresh-token"
 }
 ```
-
-- **Responses:**
-    - **200 OK**
-
+- Response lỗi:
 ```json
 {
-    "message": "Login successful",
-    "user": {
-        "id": "77122070-86a2-4bfb-9668-4ce95f3ef813",
-        "email": "test1@gmail.com",
-        "name": "student11",
-        "password_hash": "$2b$10$TQZruD9zHZfdYaIEOIq0uOJ8cqRFmfkmgHOTXo42PzIE/Hg25kKr6",
-        "role_name": "student"
-    },
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc3MTIyMDcwLTg2YTItNGJmYi05NjY4LTRjZTk1ZjNlZjgxMyIsImlhdCI6MTc2NDU5NTIzMCwiZXhwIjoxNzY1MjAwMDMwfQ.7R8qmxI1jbXc2-ckG8DIkIDO8ql7ukBkdU-38mzuYWo",
-    "refreshToken": "59c70737244349ff9a02a0350194fbd4208490e85d6ad33bf62fbbe88e763fc247f850d9401f63674541180384663415167c03de46fcf31cb591ba4209e069e1"
+  "error": "Invalid or expired refresh token"
 }
 ```
+- Ghi chú: Refresh token được rotate sau mỗi lần gọi thành công.
 
-- **401 Unauthorized** (sai email/password)
+### Đăng xuất
 
+- Method: POST
+- Endpoint: `/api/auth/logout`
+- Quyền truy cập: Public
+- Mô tả: Revoke refresh token.
+- Params: Không có.
+- Query: Không có.
+- Body:
 ```json
 {
-    "error": "Invalid credentials"
+  "refreshToken": "refresh-token"
 }
 ```
-
-- **403 Forbidden** (tài khoản chưa verify email)
-
-Security notes:
-
-- Không gửi access token qua URL params.
-- Access token ngắn hạn (ví dụ 1 giờ). Refresh token dài hơn và phải lưu an toàn (HttpOnly cookie hoặc secure store trên mobile).
-
----
-
-## Endpoint 3 — Refresh token
-
-**POST** `/api/auth/refresh`
-
-- **Mô tả:** Dùng refresh token để lấy access token mới.
-- **HTTP:** `POST`
-- **URL:** `/api/auth/refresh`
-- **Request body:**
-
+- Response thành công: HTTP 204, không có body.
+- Response lỗi:
 ```json
 {
-    "refreshToken":"48f14682ac9932d837b661f1696fb943049dd3909a2407a74f13b2cc20db956c4f142cca5f69d3dcd9ed5e9d826e69823039beeb896b755cf08c805d4f859fc5"
+  "error": "refreshToken required"
 }
 ```
+- Ghi chú: Endpoint không yêu cầu access token trong router hiện tại.
 
-- **Responses:**
-    - **200 OK**
+### Gửi OTP quên mật khẩu
 
+- Method: POST
+- Endpoint: `/api/auth/forgot-password`
+- Quyền truy cập: Public
+- Mô tả: Gửi OTP đặt lại mật khẩu tới email đã tồn tại.
+- Params: Không có.
+- Query: Không có.
+- Body:
 ```json
 {
-    "user": {
-        "id": "77122070-86a2-4bfb-9668-4ce95f3ef813",
-        "email": "test1@gmail.com",
-        "name": "student11",
-        "role_name": "student"
-    },
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijc3MTIyMDcwLTg2YTItNGJmYi05NjY4LTRjZTk1ZjNlZjgxMyIsImlhdCI6MTc2NDU5NjQ4NCwiZXhwIjoxNzY1MjAxMjg0fQ._gt8XhQqdXpwL7KvmzxKu4BWtBZS_urUqBr3KNKRB6w",
-    "refreshToken": "f0136affbfb5475e89282548192c8b608690efe5995271909c9b6ac3701acad7c752881078d2e0a9dedfc14ce81f1aedabcde1847e6c4aaee592af32b4d799d3"
+  "email": "student@example.com"
 }
 ```
-
-- **401 Unauthorized** (refresh token invalid/expired) — yêu cầu user đăng nhập lại.
-
-Implementation options:
-
-- **Cookie-based:** server trả refresh token trong HttpOnly Secure cookie, client gửi cookie tự động.
-- **Token-based:** client lưu refresh token và gửi trong body khi gọi `/api/auth/refresh`.
-
----
-
-## Endpoint 4 — Lấy profile user hiện tại
-
-**GET`/api/users/me`**
-
-- **Mô tả:** Trả về thông tin user đang xác thực.
-- **HTTP:** `GET`
-- **URL:** **`/auth/users/me`**
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Responses:**
-    - **200 OK**
-
+- Response thành công:
 ```json
 {
-    "id": "77122070-86a2-4bfb-9668-4ce95f3ef813",
-    "email": "test1@gmail.com",
-    "name": "student11",
-    "password_hash": "$2b$10$TQZruD9zHZfdYaIEOIq0uOJ8cqRFmfkmgHOTXo42PzIE/Hg25kKr6",
-    "role_id": "b5660a5d-d656-408e-9fb8-ad96f1d86eaa",
-    "is_active": true,
-    "created_at": "2025-12-01T13:19:48.684Z",
-    "updated_at": "2025-12-01T13:19:48.684Z",
-    "last_login_at": null,
-    "bio": null
+  "message": "OTP has been sent to your email"
 }
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
----
-
-## Endpoint 5 — Update profile user hiện tại
-
-**PUT `/api/users/update`**
-
-- **Mô tả:** cập nhật thông tin người dùng
-- **HTTP:** PUT
-- **URL:** **`/auth/users/update`**
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Request body:**
-
+- Response lỗi:
 ```json
 {
-    "name":"HEELLO",
-    "bio":"UPDATE BIO",
-    "password":"123"
+  "error": "Email not found"
 }
 ```
+- Ghi chú: OTP reset mật khẩu hết hạn sau 5 phút.
 
-- **Response body**
+### Đặt lại mật khẩu bằng OTP
 
+- Method: POST
+- Endpoint: `/api/auth/reset-password`
+- Quyền truy cập: Public
+- Mô tả: Xác thực OTP và cập nhật mật khẩu mới.
+- Params: Không có.
+- Query: Không có.
+- Body:
 ```json
 {
-    "message": "User updated successfully"
+  "email": "student@example.com",
+  "otp": "123456",
+  "newPassword": "NewPassword123"
 }
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response thành công:
 ```json
 {
-    "error": "Unauthorized"
+  "message": "Password reset successfully"
 }
 ```
-
-- **Lưu ý: các trường update có thể có hoặc không**
-
----
-
-## Endpoint 6 — Thay đổi mật khẩu
-
-**PUT `/api/users/update-password`**
-
-- **Mô tả:** cập nhật mật khẩu người dùng
-- **HTTP:** PUT
-- **URL:** **`/auth/users/update-password`**
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Request body:**
-
+- Response lỗi:
 ```json
 {
-    "password":"123",
-    "oldPassword":"123",
-    "confirmPassword":"123"
+  "error": "OTP invalid or expired"
 }
 ```
+- Ghi chú: Sau khi đặt lại thành công, OTP được xóa khỏi user.
 
-- **Response body**
+### Tìm kiếm lớp học theo tên
 
-```json
-{
-    "message": "Cập nhật mật khẩu thành công"
-}
-```
-
-- **401 Unauthorized** (missing/invalid token)
-
-```json
-{
-    "error": "Unauthorized"
-}
-```
-
----
-
-## Endpoint 7 — Tạo lớp học mới (Dành cho giáo viên)
-
-**POST `/api/teacher/classes`**
-
-- **Mô tả: Tạo lớp học mới gồm tên và mô tả**
-- **HTTP:** POST
-- **URL:** `/api/teacher/classes`
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Request body:**
-
-```json
-{
-    "name":"Tin học đại cương",
-    "description":"Học lâp trình vào sáng t6"
-}
-```
-
-- **Response body:**
-
-```json
-{
-    "newClass": {
-        "id": "dfbcd5a0-7b47-4bdb-a15a-ec5b162ffb5b",
-        "teacher_id": "2f5d4ab2-d9a9-43f7-9175-9ec7f1ccc37c",
-        "name": "Tin học đại cương",
-        "code": "wyld1h50",
-        "description": "Học lâp trình vào sáng t6",
-        "created_at": "2025-12-05T11:33:34.257Z",
-        "updated_at": "2025-12-05T11:33:34.257Z"
-    },
-    "message": "Lớp học đã được tạo thành công"
-}
-```
-
-- **401 Unauthorized** (missing/invalid token)
-
-```json
-{
-    "error": "Unauthorized"
-}
-```
-
----
-
-## Endpoint 8 — Hiển thị danh sách lớp của giáo viên (Dành cho giáo viên)
-
-**GET`/api/teacher/classes`**
-
-- **Mô tả: hiển thị danh sách lớp của giáo viên khởi tạo**
-- **HTTP: GET**
-- **URL:** `/api/teacher/classes`
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Response body:**
-
+- Method: GET
+- Endpoint: `/api/auth/classes/search`
+- Quyền truy cập: Public
+- Mô tả: Tìm lớp theo tên, dùng trước khi sinh viên gửi yêu cầu tham gia lớp.
+- Params: Không có.
+- Query: `name` bắt buộc.
+- Body: Không có.
+- Response thành công:
 ```json
 [
-    {
-        "id": "a03cc090-d543-4474-96d5-1589d91f6027",
-        "teacher_id": "2f5d4ab2-d9a9-43f7-9175-9ec7f1ccc37c",
-        "name": "Mật mã ứng dụng",
-        "code": "tf7c2kbp",
-        "description": "Học sáng t3",
-        "created_at": "2025-12-02T01:28:39.768Z",
-        "updated_at": "2025-12-02T01:28:39.768Z"
-    },
-    {
-        "id": "7cc843fe-c081-40dc-ab17-5e1225eb8788",
-        "teacher_id": "2f5d4ab2-d9a9-43f7-9175-9ec7f1ccc37c",
-        "name": "Mật mã ứng dụng",
-        "code": "0cd6z39j",
-        "description": "Học sáng t3",
-        "created_at": "2025-12-02T01:29:07.409Z",
-        "updated_at": "2025-12-02T01:29:07.409Z"
-    },
-    {
-        "id": "ed874019-59a1-4f2f-9d73-53317cb39aac",
-        "teacher_id": "2f5d4ab2-d9a9-43f7-9175-9ec7f1ccc37c",
-        "name": "Mật mã ứng dụng",
-        "code": "cyp5dynw",
-        "description": "Học sáng t3",
-        "created_at": "2025-12-02T01:29:09.006Z",
-        "updated_at": "2025-12-02T01:29:09.006Z"
-    },
-    {
-        "id": "dfbcd5a0-7b47-4bdb-a15a-ec5b162ffb5b",
-        "teacher_id": "2f5d4ab2-d9a9-43f7-9175-9ec7f1ccc37c",
-        "name": "Tin học đại cương",
-        "code": "wyld1h50",
-        "description": "Học lâp trình vào sáng t6",
-        "created_at": "2025-12-05T11:33:34.257Z",
-        "updated_at": "2025-12-05T11:33:34.257Z"
-    }
+  {
+    "id": "uuid",
+    "name": "Lớp CNTT",
+    "code": "abc12345"
+  }
 ]
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response lỗi:
 ```json
 {
-    "error": "Unauthorized"
+  "error": "Vui lòng cung cấp tên lớp học để tìm kiếm"
 }
 ```
+- Ghi chú: Endpoint nằm trong `authRoutes`, không cần đăng nhập.
 
----
+## User chung
 
-## Endpoint 9 — Hiển thị chi tiết lớp theo ID (Dành cho giáo viên)
+### Lấy danh sách người dùng cơ bản
 
-**GET`/api/teacher/classes/:id`**
-
-- **Mô tả: hiển thị chi tiết lớp theo ID của giảng viên**
-- **HTTP: GET**
-- **URL:** `/api/teacher/classes/:id`
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Response body:**
-
-```json
-{
-    "classInfo": {
-        "id": "a03cc090-d543-4474-96d5-1589d91f6027", 
-        "teacher_id": "2f5d4ab2-d9a9-43f7-9175-9ec7f1ccc37c",
-        "name": "Mật mã ứng dụng",
-        "code": "tf7c2kbp",
-        "description": "Học sáng t3",
-        "created_at": "2025-12-02T01:28:39.768Z",
-        "updated_at": "2025-12-02T01:28:39.768Z"
-    },
-    "listStudent": [
-        {
-            "id": "4dcebb8b-0af9-4cb0-aea2-880bea25fca5",
-            "class_id": "a03cc090-d543-4474-96d5-1589d91f6027",
-            "student_id": "5d0ca9ae-d6f4-4633-8ca6-d41cf548d8fd",
-            "status": "approved",
-            "note": null,
-            "requested_at": "2025-12-02T02:01:49.561Z",
-            "reviewed_at": null,
-            "reviewed_by": null,
-            "studentInfo": {
-                "id": "5d0ca9ae-d6f4-4633-8ca6-d41cf548d8fd",
-                "email": "student1@gmail.com",
-                "name": "student11",
-                "role_name": "student"
-            }
-        }
-    ]
-}
-```
-
-- **401 Unauthorized** (missing/invalid token)
-
-```json
-{
-    "error": "Unauthorized"
-}
-```
-
-## Endpoint 10 — cập nhập thông tin lớp học theo ID lớp học ( dành cho giáo viên)
-
-**PUT`/api/teacher/classes/:id`**
-
-- **Mô tả: cập nhập thông tin lớp theo ID lớp học**
-- **HTTP: PUT**
-- **URL:** `/api/teacher/classes/:id`
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Request body:**
-
-```jsx
-{
-    "name":"Tin học đại cương 2",
-    "description":"Học lâp trình vào sáng t5"
-}
-```
-
-- **Response body:**
-
-```jsx
-{
-    "updatedClass": {
-        "id": "d072acb0-0407-497f-adca-fe54a0c97447",
-        "teacher_id": "a47756e3-57a3-4cc6-abf7-a7641203e96d",
-        "name": "Tin học đại cương 2",
-        "code": "fb93q6cn",
-        "description": "Học lâp trình vào sáng t5",
-        "created_at": "2025-12-06T14:46:48.875Z",
-        "updated_at": "2025-12-06T14:49:14.405Z"
-    },
-    "message": "Cập nhật lớp học thành công"
-}
-```
-
-**400 Bad Request** (sai ID lớp học)
-
-```jsx
-{
-    "error": "Cập nhật thất bại"
-}
-```
-
-## Endpoint 11 — Xóa lớp học theo ID lớp học (dành cho giáo viên)
-
-**DELETE`/api/teacher/classes/:id`**
-
-- **Mô tả: cập nhập thông tin lớp theo ID lớp học**
-- **HTTP: DELETE**
-- **URL:** `/api/teacher/classes/:id`
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Response body:**
-    
-    **204 No Content (thành công)**
-    
-    **400Bad Request**
-    
-    ```jsx
-    {
-        "error": "Xóa lớp học thất bại"
-    }
-    ```
-    
-
-## Endpoint 12 — Lấy danh sách yêu cầu tham gia lớp bằng ID lớp học (Dành cho giáo viên)
-
-**GET`/api/teacher/classes/:id/enrollment-requests`**
-
-- **Mô tả: Lấy danh sách yêu cầu tham gia lớp bằng ID lớp học**
-- **HTTP: GET**
-- **URL:** `/api/teacher/classes/:id/enrollment-requests`
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Response body:**
-    
-    **200 OK**
-    
-
-```jsx
-[
-    {
-        "id": "72935d82-c151-4ee5-b46d-6c88ba0fa27f",
-        "class_id": "8409b373-5deb-43c0-9a23-dfc0cc162f84",
-        "student_id": "92a15ea0-3b9a-4cf4-9a13-ff26597aa53d",
-        "status": "pending",
-        "note": "xin cô vào lớp",
-        "requested_at": "2025-12-06T15:19:31.916Z",
-        "reviewed_at": null,
-        "reviewed_by": null
-    }
-]
-```
-
-**400 Bad Request**
-
-```jsx
-{
-    "error": "Lấy danh sách yêu cầu tham gia lớp học thất bại"
-}
-```
-
-## Endpoint 13 — Phê duyệt hoặc từ chối yêu cầu tham gia lớp học (Dành cho giáo viên)
-
-**POST`/api/teacher/enrollment-requests/approve`**
-
-- **Mô tả: Phê duyệt hoặc từ chối yêu cầu tham gia lớp học**
-- **HTTP: POST**
-- **URL:** **`/api/teacher/enrollment-requests/approve`**
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Request body:**
-
-```jsx
-{
-    "status": "approved", // Hoặc rejected nếu từ chối 
-    "requestId": "72935d82-c151-4ee5-b46d-6c88ba0fa27f"
-
-}
-```
-
-- **Response body:**
-    
-    **200 OK**
-    
-
-```jsx
-{
-    "message": "Cập nhật trạng thái yêu cầu thành công"
-}
-```
-
-**400 Bad Request**
-
-```jsx
-{
-    "error": "Cập nhật trạng thái yêu cầu thất bại"
-}
-```
-
-## Endpoint 15 — Tạo câu hỏi ( Dành cho giáo viên)
-
-**POST`/api/teacher/questions`**
-
-- **Mô tả: Giáo viên tạo ngân hàng câu hỏi cho mình**
-- **HTTP: POST**
-- **URL:** **`/api/teacher/questions`**
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Request body:**
-
-```jsx
-{
-    "text": "2 + 2 = ?",
-    "tags": ["math"],
-    "difficulty": "easy",
-    "explanation": "Cộng 2 và 2",
-    "choices": [
-        { "order": 1,  "text": "3", "is_correct": false },
-        { "order": 2,  "text": "4", "is_correct": true }
-    ]
-}
-```
-
-- **Response body:**
-    
-    **201 Created**
-    
-
-```json
-{
-    "newQuestion": {
-        "id": "a8573bc2-7586-4fdc-9af3-db3ba88bfc84",
-        "owner_id": "2f5d4ab2-d9a9-43f7-9175-9ec7f1ccc37c",
-        "text": "2 + 2 = ?",
-        "explanation": "Cộng 2 và 2",
-        "tags": [
-            "math"
-        ],
-        "difficulty": "easy",
-        "created_at": "2025-12-13T01:38:48.043Z",
-        "updated_at": "2025-12-13T01:38:48.043Z",
-        "question_choice": [
-            {
-                "id": "1060eca9-cb40-43d1-a692-9e4db0ac1e2e",
-                "question_id": "a8573bc2-7586-4fdc-9af3-db3ba88bfc84",
-                "label": null,
-                "order": 1,
-                "text": "3",
-                "is_correct": false
-            },
-            {
-                "id": "3b0d447e-8ecd-4e38-bc9d-54849523d087",
-                "question_id": "a8573bc2-7586-4fdc-9af3-db3ba88bfc84",
-                "label": null,
-                "order": 2,
-                "text": "4",
-                "is_correct": true
-            }
-        ]
-    },
-    "message": "Câu hỏi đã được thêm thành công"
-}
-```
-
-- **401 Unauthorized** (missing/invalid token)
-
-```json
-{
-    "error": "Unauthorized"
-}
-```
-## Endpoint 16 — Lấy danh sách câu hỏi ( Dành cho giáo viên)
-
-**GET`/api/teacher/questions`**
-
-- **Mô tả: Giáo viên lấy ngân hàng câu hỏi của mình**
-- **HTTP: GET**
-- **URL:** **`/api/teacher/questions`**
-- **Headers:** `Authorization: Bearer <access_token>`
-
-- **Response body:**
-    
-    **200 OK**
-    
-
+- Method: GET
+- Endpoint: `/api/users`
+- Quyền truy cập: Authenticated
+- Mô tả: Lấy danh sách user cơ bản.
+- Params: Không có.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
 ```json
 [
-    
-    {
-        "id": "b8ff6f0f-2433-495d-b6fc-a79f2350402c",
-        "owner_id": "2f5d4ab2-d9a9-43f7-9175-9ec7f1ccc37c",
-        "text": "2 + 2 = ?",
-        "explanation": "Cộng 2 và 2",
-        "tags": [
-            "math"
-        ],
-        "difficulty": "easy",
-        "created_at": "2025-12-05T13:52:38.380Z",
-        "updated_at": "2025-12-05T13:52:38.380Z",
-        "question_choice": [
-            {
-                "id": "e5894dcf-adbf-4886-becc-019a422fceeb",
-                "question_id": "b8ff6f0f-2433-495d-b6fc-a79f2350402c",
-                "label": null,
-                "order": 1,
-                "text": "3",
-                "is_correct": false
-            },
-            {
-                "id": "fde3addc-44d4-4317-90a1-f599c2cd7234",
-                "question_id": "b8ff6f0f-2433-495d-b6fc-a79f2350402c",
-                "label": null,
-                "order": 2,
-                "text": "4",
-                "is_correct": true
-            }
-        ]
-    },
-    {
-        "id": "69466a53-87a1-46fd-b79e-c3adeb44efd0",
-        "owner_id": "2f5d4ab2-d9a9-43f7-9175-9ec7f1ccc37c",
-        "text": "2 + 2 = ?",
-        "explanation": "Cộng 2 và 2",
-        "tags": [
-            "math"
-        ],
-        "difficulty": "easy",
-        "created_at": "2025-12-05T13:50:54.612Z",
-        "updated_at": "2025-12-05T13:50:54.612Z",
-        "question_choice": [
-            {
-                "id": "12f92c68-0b10-47ed-ae4c-828e0df05d8d",
-                "question_id": "69466a53-87a1-46fd-b79e-c3adeb44efd0",
-                "label": null,
-                "order": 1,
-                "text": "3",
-                "is_correct": false
-            },
-            {
-                "id": "e4964087-78ae-4b46-81f3-244e3bb904b7",
-                "question_id": "69466a53-87a1-46fd-b79e-c3adeb44efd0",
-                "label": null,
-                "order": 2,
-                "text": "4",
-                "is_correct": true
-            }
-        ]
-    }
+  {
+    "name": "Nguyễn Văn A",
+    "bio": "Thông tin cá nhân",
+    "role_name": "student"
+  }
 ]
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response lỗi:
 ```json
 {
-    "error": "Unauthorized"
+  "error": "Không có quyền truy cập"
 }
 ```
+- Ghi chú: Route chỉ yêu cầu đăng nhập, không giới hạn role.
 
-## Endpoint 17 — Chỉnh sửa câu hỏi ( Dành cho giáo viên)
+### Lấy thông tin người dùng hiện tại
 
-**PUT`/api/teacher/questions/:id`**
-
-- **Mô tả: Giáo viên chỉnh sửa câu hỏi đã thêm vào ngân hàng câu hỏi. Trường nào muốn thay đổi thì sẽ thêm vào**
-- **HTTP: PUT**
-- **URL:** **`/api/teacher/questions/:id`**
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Request body:**
-
-```jsx
-{
-    "text": "4 + 100 = ?",
-    "tags": ["math"],
-    "difficulty": "easy",
-    "explanation": "Cộng 2 và 2",
-    "choices": [
-        { "order": 1,  "text": "102", "is_correct": true },
-        { "order": 2,  "text": "4", "is_correct": false }
-    ]
-}
-```
-
-- **Response body:**
-    
-    **200 Created**
-    
-
+- Method: GET
+- Endpoint: `/api/users/me`
+- Quyền truy cập: Authenticated
+- Mô tả: Lấy profile của user đang đăng nhập.
+- Params: Không có.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
 ```json
 {
-    "message": "Cập nhật câu hỏi thành công"
+  "id": "uuid",
+  "email": "user@example.com",
+  "name": "Nguyễn Văn A",
+  "bio": "Thông tin cá nhân"
 }
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response lỗi:
 ```json
 {
-    "error": "Unauthorized"
+  "error": "Không có quyền truy cập"
 }
 ```
-## Endpoint 18 — Xóa câu hỏi ( Dành cho giáo viên)
+- Ghi chú: Service `me` trả trực tiếp bản ghi user, có thể gồm `password_hash`.
 
-**DELETE`/api/teacher/questions/:id`**
+### Tạo người dùng
 
-- **Mô tả: Giáo viên xóa câu hỏi mà giáo viên đã từng thêm**
-- **HTTP: DELETE**
-- **URL:** **`/api/teacher/questions/:id`**
-- **Headers:** `Authorization: Bearer <access_token>`
-
-- **Response body:**
-    
-    **200 Created**
-    
-
+- Method: POST
+- Endpoint: `/api/users`
+- Quyền truy cập: Authenticated
+- Mô tả: Tạo user trực tiếp bằng `password_hash` và `role_id`.
+- Params: Không có.
+- Query: Không có.
+- Body:
 ```json
 {
-    "message": "Cập nhật câu hỏi thành công"
+  "email": "user@example.com",
+  "name": "Nguyễn Văn A",
+  "password_hash": "hashed-password",
+  "role_id": "uuid"
 }
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response thành công:
 ```json
 {
-    "error": "Unauthorized"
+  "id": "uuid",
+  "email": "user@example.com"
 }
 ```
-
-## Endpoint 19 — Lấy chi tiết câu hỏi theo ID ( Dành cho giáo viên)
-
-**GET`/api/teacher/questions/:id`**
-
-- **Mô tả: Giáo viên chỉnh sửa câu hỏi theo ID câu hỏi**
-- **HTTP: GET**
-- **URL:** **`/api/teacher/questions/:id`**
-- **Headers:** `Authorization: Bearer <access_token>`
-
-- **Response body:**
-    
-    **200 Ok**
-    
-
+- Response lỗi:
 ```json
 {
-    [
+  "error": "Không có quyền truy cập"
+}
+```
+- Ghi chú: Endpoint đang active nhưng chỉ nên dùng nội bộ/admin; code hiện chưa gắn middleware role admin.
+
+### Cập nhật profile hiện tại
+
+- Method: PUT
+- Endpoint: `/api/users/update`
+- Quyền truy cập: Authenticated
+- Mô tả: Cập nhật thông tin của user hiện tại.
+- Params: Không có.
+- Query: Không có.
+- Body:
+```json
+{
+  "name": "Nguyễn Văn A",
+  "bio": "Thông tin mới"
+}
+```
+- Response thành công:
+```json
+{
+  "message": "Cập nhật thông tin thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Không có quyền truy cập"
+}
+```
+- Ghi chú: Service chặn cập nhật trực tiếp `role_id` và `email`.
+
+### Đổi mật khẩu hiện tại
+
+- Method: PUT
+- Endpoint: `/api/users/update-password`
+- Quyền truy cập: Authenticated
+- Mô tả: Đổi mật khẩu bằng mật khẩu cũ.
+- Params: Không có.
+- Query: Không có.
+- Body:
+```json
+{
+  "oldPassword": "Password123",
+  "password": "NewPassword123",
+  "confirmPassword": "NewPassword123"
+}
+```
+- Response thành công:
+```json
+{
+  "message": "Cập nhật mật khẩu thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Mật khẩu cũ không đúng"
+}
+```
+- Ghi chú: `password` và `confirmPassword` phải trùng nhau.
+
+### Lấy người dùng theo ID
+
+- Method: GET
+- Endpoint: `/api/users/:id`
+- Quyền truy cập: Authenticated
+- Mô tả: Lấy thông tin cơ bản của một user theo ID.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "id": "uuid",
+  "email": "user@example.com",
+  "name": "Nguyễn Văn A",
+  "role_name": "student"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Người dùng không tồn tại"
+}
+```
+- Ghi chú: Không giới hạn role trong router hiện tại.
+
+### Xóa người dùng theo ID
+
+- Method: DELETE
+- Endpoint: `/api/users/:id`
+- Quyền truy cập: Authenticated
+- Mô tả: Xóa cứng user theo ID.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công: HTTP 204, không có body.
+- Response lỗi:
+```json
+{
+  "error": "Không có quyền truy cập"
+}
+```
+- Ghi chú: Endpoint đang active nhưng nguy hiểm; code hiện chưa gắn middleware role admin.
+
+## Admin
+
+### Lấy thống kê tổng quan
+
+- Method: GET
+- Endpoint: `/api/admin/statistics`
+- Quyền truy cập: Admin
+- Mô tả: Lấy thống kê tổng quan hệ thống.
+- Params: Không có.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "totalUsers": 10,
+  "totalClasses": 2,
+  "totalExams": 3
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Chỉ dành cho quản trị viên"
+}
+```
+- Ghi chú: Dữ liệu chi tiết lấy từ `adminService.getStatistics`.
+
+### Lấy danh sách người dùng
+
+- Method: GET
+- Endpoint: `/api/admin/users`
+- Quyền truy cập: Admin
+- Mô tả: Lấy danh sách người dùng có phân trang và bộ lọc.
+- Params: Không có.
+- Query: `role`, `status=active|locked`, `search`, `page`, `limit`.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "users": [
     {
-        "id": "d9e64199-f9f1-454a-a641-97e67e011bb9",
-        "owner_id": "a47756e3-57a3-4cc6-abf7-a7641203e96d",
-        "text": "TCP có phải là giao thức hướng kết nối không?",
-        "explanation": "TCP thực hiện quá trình bắt tay 3 bước để tạo kết nối trước khi truyền dữ liệu.",
-        "tags": [
-            "network",
-            "tcp",
-            "protocol"
-        ],
-        "difficulty": "medium",
-        "created_at": "2025-12-10T17:29:54.796Z",
-        "updated_at": "2025-12-10T17:29:54.796Z",
-        "question_choice": [
-            {
-                "id": "3eac3622-fb65-4cad-99f3-3e89ea08058f",
-                "question_id": "d9e64199-f9f1-454a-a641-97e67e011bb9",
-                "label": "A",
-                "order": 0,
-                "text": "Đúng",
-                "is_correct": true
-            },
-            {
-                "id": "4354609e-d05e-47b2-8c25-fbeb9656c967",
-                "question_id": "d9e64199-f9f1-454a-a641-97e67e011bb9",
-                "label": "B",
-                "order": 1,
-                "text": "Sai",
-                "is_correct": false
-            }
-        ]
+      "id": "uuid",
+      "email": "student@example.com",
+      "role": "student",
+      "status": "active"
     }
-]
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 1,
+    "totalPages": 1
+  }
 }
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response lỗi:
 ```json
 {
-    "error": "Unauthorized"
+  "error": "Chỉ dành cho quản trị viên"
 }
 ```
+- Ghi chú: Role là tên role trong bảng `auth_role`.
 
-## Endpoint 20 — Tạo đề thi  ( Dành cho giáo viên)
+### Lấy chi tiết người dùng
 
-**POST`/api/teacher/exam-instances`**
-
-- **Mô tả: Giáo viên tạo đề thi**
-- **HTTP: POST**
-- **URL:** **`/api/teacher/exam-instances`**
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Request body:**
-
-```jsx
+- Method: GET
+- Endpoint: `/api/admin/users/:id`
+- Quyền truy cập: Admin
+- Mô tả: Lấy thông tin chi tiết một người dùng.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
 {
-  "templateId": "c0b39423-8d22-42ae-b50f-48d4ee0923cf",         
-  "starts_at": "2025-12-15T08:00:00+07:00",     
-  "ends_at": "2025-12-15T09:30:00+07:00",          
+  "id": "uuid",
+  "email": "student@example.com",
+  "role": "student",
+  "status": "active",
+  "sessions": []
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "User not found"
+}
+```
+- Ghi chú: Response có thể gồm số lớp, số enrollment và refresh sessions.
+
+### Khóa tài khoản người dùng
+
+- Method: PUT
+- Endpoint: `/api/admin/users/:id/lock`
+- Quyền truy cập: Admin
+- Mô tả: Chuyển `is_active=false`.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "id": "uuid",
+  "status": "locked",
+  "message": "User locked successfully"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Không thể khóa chính tài khoản của bạn"
+}
+```
+- Ghi chú: Ghi log admin action.
+
+### Mở khóa tài khoản người dùng
+
+- Method: PUT
+- Endpoint: `/api/admin/users/:id/unlock`
+- Quyền truy cập: Admin
+- Mô tả: Chuyển `is_active=true`.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "id": "uuid",
+  "status": "active",
+  "message": "User unlocked successfully"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "User not found"
+}
+```
+- Ghi chú: Ghi log admin action.
+
+### Reset mật khẩu người dùng
+
+- Method: POST
+- Endpoint: `/api/admin/users/:id/reset-password`
+- Quyền truy cập: Admin
+- Mô tả: Đặt mật khẩu mới cho user.
+- Params: `id`.
+- Query: Không có.
+- Body:
+```json
+{
+  "password": "Password123"
+}
+```
+- Response thành công:
+```json
+{
+  "id": "uuid",
+  "message": "Password reset successfully"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Cannot reset your own password through admin panel. Use profile settings."
+}
+```
+- Ghi chú: Nếu không gửi `password`, code dùng mặc định `"Password123"`.
+
+### Lấy danh sách lớp học
+
+- Method: GET
+- Endpoint: `/api/admin/classes`
+- Quyền truy cập: Admin
+- Mô tả: Lấy danh sách lớp học.
+- Params: Không có.
+- Query: `search`, `status`, `page`, `limit`.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "classes": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50
+  }
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Chỉ dành cho quản trị viên"
+}
+```
+- Ghi chú: Controller chưa truyền `includeDeleted` dù service có hỗ trợ tham số này.
+
+### Lấy chi tiết lớp học
+
+- Method: GET
+- Endpoint: `/api/admin/classes/:id`
+- Quyền truy cập: Admin
+- Mô tả: Lấy chi tiết lớp, giáo viên và sinh viên đã duyệt.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "id": "uuid",
+  "name": "Lớp CNTT",
+  "teacher": {},
+  "students": []
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Class not found"
+}
+```
+- Ghi chú: Không có route admin restore class trong `adminRoutes.js`.
+
+### Xóa lớp học
+
+- Method: DELETE
+- Endpoint: `/api/admin/classes/:id`
+- Quyền truy cập: Admin
+- Mô tả: Xóa mềm lớp học và ghi log admin.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "message": "Class deleted successfully"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Class not found"
+}
+```
+- Ghi chú: Service có hàm restore nhưng route restore chưa được mount.
+
+### Lấy danh sách ca thi
+
+- Method: GET
+- Endpoint: `/api/admin/exams`
+- Quyền truy cập: Admin
+- Mô tả: Lấy danh sách exam instance toàn hệ thống.
+- Params: Không có.
+- Query: `status=upcoming|ongoing|ended|published|unpublished|suspended`, `search`, `page`, `limit`.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "exams": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50
+  }
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Chỉ dành cho quản trị viên"
+}
+```
+- Ghi chú: `suspended` được normalize thành `unpublished` trong service.
+
+### Lấy chi tiết ca thi
+
+- Method: GET
+- Endpoint: `/api/admin/exams/:id`
+- Quyền truy cập: Admin
+- Mô tả: Lấy chi tiết một exam instance, template, lớp, giáo viên, sessions và submissions.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "id": "uuid",
+  "title": "Giữa kỳ",
+  "status": "ongoing",
+  "sessions": []
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Exam not found"
+}
+```
+- Ghi chú: `:id` là ID của `exam_instance`.
+
+### Lấy dashboard admin
+
+- Method: GET
+- Endpoint: `/api/admin/dashboard`
+- Quyền truy cập: Admin
+- Mô tả: Lấy số liệu dashboard tổng quan.
+- Params: Không có.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "overview": {},
+  "recentActivities": []
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Chỉ dành cho quản trị viên"
+}
+```
+- Ghi chú: Dữ liệu từ `adminService.getDashboardStats`.
+
+### Lấy lịch sử hoạt động admin
+
+- Method: GET
+- Endpoint: `/api/admin/activities`
+- Quyền truy cập: Admin
+- Mô tả: Lấy admin actions của admin hiện tại.
+- Params: Không có.
+- Query: `page`, `limit`, `actionType`.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "activities": [],
+  "pagination": {
+    "page": 1,
+    "limit": 50
+  }
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Chỉ dành cho quản trị viên"
+}
+```
+- Ghi chú: Lọc theo `actionType` nếu có.
+
+### Xuất danh sách sinh viên CSV
+
+- Method: GET
+- Endpoint: `/api/admin/export/students`
+- Quyền truy cập: Admin
+- Mô tả: Xuất danh sách sinh viên ra file CSV.
+- Params: Không có.
+- Query: `classId`, `status=active|locked`.
+- Body: Không có.
+- Response thành công: `text/csv; charset=utf-8`.
+- Response lỗi:
+```json
+{
+  "error": "Chỉ dành cho quản trị viên"
+}
+```
+- Ghi chú: Response có header `Content-Disposition` để tải file.
+
+### Xuất kết quả thi CSV
+
+- Method: GET
+- Endpoint: `/api/admin/export/results/:examId`
+- Quyền truy cập: Admin
+- Mô tả: Xuất kết quả thi của một exam instance.
+- Params: `examId`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công: `text/csv; charset=utf-8`.
+- Response lỗi:
+```json
+{
+  "error": "Exam not found"
+}
+```
+- Ghi chú: `examId` là ID của `exam_instance`.
+
+### Xuất nhật ký thi CSV
+
+- Method: GET
+- Endpoint: `/api/admin/export/logs/:examId`
+- Quyền truy cập: Admin
+- Mô tả: Xuất audit log của một exam instance.
+- Params: `examId`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công: `text/csv; charset=utf-8`.
+- Response lỗi:
+```json
+{
+  "error": "Exam not found"
+}
+```
+- Ghi chú: File CSV có BOM để Excel đọc UTF-8.
+
+## Teacher
+
+### Tạo lớp học
+
+- Method: POST
+- Endpoint: `/api/teacher/classes`
+- Quyền truy cập: Teacher
+- Mô tả: Tạo lớp học mới cho giáo viên hiện tại.
+- Params: Không có.
+- Query: Không có.
+- Body:
+```json
+{
+  "name": "Lớp CNTT",
+  "description": "Mô tả lớp"
+}
+```
+- Response thành công:
+```json
+{
+  "newClass": {
+    "id": "uuid",
+    "code": "abc12345"
+  },
+  "message": "Lớp học đã được tạo thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Tạo lớp học thất bại"
+}
+```
+- Ghi chú: Mã lớp được sinh tự động 8 ký tự.
+
+### Lấy danh sách lớp của giáo viên
+
+- Method: GET
+- Endpoint: `/api/teacher/classes`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy các lớp do giáo viên hiện tại tạo.
+- Params: Không có.
+- Query: `includeDeleted=true|false`.
+- Body: Không có.
+- Response thành công:
+```json
+[
+  {
+    "id": "uuid",
+    "name": "Lớp CNTT",
+    "code": "abc12345"
+  }
+]
+```
+- Response lỗi:
+```json
+{
+  "error": "Lấy danh sách lớp học thất bại"
+}
+```
+- Ghi chú: Middleware teacher cho phép cả role `teacher` và `admin`.
+
+### Lấy chi tiết lớp học
+
+- Method: GET
+- Endpoint: `/api/teacher/classes/:id`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy thông tin lớp và danh sách sinh viên đã duyệt.
+- Params: `id`.
+- Query: `includeDeleted=true|false`.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "classInfo": {},
+  "listStudent": []
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Lấy thông tin lớp học thất bại"
+}
+```
+- Ghi chú: Controller bổ sung `studentInfo` cho từng sinh viên.
+
+### Cập nhật lớp học
+
+- Method: PUT
+- Endpoint: `/api/teacher/classes/:id`
+- Quyền truy cập: Teacher
+- Mô tả: Cập nhật thông tin lớp.
+- Params: `id`.
+- Query: Không có.
+- Body:
+```json
+{
+  "name": "Tên lớp mới",
+  "description": "Mô tả mới"
+}
+```
+- Response thành công:
+```json
+{
+  "updatedClass": {},
+  "message": "Cập nhật lớp học thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Cập nhật thất bại"
+}
+```
+- Ghi chú: Route không có endpoint restore class.
+
+### Xóa lớp học
+
+- Method: DELETE
+- Endpoint: `/api/teacher/classes/:id`
+- Quyền truy cập: Teacher
+- Mô tả: Xóa mềm lớp học của giáo viên.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "message": "Xóa lớp học thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Xóa lớp học thất bại"
+}
+```
+- Ghi chú: Service cascade soft-delete template và exam instance liên quan.
+
+### Thêm sinh viên vào lớp bằng email
+
+- Method: POST
+- Endpoint: `/api/teacher/classes/:classId/students`
+- Quyền truy cập: Teacher
+- Mô tả: Thêm trực tiếp sinh viên vào lớp bằng email.
+- Params: `classId`.
+- Query: Không có.
+- Body:
+```json
+{
+  "email": "student@example.com"
+}
+```
+- Response thành công:
+```json
+{
+  "enrollment": {},
+  "message": "Thêm sinh viên vào lớp thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Chỉ giáo viên mới được thêm sinh viên vào lớp"
+}
+```
+- Ghi chú: Trong controller, role phải đúng `teacher`, admin không được dùng endpoint này.
+
+### Preview import danh sách sinh viên
+
+- Method: POST
+- Endpoint: `/api/teacher/classes/:classId/students/import/preview`
+- Quyền truy cập: Teacher
+- Mô tả: Đọc file danh sách sinh viên và trả kết quả kiểm tra email.
+- Params: `classId`.
+- Query: Không có.
+- Body: `multipart/form-data`, field file là `file`.
+- Upload file: `.csv`, `.txt`, `.xlsx`, `.xls`, `.docx`, tối đa 10MB.
+- Response thành công:
+```json
+{
+  "total": 3,
+  "items": []
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Vui lòng chọn file danh sách sinh viên"
+}
+```
+- Ghi chú: Endpoint chỉ preview, chưa ghi dữ liệu lớp.
+
+### Xác nhận import danh sách sinh viên
+
+- Method: POST
+- Endpoint: `/api/teacher/classes/:classId/students/import/confirm`
+- Quyền truy cập: Teacher
+- Mô tả: Thêm hàng loạt sinh viên vào lớp từ danh sách email đã preview.
+- Params: `classId`.
+- Query: Không có.
+- Body:
+```json
+{
+  "emails": ["student1@example.com", "student2@example.com"]
+}
+```
+- Response thành công:
+```json
+{
+  "addedCount": 2,
+  "skippedCount": 0,
+  "skipped": []
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Danh sách email không hợp lệ"
+}
+```
+- Ghi chú: Email không hợp lệ/trùng/không phải sinh viên sẽ nằm trong `skipped`.
+
+### Xóa sinh viên khỏi lớp
+
+- Method: DELETE
+- Endpoint: `/api/teacher/classes/:classId/students/:studentId`
+- Quyền truy cập: Teacher
+- Mô tả: Xóa enrollment đã duyệt của sinh viên khỏi lớp.
+- Params: `classId`, `studentId`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "message": "Xóa sinh viên khỏi lớp học thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Xóa sinh viên khỏi lớp học thất bại"
+}
+```
+- Ghi chú: Chỉ giáo viên sở hữu lớp được thao tác.
+
+### Lấy yêu cầu tham gia lớp
+
+- Method: GET
+- Endpoint: `/api/teacher/classes/:id/enrollment-requests`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy danh sách yêu cầu pending của lớp.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+[
+  {
+    "id": "uuid",
+    "status": "pending",
+    "student": {}
+  }
+]
+```
+- Response lỗi:
+```json
+{
+  "error": "Lấy danh sách yêu cầu tham gia lớp học thất bại"
+}
+```
+- Ghi chú: Chỉ trả yêu cầu có trạng thái `pending`.
+
+### Duyệt hoặc từ chối yêu cầu tham gia lớp
+
+- Method: POST
+- Endpoint: `/api/teacher/enrollment-requests/approve`
+- Quyền truy cập: Teacher
+- Mô tả: Cập nhật trạng thái yêu cầu tham gia lớp.
+- Params: Không có.
+- Query: Không có.
+- Body:
+```json
+{
+  "requestId": "uuid",
+  "status": "approved"
+}
+```
+- Response thành công:
+```json
+{
+  "message": "Cập nhật trạng thái yêu cầu thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Trạng thái không hợp lệ"
+}
+```
+- Ghi chú: `status` chỉ nhận `approved` hoặc `rejected`.
+
+### Tạo câu hỏi
+
+- Method: POST
+- Endpoint: `/api/teacher/questions`
+- Quyền truy cập: Teacher
+- Mô tả: Tạo câu hỏi trong ngân hàng câu hỏi của giáo viên.
+- Params: Không có.
+- Query: Không có.
+- Body:
+```json
+{
+  "text": "2 + 2 = ?",
+  "type": "SINGLE_CHOICE",
+  "explanation": "Cộng cơ bản",
+  "tags": ["math"],
+  "difficulty": "easy",
+  "choices": [
+    { "text": "4", "is_correct": true },
+    { "text": "5", "is_correct": false }
+  ]
+}
+```
+- Response thành công:
+```json
+{
+  "newQuestion": {},
+  "message": "Câu hỏi đã được thêm thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Nội dung câu hỏi là bắt buộc"
+}
+```
+- Ghi chú: `type` nhận `SINGLE_CHOICE`, `MULTIPLE_CHOICE`, `FILL_IN_THE_BLANK`. Với điền khuyết dùng `correct_text_answer`.
+
+### Lấy danh sách câu hỏi
+
+- Method: GET
+- Endpoint: `/api/teacher/questions`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy danh sách câu hỏi của giáo viên.
+- Params: Không có.
+- Query: Không có trong controller hiện tại.
+- Body: Không có.
+- Response thành công:
+```json
+[
+  {
+    "id": "uuid",
+    "text": "Nội dung câu hỏi",
+    "question_choice": []
+  }
+]
+```
+- Response lỗi:
+```json
+{
+  "error": "Lấy danh sách câu hỏi thất bại"
+}
+```
+- Ghi chú: Service hỗ trợ `includeDeleted`, nhưng controller chưa đọc query này.
+
+### Cập nhật câu hỏi
+
+- Method: PUT
+- Endpoint: `/api/teacher/questions/:id`
+- Quyền truy cập: Teacher
+- Mô tả: Cập nhật câu hỏi và lựa chọn.
+- Params: `id`.
+- Query: Không có.
+- Body:
+```json
+{
+  "text": "Nội dung mới",
+  "type": "MULTIPLE_CHOICE",
+  "choices": [
+    { "text": "A", "is_correct": true },
+    { "text": "B", "is_correct": true }
+  ]
+}
+```
+- Response thành công:
+```json
+{
+  "updatedQuestion": {},
+  "message": "Cập nhật câu hỏi thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Loại câu hỏi không hợp lệ"
+}
+```
+- Ghi chú: Nếu cập nhật `choices`, danh sách phải có ít nhất 2 lựa chọn và ít nhất một đáp án đúng.
+
+### Xóa câu hỏi
+
+- Method: DELETE
+- Endpoint: `/api/teacher/questions/:id`
+- Quyền truy cập: Teacher
+- Mô tả: Xóa mềm câu hỏi.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "message": "Xóa câu hỏi thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Xóa câu hỏi thất bại"
+}
+```
+- Ghi chú: Service dọn media import không còn dùng nếu có.
+
+### Khôi phục câu hỏi
+
+- Method: PUT
+- Endpoint: `/api/teacher/questions/:id/restore`
+- Quyền truy cập: Teacher
+- Mô tả: Khôi phục câu hỏi đã xóa mềm.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "message": "Khôi phục câu hỏi thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Khôi phục câu hỏi thất bại"
+}
+```
+- Ghi chú: Route active trong `teacherRoutes.js`.
+
+### Lấy chi tiết câu hỏi
+
+- Method: GET
+- Endpoint: `/api/teacher/questions/:id`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy chi tiết câu hỏi theo ID.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "id": "uuid",
+  "text": "Nội dung câu hỏi",
+  "question_choice": []
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Lấy chi tiết câu hỏi thất bại"
+}
+```
+- Ghi chú: Controller gọi `getQuestionById(questionId)` không truyền `teacherId`; cần kiểm tra phân quyền chi tiết nếu cần siết.
+
+### Tạo mẫu đề thi
+
+- Method: POST
+- Endpoint: `/api/teacher/exam-templates`
+- Quyền truy cập: Teacher
+- Mô tả: Tạo mẫu đề thi cho một lớp.
+- Params: Không có.
+- Query: Không có.
+- Body:
+```json
+{
+  "title": "Mẫu đề giữa kỳ",
+  "description": "Mô tả",
+  "class_id": "uuid",
+  "duration_seconds": 3600,
+  "shuffle_questions": true,
+  "shuffle_choices": true,
+  "passing_score": 5
+}
+```
+- Response thành công:
+```json
+{
+  "newTemplate": {},
+  "message": "Mẫu đề thi đã được tạo thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Tạo mẫu đề thi thất bại"
+}
+```
+- Ghi chú: Controller kiểm tra lớp thuộc giáo viên hiện tại.
+
+### Lấy danh sách mẫu đề thi của giáo viên
+
+- Method: GET
+- Endpoint: `/api/teacher/exam-templates`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy danh sách mẫu đề thi do giáo viên tạo.
+- Params: Không có.
+- Query: `includeDeleted=true|false`.
+- Body: Không có.
+- Response thành công:
+```json
+[
+  {
+    "id": "uuid",
+    "title": "Mẫu đề giữa kỳ"
+  }
+]
+```
+- Response lỗi:
+```json
+{
+  "error": "Lấy danh sách mẫu đề thi thất bại"
+}
+```
+- Ghi chú: `includeDeleted=true` cho phép xem mẫu đã xóa mềm.
+
+### Cập nhật mẫu đề thi
+
+- Method: PUT
+- Endpoint: `/api/teacher/exam-templates/:id`
+- Quyền truy cập: Teacher
+- Mô tả: Cập nhật mẫu đề thi.
+- Params: `id`.
+- Query: Không có.
+- Body:
+```json
+{
+  "title": "Tên mới",
+  "duration_seconds": 4500,
+  "shuffle_questions": false,
+  "shuffle_choices": true,
+  "passing_score": 6
+}
+```
+- Response thành công:
+```json
+{
+  "updatedTemplate": {},
+  "message": "Cập nhật mẫu đề thi thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Cập nhật mẫu đề thi thất bại"
+}
+```
+- Ghi chú: Boolean dạng string `"true"`/`"false"` được convert.
+
+### Xóa mẫu đề thi
+
+- Method: DELETE
+- Endpoint: `/api/teacher/exam-templates/:id`
+- Quyền truy cập: Teacher
+- Mô tả: Xóa mềm mẫu đề thi.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "message": "Xóa mẫu đề thi thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Xóa mẫu đề thi thất bại: Không được xóa mẫu đề thi đã có đề thi được tạo từ nó"
+}
+```
+- Ghi chú: Controller hiện có gọi `res.json` rồi `res.status(200).end()`, nhưng response thực tế là JSON đầu tiên.
+
+### Khôi phục mẫu đề thi
+
+- Method: PUT
+- Endpoint: `/api/teacher/exam-templates/:id/restore`
+- Quyền truy cập: Teacher
+- Mô tả: Khôi phục mẫu đề thi đã xóa mềm.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "message": "Khôi phục mẫu đề thi thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Khôi phục mẫu đề thi thất bại"
+}
+```
+- Ghi chú: Route active.
+
+### Tìm kiếm mẫu đề thi
+
+- Method: GET
+- Endpoint: `/api/teacher/exam-templates/search`
+- Quyền truy cập: Teacher
+- Mô tả: Tìm mẫu đề thi theo từ khóa.
+- Params: Không có.
+- Query: `keyword`.
+- Body: Không có.
+- Response thành công:
+```json
+[
+  {
+    "id": "uuid",
+    "title": "Mẫu đề giữa kỳ"
+  }
+]
+```
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Nếu không gửi keyword, code dùng chuỗi rỗng.
+
+### Lấy chi tiết mẫu đề thi
+
+- Method: GET
+- Endpoint: `/api/teacher/exam-templates/:id`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy mẫu đề thi theo ID.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "id": "uuid",
+  "title": "Mẫu đề giữa kỳ"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Mẫu đề thi không tồn tại hoặc bạn không có quyền truy cập"
+}
+```
+- Ghi chú: Route `/search` được khai báo trước `/:id`, không bị nuốt bởi dynamic route.
+
+### Tạo ca thi
+
+- Method: POST
+- Endpoint: `/api/teacher/exam-instances`
+- Quyền truy cập: Teacher
+- Mô tả: Tạo ca thi/đề thi cụ thể từ mẫu đề thi.
+- Params: Không có.
+- Query: Không có.
+- Body:
+```json
+{
+  "templateId": "uuid",
+  "title": "Ca thi giữa kỳ",
+  "starts_at": "2026-07-01T08:00:00.000Z",
+  "ends_at": "2026-07-01T09:00:00.000Z",
   "published": false,
+  "show_answers": false,
+  "scoring_mode": "ALL_OR_NOTHING",
   "questions": [
-    {
-        "question_id":"6257fb70-767d-455e-b0a9-c4cad3403fec"
-    },
-    {
-        "question_id":"d9e64199-f9f1-454a-a641-97e67e011bb9"
-    }
-  ]                    
+    { "question_id": "uuid", "points": 1 }
+  ]
 }
 ```
-
-- **Response body:**
-    
-    **201 Created**
-    
-
+- Response thành công:
 ```json
 {
-    "newInstance": {
-        "id": "fde5e3a2-6d68-4639-a456-08bc22f23617",
-        "template_id": "c0b39423-8d22-42ae-b50f-48d4ee0923cf",
-        "starts_at": "2025-12-15T01:00:00.000Z",
-        "ends_at": "2025-12-15T02:30:00.000Z",
-        "published": false,
-        "created_by": "a47756e3-57a3-4cc6-abf7-a7641203e96d",
-        "created_at": "2025-12-13T04:51:19.411Z",
-        "exam_question": [
-            {
-                "id": "27cf31c3-0c3a-48da-83c0-f18479f674b0",
-                "exam_instance_id": "fde5e3a2-6d68-4639-a456-08bc22f23617",
-                "question_id": "6257fb70-767d-455e-b0a9-c4cad3403fec",
-                "ordinal": 0,
-                "points": "1"
-            },
-            {
-                "id": "19cc116b-7d23-4f2c-8bf4-d5dc6062d557",
-                "exam_instance_id": "fde5e3a2-6d68-4639-a456-08bc22f23617",
-                "question_id": "d9e64199-f9f1-454a-a641-97e67e011bb9",
-                "ordinal": 1,
-                "points": "1"
-            }
-        ]
-    },
-    "message": "Đề thi đã được tạo thành công"
+  "newInstance": {},
+  "message": "Đề thi đã được tạo thành công"
 }
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response lỗi:
 ```json
 {
-    "error": "Unauthorized"
+  "error": "Đề thi phải có ít nhất 1 câu hỏi"
 }
 ```
+- Ghi chú: `starts_at` phải là tương lai và nhỏ hơn `ends_at`; `scoring_mode` nhận `ALL_OR_NOTHING` hoặc `PARTIAL_WITH_PENALTY`.
 
-## Endpoint 21 — xóa đề thi  ( Dành cho giáo viên)
+### Xóa ca thi
 
-**DELETE`/api/teacher/exam-instances/:id`**
-
-- **Mô tả: Giáo viên xóa đề thi**
-- **HTTP: DELETE**
-- **URL:** **`/api/teacher/exam-instances/:id`**
-- **Headers:** `Authorization: Bearer <access_token>`
-
-- **Response body:**
-    
-    **200 OK**
-    
-
+- Method: DELETE
+- Endpoint: `/api/teacher/exam-instances/:id`
+- Quyền truy cập: Teacher
+- Mô tả: Xóa mềm ca thi.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
 ```json
 {
-    "message": "Xóa đề thi thành công"
+  "message": "Xóa đề thi thành công"
 }
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response lỗi:
 ```json
 {
-    "error": "Unauthorized"
+  "error": "Xóa đề thi thất bại"
 }
 ```
-    
-- **500 Internal Server Error** (id đề thi sai, ko đúng quyền)
+- Ghi chú: `id` là ID của `exam_instance`.
 
+### Khôi phục ca thi
+
+- Method: PUT
+- Endpoint: `/api/teacher/exam-instances/:id/restore`
+- Quyền truy cập: Teacher
+- Mô tả: Khôi phục ca thi đã xóa mềm.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
 ```json
 {
-    "error": "Không tìm thấy instance đề thi hoặc không có quyền xóa"
+  "message": "Khôi phục đề thi thành công"
 }
 ```
+- Response lỗi:
+```json
+{
+  "error": "Khôi phục đề thi thất bại"
+}
+```
+- Ghi chú: Route active.
 
-## Endpoint 22 — lấy danh sách đề thi theo template  ( Dành cho giáo viên)
+### Lấy ca thi theo mẫu đề
 
-**GET`/api/teacher/exam-templates/:templateId/exam-instances`**
-
-- **Mô tả: lấy danh sách đề thi theo template**
-- **HTTP: GET**
-- **URL:** **`/api/teacher/exam-templates/:templateId/exam-instances`**
-- **Headers:** `Authorization: Bearer <access_token>`
-
-- **Response body:**
-    
-    **200 OK**
-    
-
+- Method: GET
+- Endpoint: `/api/teacher/exam-templates/:templateId/exam-instances`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy danh sách ca thi thuộc một mẫu đề.
+- Params: `templateId`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
 ```json
 [
-    {
-        "id": "e7978e1d-41ec-4850-9005-b200f0f22cb4",
-        "template_id": "c0b39423-8d22-42ae-b50f-48d4ee0923cf",
-        "starts_at": "2025-12-15T01:00:00.000Z",
-        "ends_at": "2025-12-15T02:30:00.000Z",
-        "published": false,
-        "created_by": "a47756e3-57a3-4cc6-abf7-a7641203e96d",
-        "created_at": "2025-12-13T04:57:12.643Z"
-    },
-    {
-        "id": "fde5e3a2-6d68-4639-a456-08bc22f23617",
-        "template_id": "c0b39423-8d22-42ae-b50f-48d4ee0923cf",
-        "starts_at": "2025-12-15T01:00:00.000Z",
-        "ends_at": "2025-12-15T02:30:00.000Z",
-        "published": false,
-        "created_by": "a47756e3-57a3-4cc6-abf7-a7641203e96d",
-        "created_at": "2025-12-13T04:51:19.411Z"
-    }
+  {
+    "id": "uuid",
+    "title": "Ca thi giữa kỳ"
+  }
 ]
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response lỗi:
 ```json
 {
-    "error": "Unauthorized"
+  "error": "Mô tả lỗi"
 }
 ```
-    
-- **500 Internal Server Error** (id đề thi sai, ko đúng quyền)
+- Ghi chú: Giáo viên phải có quyền với template.
 
+### Cập nhật ca thi
+
+- Method: PUT
+- Endpoint: `/api/teacher/exam-instances/:id`
+- Quyền truy cập: Teacher
+- Mô tả: Cập nhật thông tin ca thi và danh sách câu hỏi nếu phiên thi chưa bắt đầu.
+- Params: `id`.
+- Query: Không có.
+- Body:
 ```json
 {
-    "error": "Template đề thi không tồn tại hoăc không có quyền truy cập"
-}
-```
-
-## Endpoint 23 — sửa đề thi theo id  ( Dành cho giáo viên)
-
-**PUT`/api/teacher/exam-instances/:id`**
-
-- **Mô tả: sửa đề thi theo id**
-- **HTTP: PUT**
-- **URL:** **`/api/teacher/exam-instances/:id`**
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Request body:**
-```jsx
-{        
-  "starts_at": "2025-12-15T08:00:00+07:00",     
-  "ends_at": "2025-12-15T09:30:00+07:00",          
+  "title": "Ca thi mới",
+  "starts_at": "2026-07-01T08:00:00.000Z",
+  "ends_at": "2026-07-01T09:00:00.000Z",
   "published": true,
+  "show_answers": false,
+  "scoring_mode": "PARTIAL_WITH_PENALTY",
+  "questions": [
+    { "question_id": "uuid", "points": 2 }
+  ]
+}
+```
+- Response thành công:
+```json
+{
+  "updatedInstance": {},
+  "message": "Cập nhật đề thi thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Danh sách câu hỏi không hợp lệ"
+}
+```
+- Ghi chú: Không được cập nhật câu hỏi nếu đã có session bắt đầu.
+
+### Lấy chi tiết ca thi
+
+- Method: GET
+- Endpoint: `/api/teacher/exam-instances/:id`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy chi tiết ca thi theo ID.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "id": "uuid",
+  "title": "Ca thi giữa kỳ",
+  "exam_question": []
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: `id` là `exam_instance.id`.
+
+### Xuất nhiều mã đề đã trộn
+
+- Method: POST
+- Endpoint: `/api/teacher/exams/:id/export-variants`
+- Quyền truy cập: Teacher
+- Mô tả: Xuất một hoặc nhiều biến thể đề thi dạng DOCX/PDF/ZIP, có thể kèm CSV đáp án.
+- Params: `id` là `exam_instance.id`.
+- Query: Không có.
+- Body:
+```json
+{
+  "format": "docx",
+  "variantCount": 3,
+  "includeAnswerCsv": true
+}
+```
+- Response thành công: File binary với `Content-Type` tương ứng.
+- Response lỗi:
+```json
+{
+  "error": "Định dạng không hợp lệ"
+}
+```
+- Ghi chú: `format` nhận `docx`, `doc`, `pdf`; `variantCount` bị giới hạn 1-50. Với nhiều biến thể hoặc kèm đáp án sẽ trả ZIP.
+
+### Tìm sinh viên trong lớp
+
+- Method: GET
+- Endpoint: `/api/teacher/classes/:classId/students`
+- Quyền truy cập: Teacher
+- Mô tả: Tìm sinh viên đã được duyệt trong lớp theo từ khóa.
+- Params: `classId`.
+- Query: `keyword`.
+- Body: Không có.
+- Response thành công:
+```json
+[
+  {
+    "id": "uuid",
+    "email": "student@example.com",
+    "name": "Nguyễn Văn A"
+  }
+]
+```
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Tài liệu cũ ghi nhầm method PUT và dư dấu `/`.
+
+### Công bố ca thi
+
+- Method: POST
+- Endpoint: `/api/teacher/exam-instances/:id/publish`
+- Quyền truy cập: Teacher
+- Mô tả: Đặt `published=true` cho ca thi.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "message": "Công bố đề thi thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Sau khi publish, sinh viên mới thấy ca thi nếu thuộc lớp và trong danh sách đã duyệt.
+
+### Hủy công bố ca thi
+
+- Method: POST
+- Endpoint: `/api/teacher/exam-instances/:id/unpublish`
+- Quyền truy cập: Teacher
+- Mô tả: Đặt `published=false` cho ca thi.
+- Params: `id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "message": "Hủy công bố đề thi thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Không xóa dữ liệu ca thi.
+
+### Cộng hoặc đặt thêm thời gian cho sinh viên
+
+- Method: POST
+- Endpoint: `/api/teacher/exam-instances/:id/accommodations`
+- Quyền truy cập: Teacher
+- Mô tả: Tạo/cập nhật thời gian cộng thêm cho một sinh viên trong ca thi.
+- Params: `id` là `exam_instance.id`.
+- Query: Không có.
+- Body:
+```json
+{
+  "student_id": "uuid",
+  "extra_seconds": 600,
+  "notes": "Gia hạn 10 phút"
+}
+```
+- Response thành công:
+```json
+{
+  "accommodation": {},
+  "message": "Cập nhật thêm thời gian thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Cần cung cấp extra_seconds (tuyệt đối) hoặc add_seconds (cộng dồn)"
+}
+```
+- Ghi chú: Có thể dùng `add_seconds` để cộng dồn; nếu session đang thi có thể broadcast qua Socket.IO.
+
+### Lấy sinh viên đang thi trong lớp
+
+- Method: GET
+- Endpoint: `/api/teacher/classes/:classId/active-students`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy danh sách sinh viên có phiên thi `started` trong lớp.
+- Params: `classId`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+[
+  {
+    "student": {},
+    "session": {}
+  }
+]
+```
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Dùng cho màn hình giám sát nhanh.
+
+### Lấy danh sách cờ vi phạm theo ca thi
+
+- Method: GET
+- Endpoint: `/api/teacher/classes/:examInstanceId/flags`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy danh sách session flag của một ca thi.
+- Params: `examInstanceId`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+[
+  {
+    "flag_type": "focus_lost_threshold",
+    "details": {},
+    "student": {}
+  }
+]
+```
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Tên route có prefix `classes` nhưng param thực tế là `examInstanceId`; cần cân nhắc đổi route trong tương lai nếu muốn rõ nghĩa hơn.
+
+### Khóa thủ công phiên thi
+
+- Method: POST
+- Endpoint: `/api/teacher/exam-sessions/:id/lock`
+- Quyền truy cập: Teacher
+- Mô tả: Chuyển phiên thi sang `locked`.
+- Params: `id` là `exam_session.id`.
+- Query: Không có.
+- Body:
+```json
+{
+  "reason": "Phát hiện vi phạm"
+}
+```
+- Response thành công:
+```json
+{
+  "session": {},
+  "message": "Khóa phiên thi thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Tạo cờ `manual_lock`.
+
+### Mở khóa thủ công phiên thi
+
+- Method: POST
+- Endpoint: `/api/teacher/exam-sessions/:id/unlock`
+- Quyền truy cập: Teacher
+- Mô tả: Mở khóa phiên thi.
+- Params: `id` là `exam_session.id`.
+- Query: Không có.
+- Body:
+```json
+{
+  "reason": "Cho phép tiếp tục"
+}
+```
+- Response thành công:
+```json
+{
+  "session": {},
+  "message": "Mở khóa phiên thi thành công"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Tạo cờ `manual_unlock`.
+
+### Lấy ca thi của một lớp
+
+- Method: GET
+- Endpoint: `/api/teacher/classes/:classId/exam-instances`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy tất cả exam instance thuộc lớp.
+- Params: `classId`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+[
+  {
+    "id": "uuid",
+    "title": "Ca thi giữa kỳ"
+  }
+]
+```
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Giáo viên phải sở hữu lớp.
+
+### Lấy dữ liệu giám sát ca thi theo lớp
+
+- Method: GET
+- Endpoint: `/api/teacher/classes/:classId/exam-instances/:examInstanceId/monitor`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy dữ liệu tổng hợp cho trang giám sát.
+- Params: `classId`, `examInstanceId`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "summary": {
+    "notStarted": 0,
+    "inProgress": 0,
+    "submitted": 0,
+    "locked": 0,
+    "flagged": 0
+  },
+  "students": [],
+  "flags": []
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Response gồm trạng thái online/offline, progress và flags.
+
+### Lấy tiến độ làm bài theo lớp
+
+- Method: GET
+- Endpoint: `/api/teacher/classes/:classId/exam-instances/:examInstanceId/progress`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy tiến độ làm bài của sinh viên trong lớp.
+- Params: `classId`, `examInstanceId`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "not_started": [],
+  "in_progress": [],
+  "submitted": []
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Dùng cho báo cáo/giám sát tiến độ.
+
+### Lấy dashboard giáo viên
+
+- Method: GET
+- Endpoint: `/api/teacher/dashboard`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy thống kê dashboard của giáo viên hiện tại.
+- Params: Không có.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "summary": {},
+  "recentClasses": [],
+  "recentExams": []
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Lấy thông tin dashboard thất bại"
+}
+```
+- Ghi chú: Dữ liệu từ `teacherService.getDashboardStats`.
+
+### Xuất sinh viên trong lớp CSV
+
+- Method: GET
+- Endpoint: `/api/teacher/export/students/:classId`
+- Quyền truy cập: Teacher
+- Mô tả: Xuất danh sách sinh viên của lớp ra CSV.
+- Params: `classId`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công: `text/csv; charset=utf-8`.
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Có header tải file.
+
+### Xuất kết quả thi CSV
+
+- Method: GET
+- Endpoint: `/api/teacher/export/results/:examId`
+- Quyền truy cập: Teacher
+- Mô tả: Xuất kết quả của một ca thi.
+- Params: `examId` là `exam_instance.id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công: `text/csv; charset=utf-8`.
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Chỉ giáo viên sở hữu ca thi được xuất.
+
+### Xuất nhật ký thi CSV
+
+- Method: GET
+- Endpoint: `/api/teacher/export/logs/:examId`
+- Quyền truy cập: Teacher
+- Mô tả: Xuất audit log của một ca thi.
+- Params: `examId` là `exam_instance.id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công: `text/csv; charset=utf-8`.
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Chỉ giáo viên sở hữu ca thi được xuất.
+
+### Lấy điểm sinh viên trong lớp theo ca thi
+
+- Method: GET
+- Endpoint: `/api/teacher/classes/:classId/exam-instances/:examInstanceId/scores`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy danh sách điểm của sinh viên trong lớp ở một ca thi.
+- Params: `classId`, `examInstanceId`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+[
+  {
+    "student": {},
+    "score": 8,
+    "max_score": 10
+  }
+]
+```
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Dùng cho trang điểm/báo cáo.
+
+### Lấy mẫu đề thi theo lớp
+
+- Method: GET
+- Endpoint: `/api/teacher/classes/:classId/exam-templates`
+- Quyền truy cập: Teacher
+- Mô tả: Lấy danh sách mẫu đề thi của một lớp.
+- Params: `classId`.
+- Query: `includeDeleted=true|false`.
+- Body: Không có.
+- Response thành công:
+```json
+[
+  {
+    "id": "uuid",
+    "title": "Mẫu đề giữa kỳ"
+  }
+]
+```
+- Response lỗi:
+```json
+{
+  "error": "Mô tả lỗi"
+}
+```
+- Ghi chú: Có thể xem mẫu đã xóa bằng `includeDeleted=true`.
+
+### Preview import câu hỏi từ file đề
+
+- Method: POST
+- Endpoint: `/api/teacher/questions/import/preview`
+- Quyền truy cập: Teacher
+- Mô tả: Đọc file DOCX/PDF và preview danh sách câu hỏi parse được.
+- Params: Không có.
+- Query: Không có.
+- Body: `multipart/form-data`, field file là `file`.
+- Upload file: `.docx`, `.pdf`, tối đa 20MB.
+- Response thành công:
+```json
+{
+  "success": true,
+  "data": {
+    "total": 10,
+    "questions": [],
+    "mediaUrls": []
+  }
+}
+```
+- Response lỗi:
+```json
+{
+  "success": false,
+  "message": "Không tìm thấy file upload"
+}
+```
+- Ghi chú: Ảnh import tạm có thể được phục vụ qua `/api/media/imported/...`.
+
+### Xác nhận import câu hỏi
+
+- Method: POST
+- Endpoint: `/api/teacher/questions/import/confirm`
+- Quyền truy cập: Teacher
+- Mô tả: Lưu các câu hỏi đã preview vào ngân hàng câu hỏi.
+- Params: Không có.
+- Query: Không có.
+- Body:
+```json
+{
   "questions": [
     {
-        "question_id":"d9e64199-f9f1-454a-a641-97e67e011bb9"
+      "text": "Nội dung câu hỏi",
+      "type": "SINGLE_CHOICE",
+      "choices": [
+        { "text": "A", "is_correct": true },
+        { "text": "B", "is_correct": false }
+      ]
     }
-  ]                    
+  ]
 }
 ```
-
-- **Response body:**
-    
-    **200 OK**
-    
-
+- Response thành công:
 ```json
 {
-    "updatedInstance": {
-        "id": "7d19364a-f5ae-4f81-bcec-bd405f4a9460",
-        "template_id": "c0b39423-8d22-42ae-b50f-48d4ee0923cf",
-        "starts_at": "2025-12-15T01:00:00.000Z",
-        "ends_at": "2025-12-15T02:30:00.000Z",
-        "published": true,
-        "created_by": "a47756e3-57a3-4cc6-abf7-a7641203e96d",
-        "created_at": "2025-12-13T08:48:24.824Z",
-        "exam_question": [
-            {
-                "id": "95e29541-616f-496f-8f81-1912d644373e",
-                "exam_instance_id": "7d19364a-f5ae-4f81-bcec-bd405f4a9460",
-                "question_id": "d9e64199-f9f1-454a-a641-97e67e011bb9",
-                "ordinal": 0,
-                "points": "1"
-            }
-        ]
-    },
-    "message": "Cập nhật đề thi thành công"
+  "message": "Thêm câu hỏi thành công",
+  "totalImported": 1,
+  "questions": []
 }
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response lỗi:
 ```json
 {
-    "error": "Unauthorized"
+  "success": false,
+  "error": "Danh sách câu hỏi không hợp lệ"
 }
 ```
+- Ghi chú: Teacher ID lấy từ access token.
 
-## Endpoint 24 — lấy chi tiết đề thi theo id  ( Dành cho giáo viên)
+### Dọn media import tạm
 
-**PUT`/api/teacher/exam-instances/:id`**
-
-- **Mô tả: lấy chi tiết đề thi theo id**
-- **HTTP: PUT**
-- **URL:** **`/api/teacher/exam-instances/:id`**
-- **Headers:** `Authorization: Bearer <access_token>`
-
-- **Response body:**
-    
-    **200 OK**
-    
-
+- Method: POST
+- Endpoint: `/api/teacher/questions/import/cleanup-media`
+- Quyền truy cập: Teacher
+- Mô tả: Xóa các media preview không còn dùng.
+- Params: Không có.
+- Query: Không có.
+- Body:
 ```json
 {
-    "id": "7d19364a-f5ae-4f81-bcec-bd405f4a9460",
-    "template_id": "c0b39423-8d22-42ae-b50f-48d4ee0923cf",
-    "starts_at": "2025-12-15T01:00:00.000Z",
-    "ends_at": "2025-12-15T02:30:00.000Z",
-    "published": true,
-    "created_by": "a47756e3-57a3-4cc6-abf7-a7641203e96d",
-    "created_at": "2025-12-13T08:48:24.824Z",
-    "exam_question": [
-        {
-            "id": "95e29541-616f-496f-8f81-1912d644373e",
-            "exam_instance_id": "7d19364a-f5ae-4f81-bcec-bd405f4a9460",
-            "question_id": "d9e64199-f9f1-454a-a641-97e67e011bb9",
-            "ordinal": 0,
-            "points": "1"
-        }
-    ]
+  "mediaUrls": ["/api/media/imported/path/to/image.png"]
 }
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response thành công:
 ```json
 {
-    "error": "Unauthorized"
+  "success": true,
+  "deleted": 1
 }
 ```
+- Response lỗi:
+```json
+{
+  "success": false,
+  "error": "Khong the don dep anh import"
+}
+```
+- Ghi chú: Chỉ xóa media không còn được tham chiếu trong câu hỏi.
 
-## Endpoint 25 — Tìm kiếm sinh viên trong lớp học theo tên  ( Dành cho giáo viên)
+## Student
 
-**GET`/api/teacher/classes/:classId/students`**
+### Gửi yêu cầu tham gia lớp
 
-- **Mô tả: Tìm kiếm sinh viên trong lớp học theo tên**
-- **HTTP: PUT**
-- **URL:** **`/api/teacher//classes/:classId/students`**
-- **Headers:** `Authorization: Bearer <access_token>`
+- Method: POST
+- Endpoint: `/api/student/enroll`
+- Quyền truy cập: Student
+- Mô tả: Sinh viên gửi yêu cầu tham gia lớp bằng mã lớp.
+- Params: Không có.
+- Query: Không có.
+- Body:
+```json
+{
+  "classCode": "abc12345",
+  "note": "Em xin tham gia lớp"
+}
+```
+- Response thành công:
+```json
+{
+  "enrollmentRequest": {},
+  "message": "Yêu cầu tham gia lớp học đã được gửi"
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Tham gia lớp học thất bại: Lớp học không tồn tại"
+}
+```
+- Ghi chú: Tạo trạng thái `pending`, giáo viên cần duyệt.
 
-- **Response body:**
-    
-    **200 OK**
-    
+### Lấy danh sách lớp đã tham gia
 
+- Method: GET
+- Endpoint: `/api/student/classes`
+- Quyền truy cập: Student
+- Mô tả: Lấy các lớp của sinh viên theo trạng thái enrollment.
+- Params: Không có.
+- Query: `status=pending|approved` bắt buộc theo service.
+- Body: Không có.
+- Response thành công:
 ```json
 [
-    {
-        "id": "92a15ea0-3b9a-4cf4-9a13-ff26597aa53d",
-        "name": "student11",
-        "email": "student1@gmail.com"
-    }
+  {
+    "id": "uuid",
+    "name": "Lớp CNTT"
+  }
 ]
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response lỗi:
 ```json
 {
-    "error": "Unauthorized"
+  "error": "Trạng thái không hợp lệ"
 }
 ```
+- Ghi chú: Nếu không gửi status, service hiện trả lỗi.
 
-## Endpoint 26 — Tạo template  ( Dành cho giáo viên)
+### Rời lớp học
 
-**POST`/api/teacher/exam-templates`**
-
-- **Mô tả: Giáo viên tạo đề thi**
-- **HTTP: POST**
-- **URL:** **`/api/teacher/exam-templates`**
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Request body:**
-
-```jsx
-{
-    "title":"Kỳ thi cuối học kỳ 1 Môn Toán",
-    "description":"Kỳ học 1234",
-    "class_id":"a03cc090-d543-4474-96d5-1589d91f6027",
-    "duration_seconds":3600,
-    "shuffle_questions":false,
-    "passing_score":30
-}
-```
-
-- **Response body:**
-    
-    **201 Created**
-    
-
+- Method: DELETE
+- Endpoint: `/api/student/classes/:id`
+- Quyền truy cập: Student
+- Mô tả: Xóa enrollment `approved` của sinh viên khỏi lớp.
+- Params: `id` là class ID.
+- Query: Không có.
+- Body: Không có.
+- Response thành công: HTTP 204, không có body.
+- Response lỗi:
 ```json
 {
-    "message": "Mẫu đề thi đã được tạo thành công"
+  "error": "Rời lớp học thất bại"
 }
 ```
+- Ghi chú: Chỉ xóa yêu cầu đã được duyệt.
 
-- **401 Unauthorized** (missing/invalid token)
+### Lấy ca thi theo lớp
 
-```json
-{
-    "error": "Unauthorized"
-}
-```
-## Endpoint 27 — Lấy toàn bộ template của 1 giáo viên  ( Dành cho giáo viên)
-
-**GET`/api/teacher/exam-templates`**
-
-- **Mô tả: Giáo viên lấy toàn bộ danh sách template**
-- **HTTP: GET**
-- **URL:** **`/api/teacher/exam-templates`**
-- **Headers:** `Authorization: Bearer <access_token>`
-
-- **Response body:**
-    
-    **200 OK**
-    
-
+- Method: GET
+- Endpoint: `/api/student/exams/classes/:id`
+- Quyền truy cập: Student
+- Mô tả: Lấy danh sách ca thi đã công bố của lớp mà sinh viên đã được duyệt.
+- Params: `id` là class ID.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
 ```json
 [
-    {
-        "id": "8519b687-237a-412d-8e04-e54b46a922cd",
-        "class_id": "a03cc090-d543-4474-96d5-1589d91f6027",
-        "title": "Kỳ thi cuối học kỳ 1 Môn Toán",
-        "description": "Kỳ học 1234",
-        "duration_seconds": 3600,
-        "shuffle_questions": false,
-        "passing_score": "30",
-        "created_by": "2f5d4ab2-d9a9-43f7-9175-9ec7f1ccc37c",
-        "created_at": "2025-12-16T01:24:53.979Z"
-    },
-    {
-        "id": "b6b4f31c-8aec-41b8-8752-df165e6915ce",
-        "class_id": "a03cc090-d543-4474-96d5-1589d91f6027",
-        "title": "Kỳ thi cuối học kỳ 1 Môn Toán",
-        "description": "Kỳ học 1234",
-        "duration_seconds": 3600,
-        "shuffle_questions": false,
-        "passing_score": "30",
-        "created_by": "2f5d4ab2-d9a9-43f7-9175-9ec7f1ccc37c",
-        "created_at": "2025-12-12T10:22:39.245Z"
-    }
+  {
+    "id": "uuid",
+    "title": "Ca thi giữa kỳ",
+    "status": "ongoing",
+    "session_state": null,
+    "submitted": false
+  }
 ]
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response lỗi:
 ```json
 {
-    "error": "Unauthorized"
+  "error": "Lấy danh sách đề thi thất bại: Sinh viên không tham gia lớp học này"
 }
 ```
+- Ghi chú: Chỉ trả ca thi `published=true` và chưa bị xóa.
 
-## Endpoint 28 — Chỉnh template  ( Dành cho giáo viên)
+### Lấy tổng quan bài thi
 
-**PUT`/api/teacher/exam-templates/:id`**
-
-- **Mô tả: Giáo viên chỉnh sửa template theo các trường trong request gửi đi**
-- **HTTP: PUT**
-- **URL:** **`/api/teacher/exam-templates/:id`**
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Request body:**
-
-```jsx
-{
-    "title":"Đã thay đổi",
-    "description":"Đã thay đổi",
-    "duration_seconds":1000,
-    "shuffle_questions": true,
-    "passing_score": 51
-}
-```
-
-- **Response body:**
-    
-    **200 OK**
-    
-
+- Method: GET
+- Endpoint: `/api/student/exams/overview`
+- Quyền truy cập: Student
+- Mô tả: Lấy tất cả ca thi đã công bố trong các lớp đã duyệt và thống kê kết quả.
+- Params: Không có.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
 ```json
 {
-    "updatedTemplate": {
-        "id": "c7f33454-df9d-4b10-b0f8-d643abf2d13f",
-        "class_id": "a03cc090-d543-4474-96d5-1589d91f6027",
-        "title": "Đã thay đổi",
-        "description": "Đã thay đổi",
-        "duration_seconds": 1000,
-        "shuffle_questions": true,
-        "passing_score": "51",
-        "created_by": "2f5d4ab2-d9a9-43f7-9175-9ec7f1ccc37c",
-        "created_at": "2025-12-12T10:18:04.360Z"
-    },
-    "message": "Cập nhật mẫu đề thi thành công"
+  "exams": [],
+  "summary": {
+    "completedCount": 0,
+    "notAttemptedCount": 0,
+    "upcomingCount": 0,
+    "averageScore": 0
+  }
 }
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response lỗi:
 ```json
 {
-    "error": "Unauthorized"
+  "error": "Lấy tổng quan bài thi thất bại: Mô tả lỗi"
 }
 ```
-## Endpoint 29 — Xóa template theo id  ( Dành cho giáo viên)
+- Ghi chú: Điểm chuẩn hóa được tính theo thang 10 trong service.
 
-**DELETE `/api/teacher/exam-templates/:id`**
+### Bắt đầu ca thi
 
-- **Mô tả: Giáo viên xóa template**
-- **HTTP: DELETE**
-- **URL:** **`/api/teacher/exam-templates/:id`**
-- **Headers:** `Authorization: Bearer <access_token>`
-
-- **Response body:**
-    
-    **200 OK**
-    
-
+- Method: POST
+- Endpoint: `/api/student/exams/:id/start`
+- Quyền truy cập: Student
+- Mô tả: Tạo hoặc resume phiên thi cho ca thi đang mở.
+- Params: `id` là `exam_instance.id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
 ```json
 {
-    "message": "Xóa mẫu đề thi thành công"
+  "session_id": "uuid",
+  "token": "session-token",
+  "started_at": "2026-07-01T08:00:00.000Z",
+  "ends_at": "2026-07-01T09:00:00.000Z",
+  "duration_seconds": 3600,
+  "state": "started",
+  "questions": []
 }
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response lỗi:
 ```json
 {
-    "error": "Unauthorized"
+  "error": "Bắt đầu kỳ thi thất bại: Đề thi không nằm trong khung thời gian cho phép"
 }
 ```
+- Ghi chú: Lưu IP/User-Agent, sinh `exam_session.token`; client phải dùng token này ở header `X-Exam-Token`.
 
-## Endpoint 30 — Lấy toàn bộ template của 1 giáo viên theo keyword  ( Dành cho giáo viên)
+### Hủy yêu cầu tham gia lớp
 
-**GET`/api/teacher/exam-templates/search`**
+- Method: POST
+- Endpoint: `/api/student/classes/:id/cancel-enrollment`
+- Quyền truy cập: Student
+- Mô tả: Hủy yêu cầu tham gia lớp đang pending.
+- Params: `id` là class ID.
+- Query: Không có.
+- Body: Không có.
+- Response thành công: HTTP 204, không có body.
+- Response lỗi:
+```json
+{
+  "error": "Hủy yêu cầu tham gia lớp học thất bại: Mô tả lỗi"
+}
+```
+- Ghi chú: Service cập nhật trạng thái hoặc xóa tùy logic hiện tại.
 
-- **Mô tả: Giáo viên lấy toàn bộ danh sách template**
-- **HTTP: GET**
-- **URL:** **`/api/teacher/exam-templates/search?keyword={params}`**
-- **Headers:** `Authorization: Bearer <access_token>`
+### Lấy câu hỏi trong phiên thi
 
-- **Response body:**
-    
-    **200 OK**
-    
-
+- Method: GET
+- Endpoint: `/api/student/sessions/:id/questions`
+- Quyền truy cập: Student + `X-Exam-Token`
+- Mô tả: Lấy danh sách câu hỏi theo thứ tự đã lưu trong phiên thi.
+- Params: `id` là `exam_session.id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
 ```json
 [
-    {
-        "id": "9d97c0f9-8b8a-4c66-aaea-4259cae79e6c",
-        "class_id": "a03cc090-d543-4474-96d5-1589d91f6027",
-        "title": "Đã thay đổi",
-        "description": "Đã thay đổi",
-        "duration_seconds": 1000,
-        "shuffle_questions": true,
-        "passing_score": "51",
-        "created_by": "2f5d4ab2-d9a9-43f7-9175-9ec7f1ccc37c",
-        "created_at": "2025-12-12T10:18:06.726Z"
-    }
+  {
+    "id": "uuid",
+    "text": "Câu hỏi",
+    "type": "SINGLE_CHOICE",
+    "choices": [],
+    "selected_choice_ids": []
+  }
 ]
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response lỗi:
 ```json
 {
-    "error": "Unauthorized"
+  "error": "Thieu token phien lam bai (X-Exam-Token)"
 }
 ```
+- Ghi chú: Middleware kiểm tra session token, owner, trạng thái `started`, IP/User-Agent.
 
+### Heartbeat phiên thi
 
-## Endpoint 31 — Giáo viên công bố đề thi  ( Dành cho giáo viên)
-
-**POST`/api/teacher/exam-instances/:id/publish`**
-
-- **Mô tả: Giáo viên công bố đề thi cho sinh viên thấy**
-- **HTTP: POST**
-- **URL:** **`/api/teacher/exam-instances/:id/publish`**
-- **Headers:** `Authorization: Bearer <access_token>`
-
-- **Response body:**
-    
-    **200 OK**
-    
-
+- Method: POST
+- Endpoint: `/api/student/sessions/:id/heartbeat`
+- Quyền truy cập: Student + `X-Exam-Token`
+- Mô tả: Cập nhật heartbeat, ghi nhận mất focus/chuyển tab.
+- Params: `id` là `exam_session.id`.
+- Query: Không có.
+- Body:
 ```json
 {
-    "message": "Công bố đề thi thành công"
+  "focusLost": true
 }
 ```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response thành công:
 ```json
 {
-    "error": "Unauthorized"
+  "state": "started",
+  "focus_lost_count": 1,
+  "locked": false
 }
 ```
-
-## Endpoint 32 — Sinh viên lấy danh sách đề thi trong lớp học  ( Dành cho sinh viên)
-
-**GET`/api/student/exams/classes/id`**
-
-- **Mô tả: Sinh viên lấy danh sách đề thi trong lớp học theo id của lớp**
-- **HTTP: POST**
-- **URL:** **`/api/student/exams/classes/id`**
-- **Headers:** `Authorization: Bearer <access_token>`
-
-- **Response body:**
-    
-    **200 OK**
-    
-
-```json
-[
-    {
-        "id": "7d19364a-f5ae-4f81-bcec-bd405f4a9460",
-        "title": "Kỳ thi giữa kỳ môn Toán lớp 10A1",
-        "starts_at": "2025-12-15T01:00:00.000Z",
-        "ends_at": "2025-12-15T02:30:00.000Z",
-        "duration": 3600,
-        "passing_score": "5",
-        "status": "ended"
-    }
-]
-```
-
-- **401 Unauthorized** (missing/invalid token)
-
+- Response lỗi:
 ```json
 {
-    "error": "Unauthorized"
+  "error": "Heartbeat thất bại: Phiên làm bài không ở trạng thái đang diễn ra"
 }
 ```
+- Ghi chú: Nếu vượt `EXAM_FOCUS_LOST_THRESHOLD`, phiên bị khóa và tạo flag `focus_lost_threshold`.
+
+### Lưu đáp án
+
+- Method: POST
+- Endpoint: `/api/student/sessions/:id/answers`
+- Quyền truy cập: Student + `X-Exam-Token`
+- Mô tả: Lưu hoặc ghi đè đáp án của một câu hỏi trong phiên.
+- Params: `id` là `exam_session.id`.
+- Query: Không có.
+- Body:
+```json
+{
+  "question_id": "uuid",
+  "choice_ids": ["choice-uuid"]
+}
+```
+- Response thành công:
+```json
+{
+  "question_id": "uuid",
+  "choice_ids": ["choice-uuid"]
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Lưu đáp án thất bại: Thiếu question_id hoặc choice_ids"
+}
+```
+- Ghi chú: Có thể gửi `choice_id` thay cho `choice_ids`. Với câu điền khuyết, service lấy text từ phần tử đầu tiên của `choice_ids`.
+
+### Nộp bài
+
+- Method: POST
+- Endpoint: `/api/student/sessions/:id/submit`
+- Quyền truy cập: Student + `X-Exam-Token`
+- Mô tả: Chuyển phiên thi sang submitted và tạo submission tự động.
+- Params: `id` là `exam_session.id`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "submission": {
+    "id": "uuid",
+    "score": 8,
+    "max_score": 10
+  }
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Nộp bài thất bại: Phiên làm bài không ở trạng thái đang diễn ra"
+}
+```
+- Ghi chú: Chấm điểm dựa trên `scoring_mode` của exam instance.
+
+### Lấy dashboard sinh viên
+
+- Method: GET
+- Endpoint: `/api/student/dashboard`
+- Quyền truy cập: Student
+- Mô tả: Lấy dashboard cá nhân của sinh viên.
+- Params: Không có.
+- Query: Không có.
+- Body: Không có.
+- Response thành công:
+```json
+{
+  "summary": {},
+  "upcomingExams": [],
+  "recentSubmissions": []
+}
+```
+- Response lỗi:
+```json
+{
+  "error": "Lấy dashboard thất bại: Mô tả lỗi"
+}
+```
+- Ghi chú: Dữ liệu từ `studentService.getStudentDashboard`.
+
+## File upload / Media
+
+### Upload ảnh lên Cloudinary
+
+- Method: POST
+- Endpoint: `/api/upload/image`
+- Quyền truy cập: Public trong router hiện tại
+- Mô tả: Upload ảnh lên Cloudinary và trả URL.
+- Params: Không có.
+- Query: Không có.
+- Body: `multipart/form-data`, field file là `image`.
+- Upload file: MIME `image/jpeg`, `image/png`, `image/webp`, `image/gif`, tối đa 5MB.
+- Response thành công:
+```json
+{
+  "message": "Upload anh thanh cong",
+  "url": "https://res.cloudinary.com/...",
+  "publicId": "online-exam/...",
+  "width": 800,
+  "height": 600,
+  "format": "png"
+}
+```
+- Response lỗi:
+```json
+{
+  "message": "Khong tim thay file anh"
+}
+```
+- Ghi chú: `routes/index.js` đang mount `/upload` trước auth, nên endpoint này không cần đăng nhập theo code hiện tại.
+
+### Lấy media import cục bộ
+
+- Method: GET
+- Endpoint: `/api/media/imported/*`
+- Quyền truy cập: Authenticated
+- Mô tả: Trả file ảnh/media được tách ra khi import đề.
+- Params: wildcard path sau `/imported/`.
+- Query: Không có.
+- Body: Không có.
+- Response thành công: File binary qua `res.sendFile`.
+- Response lỗi:
+```json
+{
+  "error": "Khong tim thay anh"
+}
+```
+- Ghi chú: Controller chặn path traversal và chỉ đọc trong `backend/uploads/imported-media`.
+
+## API cũ/không còn sử dụng hoặc cần kiểm tra thêm
+
+### POST `/api/auth/register`
+
+- Lý do: route này đang bị comment trong `backend/src/routes/authRoutes.js`; luồng hiện tại là `/api/auth/register-request` và `/api/auth/register-confirm`.
+
+### `/api/exam-import/*`
+
+- Lý do: `app.use("/api/exam-import", examImportRoutes)` đang bị comment trong `backend/src/server.js`; file `examImportRoutes(delete).js` cũng là file comment/delete. Chức năng import đề hiện active dưới `/api/teacher/questions/import/*`.
+
+### PUT `/api/admin/classes/:id/restore`
+
+- Lý do: `adminController.restoreClass` và `adminService.restoreClass` có tồn tại, nhưng `backend/src/routes/adminRoutes.js` không khai báo route này.
+
+### PUT `/api/teacher/classes/:id/restore`
+
+- Lý do: `teacherController.restoreClass` và `teacherService.restoreClass` có tồn tại, nhưng `backend/src/routes/teacherRoutes.js` không khai báo route này.
+
+### GET `/api/teacher/questions?includeDeleted=true`
+
+- Lý do: `teacherService.getQuestionsbyTeacher` có nhận option `includeDeleted`, nhưng `teacherController.getQuestionsbyTeacher` hiện không đọc query và luôn gọi service không truyền option. Cần kiểm tra thêm nếu frontend đang kỳ vọng query này.
